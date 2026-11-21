@@ -4,12 +4,32 @@ import java.util.Locale
 
 data class Assessment(val classification: Classification, val reason: String)
 
-/** Pure, ordered rules. No guessed package IDs or hardcoded third-party channel names. */
 object NotificationClassifier {
-    fun assess(context: NotificationContext, config: GameConfig): Assessment {
-        fun important(reason: String) = Assessment(Classification.Important, reason)
-        fun bait(reason: String) = Assessment(Classification.Bait, reason)
-        fun unknown(reason: String) = Assessment(Classification.Unknown, reason)
+    private fun important(reason: String) = Assessment(Classification.Important, reason)
+    private fun bait(reason: String) = Assessment(Classification.Bait, reason)
+    private fun unknown(reason: String) = Assessment(Classification.Unknown, reason)
+
+    /** The tap path's entry point: the user's choice for the app (Settings > Notification rules) decides first. */
+    fun assess(context: NotificationContext, config: GameConfig): Assessment =
+        when (config.ruleFor(context.packageName)) {
+            AppRule.AlwaysImportant -> important("app_always_important")
+            AppRule.AlwaysBait -> bait("app_always_bait")
+            AppRule.LetUsDecide -> letUsDecide(context, config)
+        }
+
+    /**
+     * Placeholder judge for apps left on "Let us decide": for now every notification is non-essential.
+     * TODO(Person 2): judge with config.essentialCriteria / nonEssentialCriteria / strictness (and
+     * [assessByRules] or a model for unclear cases), returning Unknown (NoPenalty) when unsure.
+     */
+    @Suppress("UNUSED_PARAMETER")
+    private fun letUsDecide(context: NotificationContext, config: GameConfig): Assessment = bait("let_us_decide")
+
+    /**
+     * The earlier ordered rules (whitelist, categories, VIP, keywords, channels, app profiles). Not on the
+     * tap path any more; kept for the future "Let us decide" judge. No guessed package IDs or channel names.
+     */
+    fun assessByRules(context: NotificationContext, config: GameConfig): Assessment {
         val category = context.category?.trim()?.lowercase(Locale.ROOT)
         val title = context.title.orEmpty()
         val content = "$title ${context.text.orEmpty()}"

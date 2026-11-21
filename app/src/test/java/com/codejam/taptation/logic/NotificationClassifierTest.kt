@@ -7,7 +7,7 @@ class NotificationClassifierTest {
     private val normal = NotificationContext("observed.app", title = "Alex",
         text = "New update", category = "email", isConversation = false, ageMillis = 1000)
     private fun assess(context: NotificationContext = normal, config: GameConfig = GameConfig()) =
-        NotificationClassifier.assess(context, config)
+        NotificationClassifier.assessByRules(context, config)
 
     @Test fun whitelistPrecedesEveryOtherRule() {
         assertEquals("whitelisted", assess(normal.copy(category = "promo"),
@@ -146,9 +146,10 @@ class NotificationClassifierTest {
             override fun save(state: GameState) { value = state }
         }
         val engine = GameEngine(store, { now }, { rolls++; 0.0 })
+        engine.updateConfig(engine.state.config.copy(appRules = mapOf(normal.packageName to AppRule.AlwaysImportant)))
         engine.setHealthForDebug(50)
         now += GameEngine.HOUR_MILLIS / 2
-        val result = engine.onTap(normal.copy(text = "urgent update"))
+        val result = engine.onTap(normal)
         assertEquals(TapOutcome.Bypass, result.outcome)
         assertEquals(0, rolls)
         assertEquals(1000L, result.state.recoveryAnchorMillis)
@@ -156,12 +157,30 @@ class NotificationClassifierTest {
         assertEquals(55, engine.getHealth())
     }
 
-    @Test fun packageAndAgeWithoutMetadataFailsSafeAndLogsAge() {
+    @Test fun packageOnlyTapIsLetUsDecideBaitAndLogsAge() {
         val engine = GameEngine(object : GameStore {
             override fun load(): GameState? = null
             override fun save(state: GameState) {}
-        }, { 1000 }, { error("Missing metadata must not roll") })
-        assertEquals(TapOutcome.NoPenalty, engine.onTap("unknown.app", 500).outcome)
+        }, { 1000 }, { 0.999 })
+        val result = engine.onTap("unknown.app", 500)
+        assertEquals(TapOutcome.NoPenalty, result.outcome)
+        assertEquals("roll_passed", result.reason)
+        assertEquals("let_us_decide", result.rule)
         assertEquals(500L, engine.state.taps.single().ageMillis)
+    }
+
+    @Test fun appRuleDecidesBeforeAnyNotificationSignal() {
+        val urgent = normal.copy(text = "urgent update", category = "call")
+        val rules = GameConfig(appRules = mapOf(normal.packageName to AppRule.AlwaysBait, "safe.app" to AppRule.AlwaysImportant))
+        assertEquals(Assessment(Classification.Bait, "app_always_bait"), NotificationClassifier.assess(urgent, rules))
+        assertEquals(Assessment(Classification.Important, "app_always_important"),
+            NotificationClassifier.assess(NotificationContext("safe.app"), rules))
+    }
+
+    @Test fun appsNotSetDefaultToLetUsDecideWhichIsBaitForNow() {
+        val config = GameConfig(vipNames = setOf("Ann"))
+        assertEquals(AppRule.LetUsDecide, config.ruleFor("any.app"))
+        listOf(normal.copy(title = "Ann"), normal.copy(title = null), NotificationContext("any.app", category = "alarm"))
+            .forEach { assertEquals(Assessment(Classification.Bait, "let_us_decide"), NotificationClassifier.assess(it, config)) }
     }
 }

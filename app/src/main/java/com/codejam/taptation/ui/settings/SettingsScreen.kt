@@ -3,15 +3,10 @@ package com.codejam.taptation.ui.settings
 import androidx.compose.foundation.layout.Arrangement
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.material3.Button
-import androidx.compose.material3.InputChip
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.Slider
@@ -29,7 +24,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Icon
@@ -38,8 +32,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.selected
 import com.codejam.taptation.R
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.codejam.taptation.debug.WhitelistAppsPanel
-import com.codejam.taptation.logic.AppProfile
+import com.codejam.taptation.logic.AppRule
 import com.codejam.taptation.logic.Difficulty
 import com.codejam.taptation.logic.GameConfig
 import com.codejam.taptation.logic.GameRepository
@@ -59,10 +52,11 @@ fun SettingsScreen(contentPadding: PaddingValues) {
     var page by rememberSaveable { mutableStateOf("main") }
     BackHandler(enabled = page != "main") { page = "main" }
 
+    if (page == "rules") {
+        NotificationRulesScreen(contentPadding, repository, onBack = { page = "main" })
+        return
+    }
     val title = when (page) {
-        "apps" -> "Always safe."
-        "rules" -> "Every app,\nyour way."
-        "words" -> "Words that matter."
         "feedback" -> "A moment\nto choose."
         else -> "Make it intentional."
     }
@@ -75,48 +69,18 @@ fun SettingsScreen(contentPadding: PaddingValues) {
             return@TabScreen
         }
         if (page != "main") item { TextButton(onClick = { page = "main" }) { Text("←  Back to settings") } }
-        if (page == "apps") {
-            item { WhitelistAppsPanel(repository, config.whitelistedPackages) }
-            return@TabScreen
-        }
-        if (page == "rules") {
-            item { PerAppRulesCard(config, repository) }
-            return@TabScreen
-        }
         if (page == "feedback") {
             item { CatchPermissionCard() }
-            return@TabScreen
-        }
-        if (page == "words") {
-            item {
-                SectionCard("Important words", "Whole words and phrases in notification titles and text.") {
-                    TermSetEditor("Important keyword", config.importantKeywords) { term ->
-                        repository.updateConfig { it.copy(importantKeywords = it.importantKeywords.toggle(term)) }
-                    }
-                }
-            }
-            item {
-                SectionCard("Distracting words") {
-                    TermSetEditor("Bait keyword", config.baitKeywords) { term ->
-                        repository.updateConfig { it.copy(baitKeywords = it.baitKeywords.toggle(term)) }
-                    }
-                }
-            }
             return@TabScreen
         }
         item { ActivationControls(repository, config) }
         item { GameRulesCard(config, repository) }
         item { FreshnessControls(config, repository) }
         item {
-            SectionCard("People who matter", "VIP names matched in notification titles.") {
-                TermSetEditor("VIP name", config.vipNames) { name ->
-                    repository.updateConfig { it.copy(vipNames = it.vipNames.toggle(name)) }
-                }
-            }
+            val bait = config.appRules.values.count { it == AppRule.AlwaysBait }
+            val important = config.appRules.values.count { it == AppRule.AlwaysImportant }
+            SettingsLink("Notification rules", "$bait always bait · $important always important", R.drawable.ic_tab_notifications) { page = "rules" }
         }
-        item { SettingsLink("Always-safe apps", "${config.whitelistedPackages.size} apps protected", R.drawable.ic_tab_home) { page = "apps" } }
-        item { SettingsLink("Notification rules", "Conversations and community updates", R.drawable.ic_tab_notifications) { page = "rules" } }
-        item { SettingsLink("Important & distracting words", "Fine-tune what gets your attention", R.drawable.ic_tab_settings) { page = "words" } }
         item { SettingsLink("Caught feedback", "Overlay and notification access", R.drawable.ic_tab_notifications) { page = "feedback" } }
     }
     }
@@ -219,90 +183,3 @@ private fun SettingsLink(title: String, subtitle: String, icon: Int, onClick: ()
         }
     }
 }
-
-/** Rules that need a package name: bait app, app profile, important/bait channels. */
-@Composable
-private fun PerAppRulesCard(config: GameConfig, repository: GameRepository) {
-    SectionCard(
-        "Per-app rules",
-        "Use package and channel names observed on the demo phone (Notifications tab).",
-    ) {
-        var packageName by rememberSaveable { mutableStateOf("") }
-        OutlinedTextField(
-            value = packageName, onValueChange = { packageName = it },
-            label = { Text("Package name") }, singleLine = true, modifier = Modifier.fillMaxWidth(),
-        )
-        val pkg = packageName.trim()
-        OutlinedButton(enabled = pkg.isNotEmpty(), onClick = {
-            repository.updateConfig { it.copy(baitPackages = it.baitPackages.toggle(pkg)) }
-        }) { Text(if (pkg in config.baitPackages) "Remove bait app" else "Mark as bait app") }
-        Text("Bait apps: ${config.baitPackages.sorted().joinToString().ifEmpty { "none" }}",
-            style = MaterialTheme.typography.bodySmall)
-
-        Text("App profile: ${config.appProfiles[pkg]?.name ?: "none"}", style = MaterialTheme.typography.titleSmall)
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            AppProfile.entries.forEach { profile ->
-                OutlinedButton(enabled = pkg.isNotEmpty(), onClick = {
-                    repository.updateConfig {
-                        it.copy(appProfiles = if (it.appProfiles[pkg] == profile) it.appProfiles - pkg
-                        else it.appProfiles + (pkg to profile))
-                    }
-                }) { Text(profile.name) }
-            }
-        }
-
-        var channelName by rememberSaveable { mutableStateOf("") }
-        OutlinedTextField(
-            value = channelName, onValueChange = { channelName = it },
-            label = { Text("Channel name for this package") }, singleLine = true,
-            modifier = Modifier.fillMaxWidth(),
-        )
-        val channel = channelName.trim()
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            OutlinedButton(enabled = pkg.isNotEmpty() && channel.isNotEmpty(), onClick = {
-                repository.updateConfig { it.copy(importantChannels = it.importantChannels.toggle(pkg, channel)) }
-            }) { Text("Important channel") }
-            OutlinedButton(enabled = pkg.isNotEmpty() && channel.isNotEmpty(), onClick = {
-                repository.updateConfig { it.copy(baitChannels = it.baitChannels.toggle(pkg, channel)) }
-            }) { Text("Bait channel") }
-        }
-        Text("Important channels: ${config.importantChannels[pkg].orEmpty().joinToString().ifEmpty { "none" }}",
-            style = MaterialTheme.typography.bodySmall)
-        Text("Bait channels: ${config.baitChannels[pkg].orEmpty().joinToString().ifEmpty { "none" }}",
-            style = MaterialTheme.typography.bodySmall)
-    }
-}
-
-/** Text field + Add, and the current values as chips; tapping a chip removes it. */
-@Composable
-private fun TermSetEditor(label: String, values: Set<String>, onToggle: (String) -> Unit) {
-    var input by rememberSaveable(label) { mutableStateOf("") }
-    val term = input.trim()
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-        OutlinedTextField(
-            value = input, onValueChange = { input = it }, label = { Text(label) },
-            singleLine = true, modifier = Modifier.weight(1f),
-        )
-        Button(enabled = term.isNotEmpty() && term !in values, onClick = {
-            onToggle(term)
-            input = ""
-        }) { Text("Add") }
-    }
-    if (values.isEmpty()) {
-        Text("None yet.", style = MaterialTheme.typography.bodySmall)
-    } else {
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            values.sorted().forEach { value ->
-                InputChip(selected = false, onClick = { onToggle(value) }, label = { Text("$value  ✕") })
-            }
-        }
-    }
-}
-
-private fun Set<String>.toggle(value: String): Set<String> = if (value in this) this - value else this + value
-
-private fun Map<String, Set<String>>.toggle(pkg: String, name: String): Map<String, Set<String>> {
-    val names = this[pkg].orEmpty().toggle(name)
-    return if (names.isEmpty()) this - pkg else this + (pkg to names)
-}
-
