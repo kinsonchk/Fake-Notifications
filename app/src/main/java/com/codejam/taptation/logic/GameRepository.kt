@@ -28,6 +28,9 @@ class GameRepository(context: Context, private val stats: StatsRepository? = nul
     private val _lastResult = MutableStateFlow<TapResult?>(null)
     val lastResult: StateFlow<TapResult?> = _lastResult.asStateFlow()
 
+    /** Presentation hook invoked only after a catch has been committed. */
+    @Volatile var caughtResultListener: ((TapResult) -> Unit)? = null
+
     init {
         worker.execute {
             try {
@@ -100,6 +103,13 @@ class GameRepository(context: Context, private val stats: StatsRepository? = nul
             it.classification, caught = it.outcome == TapOutcome.Caught))
         Log.d("FakeNotifs", "tap pkg=$packageName outcome=${it.outcome} " +
             "reason=${it.reason} rule=${it.rule} health=${it.state.health}")
+        if (it.outcome == TapOutcome.Caught) {
+            try {
+                caughtResultListener?.invoke(it)
+            } catch (failure: Exception) {
+                Log.e("FakeNotifs", "Could not present caught feedback", failure)
+            }
+        }
     }
 
     /** Snapshot read; observe state and call refresh() when the UI becomes active. */

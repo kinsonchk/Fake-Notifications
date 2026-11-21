@@ -85,7 +85,7 @@ Keep game rules, permission checks, and visual presentation separate:
 2. `GameRepository` processes the tap asynchronously.
 3. After the future completes, only `TapOutcome.Caught` requests catch feedback.
 4. A main-thread `CatchFeedbackCoordinator` checks overlay permission and asks an overlay controller to display the result. Otherwise it posts the fallback notification and records that an in-app catch screen should be shown next time.
-5. `CatchOverlayService` (or a lifecycle-managed overlay controller) owns a `WindowManager` application-overlay view and removes it on dismissal or cleanup.
+5. `CaughtFeedbackManager` owns a `WindowManager` application-overlay view in the app process and removes it on dismissal or cleanup.
 
 Conceptual Kotlin only (adapt to the project's API and lifecycle):
 
@@ -143,3 +143,9 @@ For the requested “stop me after I tap” experience, build the **opt-in appli
 - [Full-screen notification intents](https://developer.android.com/develop/ui/compose/notifications/create-notification#show-an-urgent-message): Android's intended use for urgent, time-sensitive events.
 
 
+
+## Implementation status
+
+The current app now has a **Catch overlay** switch in Settings. Turning it on opens Android's **Display over other apps** special-access page when needed. A caught result is emitted after `GameRepository` has saved it. `CaughtFeedbackManager` shows the full-screen overlay with **Continue in this app** and **Open Taptation** actions; if overlay access is unavailable or disabled, it posts a Taptation notification when notification permission allows and keeps a pending result for the next app launch. `CaughtResultActivity` reads the saved catch details and does not apply damage again.
+
+The debug APK has compiled successfully. The overlay, Android permission grant/revocation, button behavior, and fallback still need manual verification on an emulator or phone using section C.2 of `docs/testing-step.md`.

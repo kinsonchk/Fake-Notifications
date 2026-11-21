@@ -2,6 +2,7 @@ package com.codejam.taptation
 
 import android.app.Application
 import com.codejam.taptation.logic.GameRepository
+import com.codejam.taptation.feedback.CaughtFeedbackManager
 import com.codejam.taptation.logic.TapDispatcher
 import com.codejam.taptation.stats.SqliteStatsStore
 import com.codejam.taptation.stats.StatsRepository
@@ -18,6 +19,7 @@ class TaptationApplication : Application() {
         super.onCreate()
         stats = StatsRepository(SqliteStatsStore(this))
         game = GameRepository(this, stats)
+        game.caughtResultListener = { result -> CaughtFeedbackManager.show(this, result) }
         TapDispatcher.handler = game
     }
 }

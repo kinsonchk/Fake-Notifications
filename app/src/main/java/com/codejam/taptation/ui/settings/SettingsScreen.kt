@@ -6,6 +6,9 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import android.content.Intent
+import android.net.Uri
+import android.provider.Settings as AndroidSettings
 import androidx.compose.material3.Button
 import androidx.compose.material3.InputChip
 import androidx.compose.material3.MaterialTheme
@@ -24,8 +27,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.codejam.taptation.debug.WhitelistAppsPanel
+import com.codejam.taptation.feedback.CaughtFeedbackManager
 import com.codejam.taptation.logic.AppProfile
 import com.codejam.taptation.logic.CatchLevel
 import com.codejam.taptation.logic.GameConfig
@@ -52,6 +59,7 @@ fun SettingsScreen(contentPadding: PaddingValues) {
             return@TabScreen
         }
         item { GameRulesCard(config, repository) }
+        item { CatchOverlaySettingsCard() }
         item { WhitelistAppsPanel(repository, config.whitelistedPackages) }
         item {
             SectionCard("People", "A notification whose title matches a VIP name is always safe.") {
@@ -232,4 +240,65 @@ private fun Set<String>.toggle(value: String): Set<String> = if (value in this) 
 private fun Map<String, Set<String>>.toggle(pkg: String, name: String): Map<String, Set<String>> {
     val names = this[pkg].orEmpty().toggle(name)
     return if (names.isEmpty()) this - pkg else this + (pkg to names)
+}
+
+@Composable
+private fun CatchOverlaySettingsCard() {
+    val context = LocalContext.current
+    var permissionGranted by remember { mutableStateOf(CaughtFeedbackManager.canDrawOverlays(context)) }
+    var enabled by remember { mutableStateOf(CaughtFeedbackManager.isOverlayEnabled(context)) }
+    var enableAfterSettings by remember { mutableStateOf(false) }
+
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
+        permissionGranted = CaughtFeedbackManager.canDrawOverlays(context)
+        if (enableAfterSettings && permissionGranted) {
+            CaughtFeedbackManager.setOverlayEnabled(context, true)
+        }
+        enableAfterSettings = false
+        enabled = CaughtFeedbackManager.isOverlayEnabled(context)
+    }
+
+    SectionCard(
+        "Catch overlay",
+        "When a bait tap catches you, show a pause over the app you opened. Android requires separate permission for this.",
+    ) {
+        Text(if (permissionGranted) "Android overlay permission: allowed." else "Android overlay permission: not allowed.")
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+            Column(Modifier.weight(1f)) {
+                Text("Show the catch overlay")
+                Text("You can continue in the current app or open Taptation.", style = MaterialTheme.typography.bodySmall)
+            }
+            Switch(
+                checked = enabled && permissionGranted,
+                onCheckedChange = { turnOn ->
+                    if (!turnOn) {
+                        CaughtFeedbackManager.setOverlayEnabled(context, false)
+                        enabled = false
+                    } else if (permissionGranted) {
+                        CaughtFeedbackManager.setOverlayEnabled(context, true)
+                        enabled = true
+                    } else {
+                        enableAfterSettings = true
+                        context.startActivity(Intent(
+                            AndroidSettings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                            Uri.parse("package:${context.packageName}"),
+                        ))
+                    }
+                },
+            )
+        }
+        if (!permissionGranted) {
+            OutlinedButton(onClick = {
+                enableAfterSettings = true
+                context.startActivity(Intent(
+                    AndroidSettings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                    Uri.parse("package:${context.packageName}"),
+                ))
+            }) { Text("Allow display over other apps") }
+        }
+        Text(
+            "If overlay access is off, Taptation uses a notification when allowed and keeps the result in the app.",
+            style = MaterialTheme.typography.bodySmall,
+        )
+    }
 }

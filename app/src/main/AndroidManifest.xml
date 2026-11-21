@@ -9,6 +9,8 @@
         </intent>
     </queries>
 
+    <!-- Special access: user-approved caught overlay. -->
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
     <!-- Android 13+: needed only for the debug "Post test notification" button. -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
@@ -22,6 +24,10 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.Taptation">
+        <activity
+            android:name=".CaughtResultActivity"
+            android:exported="false"
+            android:label="Caught" />
         <activity
             android:name=".MainActivity"
             android:exported="true"
