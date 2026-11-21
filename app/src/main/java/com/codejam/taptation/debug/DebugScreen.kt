@@ -119,6 +119,8 @@ fun DebugScreen(contentPadding: PaddingValues = PaddingValues()) {
             }
         }
 
+        item { LogicDebugPanel() }
+
         item {
             HorizontalDivider()
             Text(
