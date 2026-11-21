@@ -305,3 +305,4 @@ private fun Map<String, Set<String>>.toggle(pkg: String, name: String): Map<Stri
     val names = this[pkg].orEmpty().toggle(name)
     return if (names.isEmpty()) this - pkg else this + (pkg to names)
 }
+

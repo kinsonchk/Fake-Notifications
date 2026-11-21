@@ -1,4 +1,4 @@
-﻿package com.codejam.taptation
+package com.codejam.taptation
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -8,15 +8,6 @@ import com.codejam.taptation.ui.TaptationApp
 import com.codejam.taptation.ui.theme.TaptationTheme
 
 class MainActivity : ComponentActivity() {
-    override fun onResume() {
-        super.onResume()
-        (application as TaptationApplication).feedback.setForeground(true)
-    }
-
-    override fun onPause() {
-        (application as TaptationApplication).feedback.setForeground(false)
-        super.onPause()
-    }
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -26,5 +17,15 @@ class MainActivity : ComponentActivity() {
                 TaptationApp(debug = BuildConfig.DEBUG)
             }
         }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        (application as TaptationApplication).feedback.setForeground(true)
+    }
+
+    override fun onPause() {
+        (application as TaptationApplication).feedback.setForeground(false)
+        super.onPause()
     }
 }

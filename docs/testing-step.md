@@ -228,6 +228,20 @@ This feature is implemented in the debug build. Use a notification posted by the
 If no suitable app can post a notification during the demo, the unit tests below still verify the game rule. Taptation's **Post test notification** button checks notification tap detection, but it is not a substitute for this app-specific whitelist check.
 
 For a quick check without the real app, post a **Custom notification** with the selected package (see "Custom notifications" below).
+### C.2 Test caught feedback choices
+
+This check needs a phone or emulator with the latest debug app. Enable **Notification access** and open **Settings > Caught feedback**. Tap **Allow caught overlay** and grant Android's **Display over other apps** access. Also enable **notification fallback** (Android 13+ asks for notification permission).
+
+Set the debug catch probability to 100% and configure an app/package as bait. For a real background-overlay check, use a notification from that actual app while Taptation is not in the foreground. Tap it; Android opens the source app, then Taptation should show the two-choice overlay:
+
+- **Go to Taptation** acknowledges the saved catch and brings Taptation to Home.
+- **Go to original app** acknowledges the catch and invokes the notification's original action when it is still available. If it is unavailable, Taptation falls back to opening the source app or reports that it is no longer available.
+
+For a custom notification posted by Taptation, expect the two-choice Compose dialog in Taptation, because tapping the test notification opens Taptation itself. This checks the foreground path, not the background overlay.
+
+To check the fallback, turn off overlay access in Android Settings, trigger another catch, and tap the **A moment to choose** notification. The same choices should appear in Taptation. If Android suppresses an overlay or notification, the catch remains saved and should be presented when Taptation is opened.
+
+Repeat with the package whitelisted: no pending catch choice should appear. Swipe a bait notification away: it should not create a catch choice. A catch is applied once before presentation; neither button should reduce health a second time.
 ### D. Check the release build
 
 Run:
@@ -273,4 +287,5 @@ This makes the whitelist test in C.1 possible without the real app: whitelist a 
 
 ## Remaining phone-only check
 
-The whitelist picker and bypass logic are implemented. The remaining manual verification is to use a real notification from the selected app on the presentation phone; automated JVM tests cannot exercise Android's notification shade, notification access permission, or app package identity.
+The whitelist picker, bypass logic, and caught overlay are implemented. The remaining manual verification is to exercise a real source-app notification and overlay permissions on the presentation phone; automated JVM tests cannot exercise Android's notification shade, overlay window behavior, or device-specific permission screens.
+
