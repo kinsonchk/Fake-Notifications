@@ -32,7 +32,7 @@ class RevisedFlowTest {
     @Test fun staleTapsSkipClassifierRollAndCleanTimerReset() {
         var rolls = 0
         val engine = GameEngine(Store(), { 1000 }, { rolls++; 0.0 })
-        engine.updateConfig(engine.state.config.copy(whitelistedPackages = setOf("social.app")))
+        engine.updateConfig(engine.state.config.copy(appRules = mapOf("social.app" to AppRule.AlwaysImportant)))
         val anchor = engine.state.recoveryAnchorMillis
         val result = engine.onTap(context.copy(ageMillis = 600_001))
         assertEquals("stale", result.reason)

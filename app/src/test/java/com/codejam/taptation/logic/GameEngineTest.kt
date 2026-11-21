@@ -25,14 +25,14 @@ class GameEngineTest {
             text = "Routine update", category = "email", isConversation = false, ageMillis = 5000)
         fun tap(packageName: String) = game.onTap(context(packageName))
         fun configure(change: (GameConfig) -> GameConfig = { it }) {
-            game.updateConfig(change(GameConfig(baitPackages = setOf("bait"))))
+            game.updateConfig(change(GameConfig(appRules = mapOf("bait" to AppRule.AlwaysBait))))
         }
         fun hours(count: Double) { now += (count * GameEngine.HOUR_MILLIS).toLong() }
     }
 
-    @Test fun whitelistWinsOverAllBaitRules() {
+    @Test fun alwaysImportantWinsOverAllBaitRules() {
         val f = Fixture()
-        f.configure { it.copy(whitelistedPackages = setOf("bait"), baitKeywords = setOf("sale")) }
+        f.configure { it.copy(appRules = mapOf("bait" to AppRule.AlwaysImportant), baitKeywords = setOf("sale")) }
         val result = f.game.onTap(NotificationContext("bait", text = "SALE"))
         assertEquals(TapOutcome.Bypass, result.outcome)
         assertEquals(100, result.state.health)
@@ -40,11 +40,11 @@ class GameEngineTest {
         assertEquals(1L, result.state.tapsPerApp["bait"])
     }
 
-    @Test fun removingWhitelistRestoresBaitRuleAndPreservesOtherWhitelistEntries() {
+    @Test fun resettingAnAppToLetUsDecideMakesItBaitAndKeepsOtherRules() {
         val f = Fixture()
         f.configure { it.copy(
             debugCatchProbability = 1.0,
-            whitelistedPackages = setOf("bait", "important"),
+            appRules = mapOf("bait" to AppRule.AlwaysImportant, "important" to AppRule.AlwaysImportant),
         ) }
 
         val safe = f.tap("bait")
@@ -52,21 +52,21 @@ class GameEngineTest {
         assertEquals(0, f.rolls)
         assertEquals(100, safe.state.health)
 
-        f.game.updateConfig(f.game.state.config.copy(
-            whitelistedPackages = f.game.state.config.whitelistedPackages - "bait",
-        ))
-        assertEquals(setOf("important"), f.game.state.config.whitelistedPackages)
+        f.game.updateConfig(f.game.state.config.copy(appRules = f.game.state.config.appRules - "bait"))
+        assertEquals(mapOf("important" to AppRule.AlwaysImportant), f.game.state.config.appRules)
 
-        // Full context: a package-only tap has no title/text, so it's Unknown and never rolls.
         val caught = f.tap("bait")
+        assertEquals("let_us_decide", caught.rule)
         assertEquals(TapOutcome.Caught, caught.outcome)
         assertEquals(1, f.rolls)
         assertEquals(90, caught.state.health)
     }
-    @Test fun unknownNeverRolls() {
+    @Test fun appsLeftOnLetUsDecideAreBaitAndRoll() {
         val f = Fixture()
-        assertEquals("missing_content", f.game.onTap("unknown").reason)
-        assertEquals(0, f.rolls)
+        val result = f.game.onTap("unknown")
+        assertEquals(Classification.Bait, result.classification)
+        assertEquals("let_us_decide", result.rule)
+        assertEquals(1, f.rolls)
     }
 
     @Test fun keywordMatchingIsCaseInsensitiveAndDoesNotPersistContent() {
@@ -80,8 +80,9 @@ class GameEngineTest {
     @Test fun categoriesClassifyButMissingMetadataStaysUnknown() {
         val f = Fixture()
         f.configure { it.copy(baitAppCategories = setOf(2)) }
-        assertEquals(Classification.Bait, f.game.classify(NotificationContext("music", title = "Music", text = "New release", appCategory = 2)))
-        assertEquals(Classification.Unknown, f.game.classify(NotificationContext("music")))
+        val rules = { context: NotificationContext -> NotificationClassifier.assessByRules(context, f.game.state.config).classification }
+        assertEquals(Classification.Bait, rules(NotificationContext("music", title = "Music", text = "New release", appCategory = 2)))
+        assertEquals(Classification.Unknown, rules(NotificationContext("music")))
     }
 
     @Test fun probabilityZeroNeverCatches() {
@@ -162,13 +163,14 @@ class GameEngineTest {
 
     @Test fun missedRollStillResetsRecoveryButBypassAndUnknownDoNot() {
         val f = Fixture()
-        f.configure { it.copy(debugCatchProbability = 0.0, whitelistedPackages = setOf("urgent")) }
+        f.configure { it.copy(debugCatchProbability = 0.0, appRules = it.appRules + ("urgent" to AppRule.AlwaysImportant)) }
         f.game.setHealthForDebug(50)
         f.hours(0.75)
         f.tap("bait")
         f.hours(0.75)
         f.game.onTap("urgent")
-        f.game.onTap("unknown")
+        // Too old for the freshness window: Unknown, so the clean timer keeps running.
+        f.game.onTap(NotificationContext("unknown", ageMillis = 3_600_000))
         assertEquals(50, f.game.getHealth())
         f.hours(0.25)
         assertEquals(55, f.game.getHealth())
@@ -275,7 +277,7 @@ class GameEngineTest {
         assertThrows(Exception::class.java) { GameStateCodec.decode("broken") }
         val encoded = GameStateCodec.encode(GameState())
         val bytes = java.util.Base64.getDecoder().decode(encoded)
-        bytes[3] = 6
+        bytes[3] = 7
         assertThrows(IllegalArgumentException::class.java) {
             GameStateCodec.decode(java.util.Base64.getEncoder().encodeToString(bytes))
         }
@@ -287,10 +289,10 @@ class GameEngineTest {
         val result = f.tap("bait")
         assertEquals("caught", result.reason)
         assertEquals(Classification.Bait, result.classification)
-        assertEquals("configured_bait", result.rule)
+        assertEquals("app_always_bait", result.rule)
         val record = f.game.state.taps.last()
         assertEquals("caught", record.reason)
-        assertEquals("configured_bait", record.rule)
+        assertEquals("app_always_bait", record.rule)
         assertEquals(record, GameStateCodec.decode(GameStateCodec.encode(f.game.state)).taps.last())
     }
 
@@ -380,5 +382,24 @@ class GameEngineTest {
         assertTrue(state.tapsPerApp.isEmpty())
         assertFalse(state.isLockedOut(f.now))
         assertEquals(setOf("work"), state.config.whitelistedPackages)
+    }
+
+    @Test fun codecV6KeepsAppRulesAnswersAndStrictness() {
+        val config = GameConfig(
+            appRules = mapOf("a" to AppRule.AlwaysBait, "b" to AppRule.AlwaysImportant),
+            essentialCriteria = "Family, shift changes", nonEssentialCriteria = "Likes", strictness = Strictness.Strict,
+        )
+        val state = GameState(config = config)
+        assertEquals(state, GameStateCodec.decode(GameStateCodec.encode(state)))
+    }
+
+    @Test fun codecV5WhitelistAndBaitAppsBecomeAppRules() {
+        val legacy = GameState(config = GameConfig(whitelistedPackages = setOf("safe"), baitPackages = setOf("bait")))
+        val bytes = java.util.Base64.getDecoder().decode(GameStateCodec.encode(legacy))
+        // v6 tail for empty rules: count (4) + two empty strings (2 + 2) + "Balanced" (2 + 8).
+        val v5 = bytes.copyOf(bytes.size - 18).also { it[3] = 5 }
+        val config = GameStateCodec.decode(java.util.Base64.getEncoder().encodeToString(v5)).config
+        assertEquals(mapOf("safe" to AppRule.AlwaysImportant, "bait" to AppRule.AlwaysBait), config.appRules)
+        assertTrue(config.whitelistedPackages.isEmpty() && config.baitPackages.isEmpty())
     }
 }
