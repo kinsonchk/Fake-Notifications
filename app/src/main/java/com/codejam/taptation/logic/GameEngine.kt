@@ -59,14 +59,14 @@ class GameEngine(
             }
         }
         val record = TapRecord(now, context.packageName, classification, outcome, before,
-            next.health, before - next.health, reason, context.ageMillis)
+            next.health, before - next.health, reason, context.ageMillis, assessment.reason)
         next = next.copy(
             tapsPerApp = next.tapsPerApp + (context.packageName to
                 ((next.tapsPerApp[context.packageName] ?: 0) + 1)),
             taps = (next.taps + record).takeLast(HISTORY_LIMIT),
         )
         commit(next)
-        return TapResult(outcome, state, reason)
+        return TapResult(outcome, state, reason, classification, assessment.reason)
     }
 
     fun onTap(packageName: String): TapResult = onTap(NotificationContext(packageName))
