@@ -13,6 +13,9 @@ import android.util.Log
  */
 interface TapHandler {
     fun onTap(packageName: String)
+
+    /** Existing package-only handlers remain source-compatible. */
+    fun onTap(context: NotificationContext) = onTap(context.packageName)
 }
 
 /**
@@ -27,6 +30,7 @@ object TapDispatcher {
     var handler: TapHandler = LoggingTapHandler()
 
     fun dispatch(packageName: String) = handler.onTap(packageName)
+    fun dispatch(context: NotificationContext) = handler.onTap(context)
 }
 
 /** Placeholder until Person 2's handler is installed. Only logs. */
