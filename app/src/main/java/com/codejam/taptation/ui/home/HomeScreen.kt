@@ -44,7 +44,7 @@ import androidx.compose.ui.Alignment
 
 /** The tree is decorative until the team chooses the metric that should drive its appearance. */
 @Composable
-fun HomeScreen(contentPadding: PaddingValues, onSettings: () -> Unit = {}) {
+fun HomeScreen(contentPadding: PaddingValues, onSettings: () -> Unit = {}, onTutorial: () -> Unit = {}) {
     val repository = rememberGameRepository()
     val snapshot by repository.state.collectAsStateWithLifecycle()
     val error by repository.error.collectAsStateWithLifecycle()
@@ -75,6 +75,13 @@ fun HomeScreen(contentPadding: PaddingValues, onSettings: () -> Unit = {}) {
         } else {
             item { ActivationControls(repository, state.config) }
             item { SetupBanner() }
+            item {
+                SectionCard("Want a refresher?", "Review how Taptation works and revisit the access settings.") {
+                    Button(onClick = onTutorial, modifier = Modifier.fillMaxWidth()) {
+                        Text("View the tutorial")
+                    }
+                }
+            }
             if (state.taps.isEmpty()) item {
                 SectionCard("Keep the important things close.", "Choose the apps and people that should always be safe.") {
                     TextButton(onClick = onSettings) { Text("Choose my safe apps  →") }

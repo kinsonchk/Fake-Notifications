@@ -49,9 +49,42 @@ enum class Tab(val label: String, @param:DrawableRes val icon: Int, val debugOnl
     Debug("Debug", R.drawable.ic_tab_debug, debugOnly = true),
 }
 
-// Home visual metric and onboarding remain a product decision; caught choices are shared UI.
+/** Shows the tutorial once, then requires both system grants on every app launch. */
 @Composable
 fun TaptationApp(debug: Boolean) {
+    val context = LocalContext.current
+    var tutorialComplete by rememberSaveable { mutableStateOf(isTutorialComplete(context)) }
+    var accessReady by rememberSaveable { mutableStateOf(false) }
+    var checkAccess by rememberSaveable { mutableStateOf(false) }
+    var showTutorial by rememberSaveable { mutableStateOf(false) }
+
+    androidx.lifecycle.compose.LifecycleEventEffect(androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
+        val notificationGranted = com.codejam.taptation.service.PermissionHelper.isNotificationAccessGranted(context)
+        val overlayGranted = android.provider.Settings.canDrawOverlays(context)
+        accessReady = notificationGranted && overlayGranted
+        checkAccess = true
+    }
+
+    if (!tutorialComplete || showTutorial || (checkAccess && !accessReady)) {
+        OnboardingScreen(
+            startAtSetup = tutorialComplete && !showTutorial,
+            onComplete = {
+                completeTutorial(context)
+                tutorialComplete = true
+                showTutorial = false
+                accessReady = true
+            },
+        )
+        return
+    }
+    if (!checkAccess || !accessReady) return
+
+    AppTabs(debug, onTutorial = { showTutorial = true })
+}
+
+/** Bottom tabs. Debug-only tabs are hidden in release builds. */
+@Composable
+private fun AppTabs(debug: Boolean, onTutorial: () -> Unit) {
     val tabs = Tab.entries.filter { debug || !it.debugOnly }
     val compact = LocalConfiguration.current.screenWidthDp < 380
     var selected by rememberSaveable { mutableStateOf(Tab.Home) }
@@ -97,7 +130,7 @@ fun TaptationApp(debug: Boolean) {
     ) { padding ->
         tabState.SaveableStateProvider(selected.name) {
             when (selected) {
-                Tab.Home -> HomeScreen(padding, onSettings = { selected = Tab.Settings })
+                Tab.Home -> HomeScreen(padding, onSettings = { selected = Tab.Settings }, onTutorial = onTutorial)
                 Tab.Stats -> StatsScreen(padding)
                 Tab.Notifications -> NotificationsScreen(padding)
                 Tab.Settings -> SettingsScreen(padding)
