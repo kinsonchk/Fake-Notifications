@@ -4,16 +4,6 @@ enum class CatchLevel { Mild, Medium, Savage }
 enum class Classification { Bait, Unknown }
 enum class TapOutcome { Bypass, NoPenalty, Caught }
 
-/** Metadata is transient: notification text and contact identities are never persisted. */
-data class NotificationContext(
-    val packageName: String,
-    val key: String? = null,
-    val title: String? = null,
-    val text: String? = null,
-    val category: String? = null,
-    val appCategory: Int? = null,
-)
-
 data class GameConfig(
     val catchProbability: Double = 0.075,
     val level: CatchLevel = CatchLevel.Mild,

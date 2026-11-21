@@ -14,6 +14,7 @@ import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import com.codejam.taptation.MainActivity
 import com.codejam.taptation.R
+import com.codejam.taptation.service.TapDetection
 import java.util.concurrent.atomic.AtomicInteger
 
 /**
@@ -23,7 +24,8 @@ import java.util.concurrent.atomic.AtomicInteger
  * setAutoCancel(true) the notification stays put and no removal callback fires.
  */
 object TestNotification {
-    private const val CHANNEL_ID = "debug_test"
+    // The tap filter only counts our own notifications from this channel.
+    private const val CHANNEL_ID = TapDetection.OWN_TEST_CHANNEL_ID
     private const val TAG = "FakeNotifs"
     private val nextId = AtomicInteger(1000)
 
