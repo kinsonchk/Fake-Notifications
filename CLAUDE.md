@@ -52,6 +52,7 @@ system -> TapListenerService.onNotificationPosted   (cache NotificationContext b
 - `logic/PreferencesGameStore.kt`, `logic/GameStateCodec.kt`: versioned, atomic local snapshots.
 - `TaptationApplication.kt`: creates the single `GameRepository` and sets `TapDispatcher.handler`, so it works even when only the service process starts. UI gets it via `(context.applicationContext as TaptationApplication).game`.
 - `service/TapDetection.kt`: pure filter logic, framework constants only, so it runs in plain JVM tests. Keep new decision logic here, not in the service.
+- `service/NotificationSignals.kt`: builds the metadata in the `posted`/`removed` Logcat lines (category, channel, importance, conversation flags, auto-cancel, postTime/age). Logging only; never title/text.
 - `service/PermissionHelper.kt`: notification-access check/settings intents and battery-optimization helpers; reuse for onboarding UI.
 - `debug/`: `DebugScreen` + `LogicDebugPanel` (what `MainActivity` shows now), `TestNotification` posts an auto-cancel notification with a contentIntent so tapping it yields `REASON_CLICK`.
 

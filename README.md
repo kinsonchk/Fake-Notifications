@@ -38,6 +38,7 @@ The original `dispatch(packageName)` / `onTap(packageName)` entry points remain 
 | `service/TapDetection.kt` | Pure `isTap(reason)` and `shouldDispatch(...)` filters (unit tested) |
 | `service/PermissionHelper.kt` | Notification access check + settings intents, battery settings. Reuse for onboarding |
 | `service/TapLog.kt` | In-memory list of the last 20 taps |
+| `service/NotificationSignals.kt` | Category, channel, importance, conversation flags and timing for the `posted`/`removed` Logcat lines (never title/text) |
 | `debug/DebugScreen.kt`, `debug/LogicDebugPanel.kt`, `debug/TestNotification.kt` | Listener and logic integration screen shown by `MainActivity` |
 
 ### Run
@@ -67,6 +68,20 @@ adb shell cmd notification allow_listener com.codejam.taptation/com.codejam.tapt
 3. Tap a notification from a real app (Messages, Gmail): a row shows up with that app's package name.
 4. **Simulate tap**: a `com.test.fake` row shows up and the stub handler logs it.
 5. Turn notification access off and on again: no crash, and *Service connected* goes back to `yes`.
+
+### Reading the Logcat lines
+
+Every posted and removed notification logs its signals (filter `tag:FakeNotifs`):
+
+```
+posted pkg=com.discord update=false cat=msg channelId=... channel="Direct Messages" importance=HIGH conversation=true groupConversation=false style=MessagingStyle autoCancel=true ongoing=false summary=false group=true contentIntent=true postTime=... age=3ms key=...
+removed pkg=com.discord reason=CLICK(1) cat=msg channelId=... ... age=8123ms key=...
+```
+
+- `autoCancel=false`: tapping won't remove it, so the tap is never detected.
+- `update=true`: the app replaced an active notification (same key). A small `age` on an update means `postTime` was reset.
+- `?` means Android didn't provide the value: `conversation` needs Android 12+, `groupConversation` is only set by MessagingStyle, and `channel`/`importance` are often missing on `removed` lines (use the `posted` line).
+- Title and text are never logged.
 
 ### Known limitations
 

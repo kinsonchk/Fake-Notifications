@@ -58,8 +58,12 @@ class TapListenerService : NotificationListenerService() {
     }
 
     override fun onNotificationPosted(sbn: StatusBarNotification) {
+        // update=true: same key already active, so the app replaced it (e.g. a new chat message).
+        val update = contexts.containsKey(sbn.key)
         contexts[sbn.key] = contextFor(sbn)
-        Log.d(TAG, "posted pkg=${sbn.packageName} key=${sbn.key}")
+        val signals = NotificationSignals.from(sbn, currentRankingOrNull())
+        Log.d(TAG, "posted pkg=${sbn.packageName} update=$update " +
+            "${signals.describe(System.currentTimeMillis())} key=${sbn.key}")
     }
 
     // Only the three-argument overload is overridden. The base class's three-argument version
@@ -72,7 +76,9 @@ class TapListenerService : NotificationListenerService() {
         val pkg = sbn.packageName
         val context = contexts.remove(sbn.key) ?: contextFor(sbn)
         val flags = sbn.notification?.flags ?: 0
-        Log.d(TAG, "removed pkg=$pkg reason=${TapDetection.reasonName(reason)}($reason) key=${sbn.key}")
+        val signals = NotificationSignals.from(sbn, rankingMap)
+        Log.d(TAG, "removed pkg=$pkg reason=${TapDetection.reasonName(reason)}($reason) " +
+            "${signals.describe(System.currentTimeMillis())} key=${sbn.key}")
 
         val isTap = TapDetection.shouldDispatch(
             reason = reason,
@@ -104,6 +110,13 @@ class TapListenerService : NotificationListenerService() {
             category = notification.category,
         )
     }
+
+    private fun currentRankingOrNull(): RankingMap? =
+        try {
+            currentRanking
+        } catch (e: RuntimeException) {
+            null
+        }
 
     private fun isDebugBuild(): Boolean =
         applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0
