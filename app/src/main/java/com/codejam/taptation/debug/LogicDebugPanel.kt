@@ -30,7 +30,9 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.repeatOnLifecycle
 import com.codejam.taptation.TaptationApplication
 import com.codejam.taptation.logic.CatchLevel
+import com.codejam.taptation.logic.AppProfile
 import com.codejam.taptation.logic.NotificationContext
+import com.codejam.taptation.service.TapListenerService
 import kotlinx.coroutines.delay
 
 /** Integration surface for Persons 2/4. Person 3 owns the final home/settings/lockout UI. */
@@ -41,6 +43,7 @@ fun LogicDebugPanel() {
     val snapshot by repository.state.collectAsStateWithLifecycle()
     val error by repository.error.collectAsStateWithLifecycle()
     val result by repository.lastResult.collectAsStateWithLifecycle()
+    val observations by TapListenerService.observations.collectAsStateWithLifecycle()
     val debug = context.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
@@ -104,6 +107,46 @@ fun LogicDebugPanel() {
                     it.baitPackages - pkg else it.baitPackages + pkg) }
             }) { Text(if (pkg in state.config.baitPackages) "Remove bait" else "Mark bait") }
             Text("Bait apps: ${state.config.baitPackages.sorted().joinToString().ifEmpty { "none" }}")
+            Text("App profile: ${state.config.appProfiles[pkg]?.name ?: "unconfigured"}")
+            AppProfile.entries.forEach { profile ->
+                OutlinedButton(enabled = pkg.isNotEmpty(), onClick = {
+                    repository.updateConfig { it.copy(appProfiles = if (it.appProfiles[pkg] == profile)
+                        it.appProfiles - pkg else it.appProfiles + (pkg to profile)) }
+                }) { Text("Toggle ${profile.name} profile for entered package") }
+            }
+            Text("Use only package/channel names observed on the demo phone.",
+                style = MaterialTheme.typography.bodySmall)
+            var vipName by remember { mutableStateOf("") }
+            OutlinedTextField(value = vipName, onValueChange = { vipName = it },
+                label = { Text("VIP name (matches notification title)") },
+                modifier = Modifier.fillMaxWidth(), singleLine = true)
+            val vip = vipName.trim()
+            OutlinedButton(enabled = vip.isNotEmpty(), onClick = {
+                repository.updateConfig { it.copy(vipNames = if (vip in it.vipNames)
+                    it.vipNames - vip else it.vipNames + vip) }
+            }) { Text(if (vip in state.config.vipNames) "Remove VIP" else "Add VIP") }
+            Text("VIPs: ${state.config.vipNames.sorted().joinToString().ifEmpty { "none" }}")
+            var channelName by remember { mutableStateOf("") }
+            OutlinedTextField(value = channelName, onValueChange = { channelName = it },
+                label = { Text("Observed channel name for entered package") },
+                modifier = Modifier.fillMaxWidth(), singleLine = true)
+            val channel = channelName.trim()
+            OutlinedButton(enabled = pkg.isNotEmpty() && channel.isNotEmpty(), onClick = {
+                repository.updateConfig {
+                    val names = it.importantChannels[pkg].orEmpty()
+                    it.copy(importantChannels = it.importantChannels + (pkg to
+                        if (channel in names) names - channel else names + channel))
+                }
+            }) { Text("Toggle important channel") }
+            OutlinedButton(enabled = pkg.isNotEmpty() && channel.isNotEmpty(), onClick = {
+                repository.updateConfig {
+                    val names = it.baitChannels[pkg].orEmpty()
+                    it.copy(baitChannels = it.baitChannels + (pkg to
+                        if (channel in names) names - channel else names + channel))
+                }
+            }) { Text("Toggle bait channel") }
+            Text("Important channels: ${state.config.importantChannels[pkg].orEmpty().joinToString().ifEmpty { "none" }}")
+            Text("Bait channels: ${state.config.baitChannels[pkg].orEmpty().joinToString().ifEmpty { "none" }}")
             var keyword by remember { mutableStateOf("") }
             OutlinedTextField(value = keyword, onValueChange = { keyword = it },
                 label = { Text("Bait keyword") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
@@ -116,7 +159,8 @@ fun LogicDebugPanel() {
             if (debug) {
                 OutlinedButton(onClick = {
                     repository.updateConfig { it.copy(baitPackages = it.baitPackages + "com.test.fake") }
-                    repository.processTap(NotificationContext("com.test.fake"))
+                    repository.processTap(NotificationContext("com.test.fake", title = "Demo notification",
+                        text = "Routine update", category = "promo", isConversation = false, ageMillis = 0))
                 }) { Text("Simulate bait tap") }
                 OutlinedButton(onClick = { repository.applyCatch(state.config.level) },
                     enabled = !state.isDead && seconds == 0L) { Text("Force catch") }
@@ -125,6 +169,13 @@ fun LogicDebugPanel() {
                     OutlinedButton(onClick = { repository.setHealthForDebug(10) }) { Text("Health 10") }
                 }
                 OutlinedButton(onClick = { repository.setHealthForDebug(0) }) { Text("Health 0") }
+                Text("Observed notifications (memory only)", style = MaterialTheme.typography.titleMedium)
+                observations.forEach {
+                    Text("${it.packageName} • category=${it.category ?: "missing"} • " +
+                        "conversation=${it.isConversation ?: "unknown"}\n" +
+                        "channel=${it.channelName ?: "missing"}\ntitle=${it.title ?: "missing"}",
+                        style = MaterialTheme.typography.bodySmall)
+                }
             }
             state.taps.takeLast(5).asReversed().forEach {
                 Text("${it.packageName}: ${it.outcome} • ${it.healthBefore} → ${it.healthAfter}",

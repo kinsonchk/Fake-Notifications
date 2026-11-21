@@ -14,31 +14,26 @@ class GameEngine(
     fun isWhitelisted(packageName: String): Boolean = packageName in state.config.whitelistedPackages
     fun getHealth(): Int = refresh().health
 
-    fun classify(context: NotificationContext): Classification {
-        val config = state.config
-        val content = "${context.title.orEmpty()} ${context.text.orEmpty()}"
-        return if (context.packageName in config.baitPackages ||
-            context.appCategory in config.baitAppCategories ||
-            config.baitKeywords.any { content.contains(it, ignoreCase = true) }
-        ) Classification.Bait else Classification.Unknown
-    }
+    fun classify(context: NotificationContext): Classification =
+        NotificationClassifier.assess(context, state.config).classification
 
     fun onTap(context: NotificationContext): TapResult {
         require(context.packageName.isNotBlank())
         val now = now()
         var next = recovered(state, now)
-        val classification = classify(context)
+        val assessment = NotificationClassifier.assess(context, state.config)
+        val classification = assessment.classification
         val before = next.health
         val outcome: TapOutcome
         val reason: String
         when {
-            isWhitelisted(context.packageName) -> {
+            classification == Classification.Important -> {
                 outcome = TapOutcome.Bypass
-                reason = "whitelisted"
+                reason = assessment.reason
             }
             classification == Classification.Unknown -> {
                 outcome = TapOutcome.NoPenalty
-                reason = "unknown"
+                reason = assessment.reason
             }
             else -> {
                 next = next.copy(recoveryAnchorMillis = now)
@@ -64,7 +59,7 @@ class GameEngine(
             }
         }
         val record = TapRecord(now, context.packageName, classification, outcome, before,
-            next.health, before - next.health, reason)
+            next.health, before - next.health, reason, context.ageMillis)
         next = next.copy(
             tapsPerApp = next.tapsPerApp + (context.packageName to
                 ((next.tapsPerApp[context.packageName] ?: 0) + 1)),
@@ -75,6 +70,8 @@ class GameEngine(
     }
 
     fun onTap(packageName: String): TapResult = onTap(NotificationContext(packageName))
+    fun onTap(packageName: String, ageMillis: Long): TapResult =
+        onTap(NotificationContext(packageName, ageMillis = ageMillis))
 
     /** Already called by onTap on a successful roll. UI must not call it again for Caught. */
     fun applyCatch(level: CatchLevel): GameState {

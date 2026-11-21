@@ -9,14 +9,17 @@ an integration/debug screen. Person 3's final product UI is still to be connecte
 
 ## Consequence logic (Person 2)
 
-Implemented: app whitelist, package/keyword/app-category bait classification, configurable
+Implemented: ordered whitelist/category/VIP/urgency bypass rules, notification classification,
+observed app/channel rules, configurable
 catch chance, Mild/Medium/Savage damage, recovery, death/reset, persistent lockout deadlines,
 tap counts per app, catch totals, and bounded tap/health history. Raw notification text
 is used transiently for classification and is never written to the game store.
 
 Defaults: 7.5% catch probability, 100 maximum health, damage of 10/20/35, +5 health per
-completed clean hour, and a 30-second lockout deadline. Bait rules and the whitelist start
-empty: **configure a bait package or keyword before expecting normal taps to cause catches**.
+completed clean hour, and a 30-second lockout deadline. Complete, recognized social/promo
+and ordinary email/message notifications default to bait after all importance checks.
+Incomplete or uncertain signals never receive penalties. App profiles and channel overrides
+start empty: configure them using observed data rather than guessed package/channel names.
 
 See [Person 2 integration and demo guide](docs/person-2/PERSON_2_INTEGRATION.md) for the exact rules,
 Person 3 APIs, storage behavior, testing commands, and remaining UI work.
@@ -31,6 +34,7 @@ The original `dispatch(packageName)` / `onTap(packageName)` entry points remain 
 |---|---|
 | `logic/TapHandler.kt` | Backward-compatible `TapHandler` interface and `TapDispatcher` |
 | `logic/GameEngine.kt` | Pure classification, catch, health and recovery rules |
+| `logic/NotificationClassifier.kt` | Ordered importance/bait rules and conservative fallback |
 | `logic/GameRepository.kt` | Serialized background operations and observable state |
 | `logic/PreferencesGameStore.kt`, `logic/GameStateCodec.kt` | Versioned, atomic local snapshots |
 | `TaptationApplication.kt` | Installs the real handler even when the activity is not open |
@@ -38,6 +42,7 @@ The original `dispatch(packageName)` / `onTap(packageName)` entry points remain 
 | `service/TapDetection.kt` | Pure `isTap(reason)` and `shouldDispatch(...)` filters (unit tested) |
 | `service/PermissionHelper.kt` | Notification access check + settings intents, battery settings. Reuse for onboarding |
 | `service/TapLog.kt` | In-memory list of the last 20 taps |
+| `service/NotificationSignals.kt` | Category, channel, importance, conversation flags and timing for the `posted`/`removed` Logcat lines (never title/text) |
 | `debug/DebugScreen.kt`, `debug/LogicDebugPanel.kt`, `debug/TestNotification.kt` | Listener and logic integration screen shown by `MainActivity` |
 
 ### Run
@@ -62,11 +67,25 @@ adb shell cmd notification allow_listener com.codejam.taptation/com.codejam.tapt
 
 ### Verify
 
-1. **Post test notification**, then tap the notification: a new row shows up in *Last 20 taps* and Logcat shows `tap pkg=com.codejam.taptation outcome=NoPenalty reason=unknown health=100` on a fresh install.
+1. **Post test notification**, then tap the notification: a new row shows up in *Last 20 taps* and Logcat shows `outcome=NoPenalty reason=unrecognized_signals` on a fresh install (the test notification has no category). Mark its package as bait to enable catch rolls for it.
 2. Post another one and **swipe it away**: no new row (Logcat shows `reason=CANCEL`).
 3. Tap a notification from a real app (Messages, Gmail): a row shows up with that app's package name.
 4. **Simulate tap**: a `com.test.fake` row shows up and the stub handler logs it.
 5. Turn notification access off and on again: no crash, and *Service connected* goes back to `yes`.
+
+### Reading the Logcat lines
+
+Every posted and removed notification logs its signals (filter `tag:FakeNotifs`):
+
+```
+posted pkg=com.discord update=false cat=msg channelId=... channel="Direct Messages" importance=HIGH conversation=true groupConversation=false style=MessagingStyle autoCancel=true ongoing=false summary=false group=true contentIntent=true postTime=... age=3ms key=...
+removed pkg=com.discord reason=CLICK(1) cat=msg channelId=... ... age=8123ms key=...
+```
+
+- `autoCancel=false`: tapping won't remove it, so the tap is never detected.
+- `update=true`: the app replaced an active notification (same key). A small `age` on an update means `postTime` was reset.
+- `?` means Android didn't provide the value: `conversation` needs Android 12+, `groupConversation` is only set by MessagingStyle, and `channel`/`importance` are often missing on `removed` lines (use the `posted` line).
+- Title and text are never logged.
 
 ### Known limitations
 
@@ -75,7 +94,7 @@ adb shell cmd notification allow_listener com.codejam.taptation/com.codejam.tapt
 - **Access can't be granted from code.** The user has to turn it on in system settings (or use the adb shortcut above).
 - **Android 13+ restricted settings.** If the APK was sideloaded rather than installed from Android Studio, the toggle may be greyed out. Fix: App info > ⋮ menu > **Allow restricted settings**, then try again.
 - **Battery optimization** can kill the listener, mostly on non-Pixel phones. Set the app to Unrestricted.
-- Our own notifications count as taps in **debug builds only**, so the test notification works. Release builds ignore them.
+- Our own notifications count as taps in **debug builds only, and only the test notification** (channel `debug_test`). Release builds ignore them. Other notifications we post never count, so a future "you got caught" alert can't cause another catch.
 - The tap list lives in memory and is cleared when the app process dies.
 
 ## Person 4 debug controls

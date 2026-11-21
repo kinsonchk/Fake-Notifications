@@ -1,18 +1,9 @@
 package com.codejam.taptation.logic
 
 enum class CatchLevel { Mild, Medium, Savage }
-enum class Classification { Bait, Unknown }
+enum class Classification { Important, Bait, Unknown }
 enum class TapOutcome { Bypass, NoPenalty, Caught }
-
-/** Metadata is transient: notification text and contact identities are never persisted. */
-data class NotificationContext(
-    val packageName: String,
-    val key: String? = null,
-    val title: String? = null,
-    val text: String? = null,
-    val category: String? = null,
-    val appCategory: Int? = null,
-)
+enum class AppProfile { Outlook, Instagram, Discord }
 
 data class GameConfig(
     val catchProbability: Double = 0.075,
@@ -26,13 +17,20 @@ data class GameConfig(
     val baitPackages: Set<String> = emptySet(),
     val baitKeywords: Set<String> = emptySet(),
     val baitAppCategories: Set<Int> = emptySet(),
+    val vipNames: Set<String> = emptySet(),
+    val importantKeywords: Set<String> = setOf("urgent", "code", "meeting invite", "meeting invitation"),
+    val appProfiles: Map<String, AppProfile> = emptyMap(),
+    val importantChannels: Map<String, Set<String>> = emptyMap(),
+    val baitChannels: Map<String, Set<String>> = emptyMap(),
 ) {
     init {
         require(catchProbability.isFinite() && catchProbability in 0.0..1.0)
         require(listOf(mildDamage, mediumDamage, savageDamage).all { it in 1..100 })
         require(recoveryPerHour in 0..100)
         require(lockoutSeconds in 1..3600)
-        require((whitelistedPackages + baitPackages + baitKeywords).none { it.isBlank() })
+        require((whitelistedPackages + baitPackages + baitKeywords + vipNames + importantKeywords +
+            appProfiles.keys + importantChannels.keys + baitChannels.keys +
+            importantChannels.values.flatten() + baitChannels.values.flatten()).none { it.isBlank() })
     }
 
     fun damage(level: CatchLevel): Int = when (level) {
@@ -51,6 +49,7 @@ data class TapRecord(
     val healthAfter: Int,
     val damage: Int,
     val reason: String,
+    val ageMillis: Long? = null,
 )
 
 data class HealthRecord(

@@ -1,6 +1,7 @@
 package com.codejam.taptation.logic
 
 import android.util.Log
+import java.util.concurrent.CompletableFuture
 
 /**
  * Contract between the notification service (Person 1) and the consequence logic (Person 2).
@@ -16,6 +17,14 @@ interface TapHandler {
 
     /** Existing package-only handlers remain source-compatible. */
     fun onTap(context: NotificationContext) = onTap(context.packageName)
+    fun onNotificationPosted(context: NotificationContext) {}
+    fun onNotificationRemoved(key: String) {}
+    fun onListenerReset() {}
+}
+
+interface ResultTapHandler : TapHandler {
+    /** Android adapter returns asynchronously because evaluating a tap includes persistent I/O. */
+    fun onTap(packageName: String, ageMillis: Long): CompletableFuture<TapResult>
 }
 
 /**
@@ -31,6 +40,11 @@ object TapDispatcher {
 
     fun dispatch(packageName: String) = handler.onTap(packageName)
     fun dispatch(context: NotificationContext) = handler.onTap(context)
+    fun dispatch(packageName: String, ageMillis: Long): CompletableFuture<TapResult> =
+        (handler as? ResultTapHandler)?.onTap(packageName, ageMillis)
+            ?: CompletableFuture<TapResult>().apply {
+                completeExceptionally(IllegalStateException("No result-returning tap handler installed"))
+            }
 }
 
 /** Placeholder until Person 2's handler is installed. Only logs. */

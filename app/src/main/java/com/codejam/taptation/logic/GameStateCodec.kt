@@ -11,7 +11,7 @@ object GameStateCodec {
     fun encode(state: GameState): String {
         val buffer = ByteArrayOutputStream()
         DataOutputStream(buffer).use { out ->
-            out.writeInt(1)
+            out.writeInt(2)
             out.writeInt(state.health)
             out.writeLong(state.recoveryAnchorMillis)
             out.writeLong(state.lastObservedMillis)
@@ -31,6 +31,15 @@ object GameStateCodec {
                 out.strings(baitKeywords)
                 out.writeInt(baitAppCategories.size)
                 baitAppCategories.sorted().forEach(out::writeInt)
+                out.strings(vipNames)
+                out.strings(importantKeywords)
+                out.writeInt(appProfiles.size)
+                appProfiles.toSortedMap().forEach { (pkg, profile) ->
+                    out.writeUTF(pkg)
+                    out.writeUTF(profile.name)
+                }
+                out.channels(importantChannels)
+                out.channels(baitChannels)
             }
             out.writeInt(state.tapsPerApp.size)
             state.tapsPerApp.toSortedMap().forEach { (pkg, count) ->
@@ -47,6 +56,8 @@ object GameStateCodec {
                 out.writeInt(it.healthAfter)
                 out.writeInt(it.damage)
                 out.writeUTF(it.reason)
+                out.writeBoolean(it.ageMillis != null)
+                it.ageMillis?.let(out::writeLong)
             }
             out.writeInt(state.healthHistory.size)
             state.healthHistory.forEach {
@@ -62,14 +73,15 @@ object GameStateCodec {
 
     fun decode(encoded: String): GameState =
         DataInputStream(ByteArrayInputStream(Base64.getDecoder().decode(encoded))).use { input ->
-            require(input.readInt() == 1) { "Unsupported game store version" }
+            val version = input.readInt()
+            require(version in 1..2) { "Unsupported game store version" }
             val health = input.readInt().also { require(it in 0..100) }
             val anchor = input.readLong()
             val observed = input.readLong()
             val lockout = input.readLong()
             val lastCatch = input.readLong().takeUnless { it == -1L }
             val catches = input.readLong().also { require(it >= 0) }
-            val config = GameConfig(
+            var config = GameConfig(
                 catchProbability = input.readDouble(),
                 level = CatchLevel.valueOf(input.readUTF()),
                 mildDamage = input.readInt(),
@@ -82,6 +94,17 @@ object GameStateCodec {
                 baitKeywords = input.strings(),
                 baitAppCategories = List(input.count()) { input.readInt() }.toSet(),
             )
+            if (version >= 2) {
+                config = config.copy(
+                    vipNames = input.strings(),
+                    importantKeywords = input.strings(),
+                    appProfiles = buildMap {
+                        repeat(input.count()) { put(input.readUTF(), AppProfile.valueOf(input.readUTF())) }
+                    },
+                    importantChannels = input.channels(),
+                    baitChannels = input.channels(),
+                )
+            }
             val counts = buildMap {
                 repeat(input.count()) {
                     put(input.readUTF(), input.readLong().also { require(it >= 0) })
@@ -90,7 +113,8 @@ object GameStateCodec {
             val taps = List(input.count(GameEngine.HISTORY_LIMIT)) {
                 TapRecord(input.readLong(), input.readUTF(), Classification.valueOf(input.readUTF()),
                     TapOutcome.valueOf(input.readUTF()), input.readInt(), input.readInt(),
-                    input.readInt(), input.readUTF())
+                    input.readInt(), input.readUTF(),
+                    if (version >= 2 && input.readBoolean()) input.readLong() else null)
             }
             val history = List(input.count(GameEngine.HISTORY_LIMIT)) {
                 val timestamp = input.readLong()
@@ -110,6 +134,14 @@ object GameStateCodec {
     }
 
     private fun DataInputStream.strings(): Set<String> = List(count()) { readUTF() }.toSet()
+    private fun DataOutputStream.channels(values: Map<String, Set<String>>) {
+        writeInt(values.size)
+        values.toSortedMap().forEach { (pkg, names) -> writeUTF(pkg); strings(names) }
+    }
+    private fun DataInputStream.channels(): Map<String, Set<String>> {
+        val input = this
+        return buildMap { repeat(input.count()) { put(input.readUTF(), input.strings()) } }
+    }
     private fun DataInputStream.count(max: Int = 100_000): Int = readInt().also {
         require(it in 0..max) { "Invalid game store collection size" }
     }

@@ -10,6 +10,13 @@ import android.service.notification.NotificationListenerService
 object TapDetection {
 
     /**
+     * Channel of the debug test notification. In debug builds, this is the only channel of our
+     * own package that counts as a tap. Our other notifications (for example a future "you got
+     * caught" alert) must never count, or tapping one could trigger another catch in a loop.
+     */
+    const val OWN_TEST_CHANNEL_ID = "debug_test"
+
+    /**
      * True only for REASON_CLICK: the user tapped the notification and it auto-cancelled.
      *
      * Everything else is ignored on purpose:
@@ -26,11 +33,13 @@ object TapDetection {
      * Full filter applied before a removal is handed to [com.codejam.taptation.logic.TapDispatcher].
      *
      * @param flags `Notification.flags` of the removed notification.
+     * @param channelId `Notification.channelId` of the removed notification.
      * @param includeOwnPackage true in debug builds so the in-app test notification counts.
      */
     fun shouldDispatch(
         reason: Int,
         flags: Int,
+        channelId: String?,
         packageName: String,
         ownPackageName: String,
         includeOwnPackage: Boolean,
@@ -40,7 +49,9 @@ object TapDetection {
         if (flags and Notification.FLAG_GROUP_SUMMARY != 0) return false
         // Ongoing notifications (music, navigation, downloads) can't be tap-dismissed meaningfully.
         if (flags and Notification.FLAG_ONGOING_EVENT != 0) return false
-        if (packageName == ownPackageName && !includeOwnPackage) return false
+        if (packageName == ownPackageName &&
+            (!includeOwnPackage || channelId != OWN_TEST_CHANNEL_ID)
+        ) return false
         return true
     }
 
