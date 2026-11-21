@@ -54,3 +54,10 @@ adb shell cmd notification allow_listener com.codejam.taptation/com.codejam.tapt
 - **Battery optimization** can kill the listener, mostly on non-Pixel phones. Set the app to Unrestricted.
 - Our own notifications count as taps in **debug builds only**, so the test notification works. Release builds ignore them.
 - The tap list lives in memory and is cleared when the app process dies.
+
+## Person 4 debug controls
+
+The debug build includes a Person 4 control panel for probability, health, force catch, fast-forward, and reset. It uses the DemoControls interface and does not write to storage directly. The controls show as not connected until Person 2 supplies an implementation backed by the real consequence logic and store. The release build hides the debug screen.
+
+The in-app test notification is the repeatable tap test because it has a content action and auto-cancels. A shell-posted ADB notification can check appearance, but should not be used to verify tap detection. Use db logcat -s FakeNotifs to inspect listener messages.
+

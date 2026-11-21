@@ -1,4 +1,4 @@
-package com.codejam.taptation.debug
+﻿package com.codejam.taptation.debug
 
 import android.Manifest
 import android.app.NotificationChannel
@@ -36,14 +36,13 @@ object TestNotification {
     fun post(context: Context) {
         ensureChannel(context)
 
+        val id = nextId.getAndIncrement()
         val openApp = Intent(context, MainActivity::class.java)
             .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
         val contentIntent = PendingIntent.getActivity(
-            context, 0, openApp,
+            context, id, openApp,
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
         )
-
-        val id = nextId.getAndIncrement()
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_stat_debug)
             .setContentTitle("Test notification #$id")
@@ -68,3 +67,6 @@ object TestNotification {
         )
     }
 }
+
+
+

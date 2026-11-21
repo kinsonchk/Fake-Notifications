@@ -1,4 +1,4 @@
-package com.codejam.taptation.debug
+﻿package com.codejam.taptation.debug
 
 import android.Manifest
 import android.widget.Toast
@@ -40,7 +40,7 @@ private val timeFormat = DateTimeFormatter.ofPattern("HH:mm:ss").withZone(ZoneId
 
 /** Plain screen to prove the notification service works on a real phone. Not the real UI. */
 @Composable
-fun DebugScreen(contentPadding: PaddingValues = PaddingValues()) {
+fun DebugScreen(contentPadding: PaddingValues = PaddingValues(), controls: DemoControls? = null) {
     val context = LocalContext.current
 
     var accessGranted by remember { mutableStateOf(PermissionHelper.isNotificationAccessGranted(context)) }
@@ -120,6 +120,10 @@ fun DebugScreen(contentPadding: PaddingValues = PaddingValues()) {
         }
 
         item {
+            DemoControlsPanel(controls)
+        }
+
+        item {
             HorizontalDivider()
             Text(
                 "Last ${TapLog.CAPACITY} taps",
@@ -151,3 +155,4 @@ private fun StatusRow(label: String, value: String) {
         Text(value, fontWeight = FontWeight.Bold)
     }
 }
+
