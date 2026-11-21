@@ -46,7 +46,8 @@ system -> TapListenerService.onNotificationPosted   (cache NotificationContext b
 ```
 
 - `logic/TapHandler.kt`: the **shared contract**. `TapHandler.onTap(packageName)` plus `onTap(context: NotificationContext)` (defaults to the package-only one); `TapDispatcher` holds a `@Volatile` handler with both `dispatch` overloads. Package-only calls stay supported.
-- `logic/GameModels.kt`: `NotificationContext` (packageName, key, title, text, notification category, appCategory), `GameConfig`, `GameState`, `TapOutcome` (`Bypass` / `NoPenalty` / `Caught`), `CatchLevel`.
+- `logic/NotificationContext.kt`: `NotificationContext` (packageName, key, title, text, notification category, appCategory, action button titles). Transient: never persisted or logged.
+- `logic/GameModels.kt`: `GameConfig`, `GameState`, `TapOutcome` (`Bypass` / `NoPenalty` / `Caught`), `CatchLevel`.
 - `logic/GameEngine.kt`: pure, single-thread-confined rules (classification, roll, damage, recovery, lockout, death/reset). Clock and random are injected, so it's JVM unit-testable.
 - `logic/GameRepository.kt`: the real `TapHandler`. Serializes every operation on one worker thread (no disk I/O on listener callbacks), resolves `ApplicationInfo.category`, exposes `state` / `error` / `lastResult` StateFlows and `CompletableFuture` mutations. Never `.get()`/`.join()` on the UI thread.
 - `logic/PreferencesGameStore.kt`, `logic/GameStateCodec.kt`: versioned, atomic local snapshots.

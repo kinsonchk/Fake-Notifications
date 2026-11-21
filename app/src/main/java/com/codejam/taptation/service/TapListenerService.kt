@@ -109,6 +109,8 @@ class TapListenerService : NotificationListenerService() {
             text = (extras?.getCharSequence(Notification.EXTRA_BIG_TEXT)
                 ?: extras?.getCharSequence(Notification.EXTRA_TEXT))?.toString(),
             category = notification.category,
+            actions = notification.actions.orEmpty()
+                .mapNotNull { it?.title?.toString()?.takeIf(String::isNotBlank) },
         )
     }
 
