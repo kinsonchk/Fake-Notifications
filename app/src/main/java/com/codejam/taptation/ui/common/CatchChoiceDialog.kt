@@ -11,10 +11,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import com.codejam.taptation.R
 
-/** Choosing a destination acknowledges an already-applied catch; it never applies damage. */
+/** Choosing a destination settles an already-applied catch; only continuing adds its saved extra damage. */
 @Composable
-fun CatchChoiceDialog(onTaptation: () -> Unit, onOriginal: () -> Unit) {
-    Dialog(onDismissRequest = {}) {
+fun CatchChoiceDialog(continueExtraDamage: Int, onTaptation: () -> Unit, onOriginal: () -> Unit, onLater: () -> Unit) {
+    Dialog(onDismissRequest = onLater) {
         Surface(shape = RoundedCornerShape(26.dp), color = MaterialTheme.colorScheme.surfaceContainerLowest,
             contentColor = MaterialTheme.colorScheme.onSurface,
             border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) {
@@ -24,12 +24,19 @@ fun CatchChoiceDialog(onTaptation: () -> Unit, onOriginal: () -> Unit) {
                         style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
                 }
                 Text(stringResource(R.string.caught_title), style = MaterialTheme.typography.headlineLarge)
-                Text(stringResource(R.string.caught_message), style = MaterialTheme.typography.bodyMedium,
+                Text(if (continueExtraDamage > 0) stringResource(R.string.caught_message, continueExtraDamage)
+                    else stringResource(R.string.caught_message_no_extra), style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Button(onClick = onTaptation, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
                     shape = RoundedCornerShape(16.dp)) { Text(stringResource(R.string.caught_our_app)) }
                 OutlinedButton(onClick = onOriginal, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
-                    shape = RoundedCornerShape(16.dp)) { Text(stringResource(R.string.caught_original_app)) }
+                    shape = RoundedCornerShape(16.dp)) {
+                    Text(if (continueExtraDamage > 0) stringResource(R.string.caught_original_app_with_penalty, continueExtraDamage)
+                        else stringResource(R.string.caught_original_app))
+                }
+                TextButton(onClick = onLater, modifier = Modifier.fillMaxWidth()) {
+                    Text(stringResource(R.string.caught_later))
+                }
             }
         }
     }

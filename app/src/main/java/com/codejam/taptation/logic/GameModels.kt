@@ -5,7 +5,9 @@ enum class Classification { Important, Bait, Unknown }
 enum class TapOutcome { Bypass, NoPenalty, Caught }
 enum class AppProfile { Outlook, Instagram, Discord }
 enum class Difficulty(val probability: Double) { Easy(0.20), Medium(0.40), Hard(0.70) }
-data class PendingCatch(val id: String, val packageName: String?)
+data class PendingCatch(val id: String, val packageName: String?, val continueExtraDamage: Int = 0) {
+    init { require(continueExtraDamage in 0..100) }
+}
 
 data class GameConfig(
     val difficulty: Difficulty = Difficulty.Easy,

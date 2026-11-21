@@ -55,7 +55,7 @@ class GameEngine(
                     }
                     random() < (if (allowDebugOverrides) next.config.catchProbability else next.config.difficulty.probability) -> {
                         next = caught(next, next.config.level, now)
-                            .copy(pendingCatch = PendingCatch("$now-${next.totalCatches + 1}", context.packageName))
+                            .copy(pendingCatch = PendingCatch("$now-${next.totalCatches + 1}", context.packageName, CONTINUE_EXTRA_DAMAGE))
                         outcome = TapOutcome.Caught
                         reason = "caught"
                     }
@@ -105,6 +105,18 @@ class GameEngine(
         return commit(next.copy(config = next.config.copy(active = active,
             disabledUntilMillis = if (active) null else disabledUntilMillis),
             recoveryAnchorMillis = now, pendingCatch = if (active) next.pendingCatch else null))
+    }
+
+    /** Settles a displayed catch once; continuing adds its saved extra penalty. */
+    fun settleCatchChoice(id: String, continueOriginalApp: Boolean): GameState {
+        val pending = state.pendingCatch?.takeIf { it.id == id } ?: return state
+        val now = now()
+        var next = recovered(state, now)
+        val extra = if (continueOriginalApp) pending.continueExtraDamage else 0
+        if (extra > 0 && next.health > 0) {
+            next = withHealth(next, (next.health - extra).coerceAtLeast(0), now, "continue_after_catch")
+        }
+        return commit(next.copy(pendingCatch = null))
     }
 
     fun dismissCatch(id: String): GameState =
@@ -194,6 +206,7 @@ class GameEngine(
     }
 
     companion object {
+        const val CONTINUE_EXTRA_DAMAGE = 5
         const val HISTORY_LIMIT = 1000
         const val HOUR_MILLIS = 3_600_000L
     }

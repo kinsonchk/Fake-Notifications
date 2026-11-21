@@ -142,6 +142,8 @@ class GameRepository(context: Context, private val stats: StatsRepository? = nul
         setActive(false, minutes?.let { System.currentTimeMillis() + it * 60_000L })
     }
     fun enable(): CompletableFuture<GameState> = submit { disableGate.cancel(); setActive(true) }
+    fun settleCatchChoice(id: String, continueOriginalApp: Boolean): CompletableFuture<GameState> =
+        submit { settleCatchChoice(id, continueOriginalApp) }
     fun dismissCatch(id: String): CompletableFuture<GameState> = submit { dismissCatch(id) }
     fun setDebugCatchProbability(value: Double?): CompletableFuture<GameState> = submit {
         check(debug) { "Debug overrides are disabled in release builds" }

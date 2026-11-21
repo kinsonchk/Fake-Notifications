@@ -8,6 +8,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
@@ -54,14 +55,17 @@ fun TaptationApp(debug: Boolean) {
     val tabs = Tab.entries.filter { debug || !it.debugOnly }
     val compact = LocalConfiguration.current.screenWidthDp < 380
     var selected by rememberSaveable { mutableStateOf(Tab.Home) }
+    var postponedCatchId by remember { mutableStateOf<String?>(null) }
     val app = LocalContext.current.applicationContext as TaptationApplication
     val snapshot by app.game.state.collectAsStateWithLifecycle()
     val requests by app.feedback.homeRequests.collectAsStateWithLifecycle()
     var handledRequest by rememberSaveable { mutableStateOf(0L) }
     LaunchedEffect(requests) { if (requests > handledRequest) { selected = Tab.Home; handledRequest = requests } }
+    LaunchedEffect(snapshot?.pendingCatch?.id) { postponedCatchId = null }
     // Keeps each tab's scroll position and typed text while another tab is shown.
     val tabState = rememberSaveableStateHolder()
 
+    Box(Modifier.fillMaxSize()) {
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         bottomBar = {
@@ -101,8 +105,23 @@ fun TaptationApp(debug: Boolean) {
             }
         }
     }
-    snapshot?.pendingCatch?.let { pending ->
-        CatchChoiceDialog(onTaptation = { app.feedback.choose(pending, true) },
-            onOriginal = { app.feedback.choose(pending, false) })
+    snapshot?.pendingCatch?.takeIf { it.id == postponedCatchId }?.let {
+        Surface(Modifier.align(Alignment.TopCenter).windowInsetsPadding(WindowInsets.statusBars).padding(12.dp),
+            shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.tertiaryContainer, shadowElevation = 4.dp) {
+            Row(Modifier.padding(start = 16.dp, end = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text(androidx.compose.ui.res.stringResource(R.string.caught_choice_pending),
+                    Modifier.weight(1f), color = MaterialTheme.colorScheme.onTertiaryContainer)
+                androidx.compose.material3.TextButton(onClick = { postponedCatchId = null }) {
+                    Text(androidx.compose.ui.res.stringResource(R.string.caught_choose_now))
+                }
+            }
+        }
+    }
+    snapshot?.pendingCatch?.takeIf { it.id != postponedCatchId }?.let { pending ->
+        CatchChoiceDialog(continueExtraDamage = pending.continueExtraDamage,
+            onTaptation = { app.feedback.choose(pending, true) },
+            onOriginal = { app.feedback.choose(pending, false) },
+            onLater = { postponedCatchId = pending.id })
+    }
     }
 }

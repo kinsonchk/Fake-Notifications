@@ -89,7 +89,7 @@ class CatchFeedback(private val context: Context) {
         if (lastChosenId == pending.id) return
         lastChosenId = pending.id
         val target = targets[pending.id]
-        repository.dismissCatch(pending.id).whenComplete { _, failure -> main.post {
+        repository.settleCatchChoice(pending.id, continueOriginalApp = !ourApp).whenComplete { _, failure -> main.post {
             if (failure != null) {
                 lastChosenId = null
                 Toast.makeText(context, "Could not save your choice. Please try again.", Toast.LENGTH_LONG).show()
@@ -157,11 +157,13 @@ class CatchFeedback(private val context: Context) {
             setText(R.string.caught_title); textSize = 34f; setTextColor(ink); typeface = Typeface.SERIF
         })
         panel.addView(TextView(context).apply {
-            setText(R.string.caught_message)
+            text = if (pending.continueExtraDamage > 0)
+                context.getString(R.string.caught_message, pending.continueExtraDamage)
+            else context.getString(R.string.caught_message_no_extra)
             textSize = 14f; setTextColor(muted); setPadding(0, dp(12), 0, dp(20))
         })
-        fun choice(label: Int, primary: Boolean, action: () -> Unit) = Button(context).apply {
-            setText(label); isAllCaps = false; textSize = 14f
+        fun choice(label: CharSequence, primary: Boolean, action: () -> Unit) = Button(context).apply {
+            text = label; isAllCaps = false; textSize = 14f
             setTextColor(if (primary) onGreen else green)
             backgroundTintList = null; stateListAnimator = null
             this.background = GradientDrawable().apply {
@@ -172,8 +174,12 @@ class CatchFeedback(private val context: Context) {
             minHeight = dp(48); setPadding(dp(12), dp(12), dp(12), dp(12))
             setOnClickListener { action() }
         }
-        panel.addView(choice(R.string.caught_our_app, true) { choose(pending, true) })
-        panel.addView(choice(R.string.caught_original_app, false) { choose(pending, false) })
+        panel.addView(choice(context.getText(R.string.caught_our_app), true) { choose(pending, true) })
+        val continueLabel = if (pending.continueExtraDamage > 0)
+            context.getString(R.string.caught_original_app_with_penalty, pending.continueExtraDamage)
+        else context.getString(R.string.caught_original_app)
+        panel.addView(choice(continueLabel, false) { choose(pending, false) })
+        panel.addView(choice(context.getText(R.string.caught_later), false) { removeOverlay() })
         val params = WindowManager.LayoutParams(
             minOf(context.resources.displayMetrics.widthPixels - dp(32), dp(480)), WindowManager.LayoutParams.WRAP_CONTENT,
             WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
