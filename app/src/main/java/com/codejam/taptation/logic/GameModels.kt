@@ -4,9 +4,12 @@ enum class CatchLevel { Mild, Medium, Savage }
 enum class Classification { Important, Bait, Unknown }
 enum class TapOutcome { Bypass, NoPenalty, Caught }
 enum class AppProfile { Outlook, Instagram, Discord }
+enum class Difficulty(val probability: Double) { Easy(0.20), Medium(0.40), Hard(0.70) }
+data class PendingCatch(val id: String, val packageName: String?)
 
 data class GameConfig(
-    val catchProbability: Double = 0.075,
+    val difficulty: Difficulty = Difficulty.Easy,
+    val debugCatchProbability: Double? = null,
     val level: CatchLevel = CatchLevel.Mild,
     val mildDamage: Int = 10,
     val mediumDamage: Int = 20,
@@ -22,17 +25,14 @@ data class GameConfig(
     val appProfiles: Map<String, AppProfile> = emptyMap(),
     val importantChannels: Map<String, Set<String>> = emptyMap(),
     val baitChannels: Map<String, Set<String>> = emptyMap(),
-    /**
-     * A bait tap later than this after the notification counts as no penalty: no roll, no damage,
-     * no clean-timer reset. 0 turns the window off. Taps with an unknown age are always checked.
-     */
+    val active: Boolean = true,
+    val disabledUntilMillis: Long? = null,
     val freshnessSeconds: Int = 600,
-    /**
-     * false: age since the newest update (Android's postTime restarts on every update, e.g. each new
-     * chat message). true: age since the listener first saw the notification.
-     */
     val freshnessFromFirstSeen: Boolean = false,
 ) {
+    val catchProbability: Double get() = debugCatchProbability ?: difficulty.probability
+    val freshnessWindowMillis: Long get() = freshnessSeconds * 1000L
+    fun isActive(nowMillis: Long): Boolean = active || disabledUntilMillis?.let { nowMillis >= it } == true
     init {
         require(catchProbability.isFinite() && catchProbability in 0.0..1.0)
         require(listOf(mildDamage, mediumDamage, savageDamage).all { it in 1..100 })
@@ -99,6 +99,7 @@ data class GameState(
     val tapsPerApp: Map<String, Long> = emptyMap(),
     val taps: List<TapRecord> = emptyList(),
     val healthHistory: List<HealthRecord> = emptyList(),
+    val pendingCatch: PendingCatch? = null,
 ) {
     val isDead: Boolean get() = health == 0
     fun isLockedOut(nowMillis: Long): Boolean = nowMillis < lockoutUntilMillis

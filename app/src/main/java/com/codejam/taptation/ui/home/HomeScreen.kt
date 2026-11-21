@@ -33,6 +33,7 @@ import com.codejam.taptation.ui.common.TapExplanations
 import com.codejam.taptation.ui.common.formatDuration
 import com.codejam.taptation.ui.common.rememberGameRepository
 import com.codejam.taptation.ui.common.rememberNow
+import com.codejam.taptation.ui.settings.ActivationControls
 
 /** "How is my tree?" Status only for now. TODO(Person 3): tree/pet visual. */
 @Composable
@@ -50,6 +51,7 @@ fun HomeScreen(contentPadding: PaddingValues) {
         if (state == null) {
             item { Text(if (error == null) "Loading saved game…" else "Saved game unavailable") }
         } else {
+            item { ActivationControls(repository, state.config) }
             item { TreeStatusCard(state, now, onReset = { repository.reset() }) }
             lastResult?.let { result -> item { LastTapCard(result) } }
         }
@@ -70,7 +72,7 @@ private fun TreeStatusCard(state: GameState, now: Long, onReset: () -> Unit) {
         val lockoutMillis = (state.lockoutUntilMillis - now).coerceAtLeast(0)
         if (lockoutMillis > 0) {
             Text(
-                "Locked out: ${(lockoutMillis + 999) / 1000} s left",
+                "Catch cooldown: ${(lockoutMillis + 999) / 1000} s left",
                 color = MaterialTheme.colorScheme.error,
                 style = MaterialTheme.typography.titleSmall,
             )

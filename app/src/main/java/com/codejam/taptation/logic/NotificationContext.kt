@@ -25,4 +25,6 @@ data class NotificationContext(
     val ageMillis: Long? = null,
     val firstSeenAgeMillis: Long? = null,
     val actions: List<String> = emptyList(),
+    /** Transient user action for the original notification; never persisted or invoked automatically. */
+    val openOriginal: (() -> Unit)? = null,
 )

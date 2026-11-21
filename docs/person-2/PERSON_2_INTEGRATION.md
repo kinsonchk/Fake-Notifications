@@ -1,5 +1,10 @@
 # Person 2: logic integration
 
+**Latest revision:** [revised catch flow](../revised-catch-flow.md) supersedes the old
+probability/lockout behavior below. GameConfig now has fixed difficulty, debug-only override,
+activation and freshness. The repository exposes begin/cancel/confirm disable, enable and
+pending-catch acknowledgment. Game storage is v5 (reads main's v4 first-seen freshness); SQLite event storage is v2.
+
 ## Ownership and current status
 
 Person 2 owns classification, game rules, settings, whitelist data and local statistics.
@@ -170,7 +175,7 @@ observe `StateFlow` for Compose state or explicitly dispatch UI work to the main
 Example settings updates:
 
 ```kotlin
-repository.updateConfig { it.copy(catchProbability = 0.10, level = CatchLevel.Medium) }
+repository.updateConfig { it.copy(difficulty = Difficulty.Medium) }
 repository.updateConfig { it.copy(baitKeywords = setOf("sale", "limited offer")) }
 repository.setWhitelisted("com.example.messages", true)
 repository.updateConfig { it.copy(vipNames = setOf("Alex Smith")) }

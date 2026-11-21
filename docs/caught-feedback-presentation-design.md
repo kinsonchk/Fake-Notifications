@@ -149,3 +149,4 @@ For the requested “stop me after I tap” experience, build the **opt-in appli
 The current app now has a **Catch overlay** switch in Settings. Turning it on opens Android's **Display over other apps** special-access page when needed. A caught result is emitted after `GameRepository` has saved it. `CaughtFeedbackManager` shows the full-screen overlay with **Continue in this app** and **Open Taptation** actions; if overlay access is unavailable or disabled, it posts a Taptation notification when notification permission allows and keeps a pending result for the next app launch. `CaughtResultActivity` reads the saved catch details and does not apply damage again.
 
 The debug APK has compiled successfully. The overlay, Android permission grant/revocation, button behavior, and fallback still need manual verification on an emulator or phone using section C.2 of `docs/testing-step.md`.
+

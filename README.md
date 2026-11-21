@@ -2,10 +2,14 @@
 
 Team docs, one folder per person: [docs/](docs/README.md).
 
+Latest behavior: [revised catch flow](docs/revised-catch-flow.md) — fixed Easy/Medium/Hard
+20/40/70%, activation with confirmation friction, freshness filtering, two-destination caught
+feedback, and SQLite-backed statistics. This guide supersedes older defaults below.
+
 Android hackathon app (launcher name **Taptation**) that tracks notification taps and
 applies configurable, probabilistic consequences to notifications classified as bait.
-The notification listener and Person 2's logic are connected; the current activity is
-an integration/debug screen. Person 3's final product UI is still to be connected.
+The listener, game logic, caught choices, settings and statistics are connected. Home remains
+a status view while the metric for the final tree/pet graphic is undecided.
 
 ## Consequence logic (Person 2)
 
@@ -15,8 +19,8 @@ catch chance, Mild/Medium/Savage damage, recovery, death/reset, persistent locko
 tap counts per app, catch totals, and bounded tap/health history. Raw notification text
 is used transiently for classification and is never written to the game store.
 
-Defaults: 7.5% catch probability, 100 maximum health, damage of 10/20/35, +5 health per
-completed clean hour, and a 30-second lockout deadline. Complete, recognized social/promo
+Defaults: Easy (20%) catch probability, 100 maximum health, damage of 10/20/35, +5 health per
+completed clean hour, and a 30-second catch cooldown. Complete, recognized social/promo
 and ordinary email/message notifications default to bait after all importance checks.
 Incomplete or uncertain signals never receive penalties. App profiles and channel overrides
 start empty: configure them using observed data rather than guessed package/channel names.

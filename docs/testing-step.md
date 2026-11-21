@@ -228,22 +228,20 @@ This feature is implemented in the debug build. Use a notification posted by the
 If no suitable app can post a notification during the demo, the unit tests below still verify the game rule. Taptation's **Post test notification** button checks notification tap detection, but it is not a substitute for this app-specific whitelist check.
 
 For a quick check without the real app, post a **Custom notification** with the selected package (see "Custom notifications" below).
-### C.2 Test the caught overlay and its two buttons
+### C.2 Test caught feedback choices
 
-This check needs an Android phone or emulator with the latest debug app installed. For the most realistic check, tap a notification posted by the actual app you configured as bait. The debug **Custom notification** can also test the overlay without another app: use package `com.instagram.android` or another bait package, post the custom notification, and tap it. The custom notification itself is still posted by Taptation, so use a real source-app notification for the final cross-app demonstration.
+This check needs a phone or emulator with the latest debug app. Enable **Notification access** and open **Settings > Caught feedback**. Tap **Allow caught overlay** and grant Android's **Display over other apps** access. Also enable **notification fallback** (Android 13+ asks for notification permission).
 
-1. In Taptation, open **Settings** and find **Catch overlay**.
-2. Turn on **Show the catch overlay**. Android opens the special access page. Enable **Allow display over other apps** for Taptation, then return to the app. The setting should now show the overlay switch as on.
-3. Confirm **Notification access** is on. For Android 13 and later, also allow Taptation to post notifications so the fallback can be shown if you turn the overlay off.
-4. Set **Catch chance** to 100%. In **Per-app rules**, mark your selected app/package as bait. Use a package that is not whitelisted. If using a real app, use that app to post an auto-cancel notification. If using the debug custom notification, enter the matching package in its form and tap **Post custom notification**.
-5. Tap the notification. It should open its normal target first, then Taptation should cover the screen with **You got caught** and the health change. A catch applies damage once; the overlay itself must not apply it again.
-6. Tap **Continue in this app**. The overlay should close and leave the app that opened from the notification on screen.
-7. Reset demo data from the Debug tab if you need another catch. Repeat, then tap **Open Taptation**. Taptation should show the saved catch result. Tap **Return to the app you opened** to close that screen.
-8. Turn the overlay switch off and trigger another catch. No overlay should appear. If notification permission is allowed, a **You got caught** notification should appear; tapping it opens the saved result. If notification permission is off, open Taptation manually and it should show the pending result screen.
-9. Turn whitelist on for the same bait app and trigger another notification. It should open normally without a catch overlay or catch notification.
-10. Swipe a bait notification away. A swipe should not create a catch or show an overlay.
+Set the debug catch probability to 100% and configure an app/package as bait. For a real background-overlay check, use a notification from that actual app while Taptation is not in the foreground. Tap it; Android opens the source app, then Taptation should show the two-choice overlay:
 
-If Android or the phone manufacturer suppresses the overlay, the catch must still be saved and the fallback notification or in-app result should remain available. Test the real phone before presenting; the emulator does not prove behavior across every device.
+- **Go to Taptation** acknowledges the saved catch and brings Taptation to Home.
+- **Go to original app** acknowledges the catch and invokes the notification's original action when it is still available. If it is unavailable, Taptation falls back to opening the source app or reports that it is no longer available.
+
+For a custom notification posted by Taptation, expect the two-choice Compose dialog in Taptation, because tapping the test notification opens Taptation itself. This checks the foreground path, not the background overlay.
+
+To check the fallback, turn off overlay access in Android Settings, trigger another catch, and tap the **A moment to choose** notification. The same choices should appear in Taptation. If Android suppresses an overlay or notification, the catch remains saved and should be presented when Taptation is opened.
+
+Repeat with the package whitelisted: no pending catch choice should appear. Swipe a bait notification away: it should not create a catch choice. A catch is applied once before presentation; neither button should reduce health a second time.
 ### D. Check the release build
 
 Run:
@@ -290,3 +288,4 @@ This makes the whitelist test in C.1 possible without the real app: whitelist a 
 ## Remaining phone-only check
 
 The whitelist picker, bypass logic, and caught overlay are implemented. The remaining manual verification is to exercise a real source-app notification and overlay permissions on the presentation phone; automated JVM tests cannot exercise Android's notification shade, overlay window behavior, or device-specific permission screens.
+

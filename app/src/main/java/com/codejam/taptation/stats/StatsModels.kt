@@ -15,6 +15,7 @@ data class StatsEvent(
     val ageMillis: Long?,
     val classification: Classification,
     val caught: Boolean = false,
+    val category: String? = null,
 )
 
 /**
@@ -39,4 +40,15 @@ data class StatsSummary(
     val averageTapMillis: Long?,
     val averageDismissMillis: Long?,
     val averageAllMillis: Long?,
+    val tapToDismissPercent: Double? = null,
+    val caughtPerTapPercent: Double? = null,
+    val averageCatchesPerDay: Double = 0.0,
+    val categories: List<CategoryStats> = emptyList(),
+    val dailyCatches: List<DailyCatches> = emptyList(),
 )
+
+data class CategoryStats(val category: String, val taps: Int, val dismissals: Int, val caught: Int) {
+    val tapToDismissPercent: Double? get() = if (dismissals == 0) null else taps * 100.0 / dismissals
+    val caughtPerTapPercent: Double? get() = if (taps == 0) null else caught * 100.0 / taps
+}
+data class DailyCatches(val date: String, val count: Int)
