@@ -4,9 +4,12 @@ enum class CatchLevel { Mild, Medium, Savage }
 enum class Classification { Important, Bait, Unknown }
 enum class TapOutcome { Bypass, NoPenalty, Caught }
 enum class AppProfile { Outlook, Instagram, Discord }
+enum class Difficulty(val probability: Double) { Easy(0.20), Medium(0.40), Hard(0.70) }
+data class PendingCatch(val id: String, val packageName: String?)
 
 data class GameConfig(
-    val catchProbability: Double = 0.075,
+    val difficulty: Difficulty = Difficulty.Easy,
+    val debugCatchProbability: Double? = null,
     val level: CatchLevel = CatchLevel.Mild,
     val mildDamage: Int = 10,
     val mediumDamage: Int = 20,
@@ -22,12 +25,18 @@ data class GameConfig(
     val appProfiles: Map<String, AppProfile> = emptyMap(),
     val importantChannels: Map<String, Set<String>> = emptyMap(),
     val baitChannels: Map<String, Set<String>> = emptyMap(),
+    val active: Boolean = true,
+    val disabledUntilMillis: Long? = null,
+    val freshnessWindowMillis: Long = 10 * 60_000L,
 ) {
+    val catchProbability: Double get() = debugCatchProbability ?: difficulty.probability
+    fun isActive(nowMillis: Long): Boolean = active || disabledUntilMillis?.let { nowMillis >= it } == true
     init {
         require(catchProbability.isFinite() && catchProbability in 0.0..1.0)
         require(listOf(mildDamage, mediumDamage, savageDamage).all { it in 1..100 })
         require(recoveryPerHour in 0..100)
         require(lockoutSeconds in 1..3600)
+        require(freshnessWindowMillis in 1_000..3_600_000)
         require((whitelistedPackages + baitPackages + baitKeywords + vipNames + importantKeywords +
             appProfiles.keys + importantChannels.keys + baitChannels.keys +
             importantChannels.values.flatten() + baitChannels.values.flatten()).none { it.isBlank() })
@@ -77,6 +86,7 @@ data class GameState(
     val tapsPerApp: Map<String, Long> = emptyMap(),
     val taps: List<TapRecord> = emptyList(),
     val healthHistory: List<HealthRecord> = emptyList(),
+    val pendingCatch: PendingCatch? = null,
 ) {
     val isDead: Boolean get() = health == 0
     fun isLockedOut(nowMillis: Long): Boolean = nowMillis < lockoutUntilMillis

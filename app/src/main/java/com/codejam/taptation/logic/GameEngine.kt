@@ -5,6 +5,7 @@ class GameEngine(
     private val store: GameStore,
     private val clock: () -> Long = System::currentTimeMillis,
     private val random: () -> Double = { kotlin.random.Random.nextDouble() },
+    private val allowDebugOverrides: Boolean = true,
 ) {
     var state: GameState = store.load() ?: clock().let {
         GameState(recoveryAnchorMillis = it, lastObservedMillis = it)
@@ -21,7 +22,13 @@ class GameEngine(
         require(context.packageName.isNotBlank())
         val now = now()
         var next = recovered(state, now)
-        val assessment = NotificationClassifier.assess(context, state.config)
+        if (!next.config.isActive(now)) {
+            commit(next)
+            return TapResult(TapOutcome.NoPenalty, state, "disabled")
+        }
+        val assessment = if (context.ageMillis != null && context.ageMillis > next.config.freshnessWindowMillis)
+            Assessment(Classification.Unknown, "stale")
+        else NotificationClassifier.assess(context, next.config)
         val classification = assessment.classification
         val before = next.health
         val outcome: TapOutcome
@@ -46,8 +53,9 @@ class GameEngine(
                         outcome = TapOutcome.NoPenalty
                         reason = "lockout"
                     }
-                    random() < next.config.catchProbability -> {
+                    random() < (if (allowDebugOverrides) next.config.catchProbability else next.config.difficulty.probability) -> {
                         next = caught(next, next.config.level, now)
+                            .copy(pendingCatch = PendingCatch("$now-${next.totalCatches + 1}", context.packageName))
                         outcome = TapOutcome.Caught
                         reason = "caught"
                     }
@@ -77,7 +85,7 @@ class GameEngine(
     fun applyCatch(level: CatchLevel): GameState {
         val now = now()
         val next = recovered(state, now)
-        return commit(if (next.isDead || next.isLockedOut(now)) next else caught(next, level, now))
+        return commit(if (!next.config.isActive(now) || next.isDead || next.isLockedOut(now)) next else caught(next, level, now))
     }
 
     fun refresh(): GameState = commit(recovered(state, now()))
@@ -91,11 +99,22 @@ class GameEngine(
                 now else next.recoveryAnchorMillis))
     }
 
+    fun setActive(active: Boolean, disabledUntilMillis: Long? = null): GameState {
+        val now = now()
+        val next = recovered(state, now)
+        return commit(next.copy(config = next.config.copy(active = active,
+            disabledUntilMillis = if (active) null else disabledUntilMillis),
+            recoveryAnchorMillis = now, pendingCatch = if (active) next.pendingCatch else null))
+    }
+
+    fun dismissCatch(id: String): GameState =
+        if (state.pendingCatch?.id == id) commit(state.copy(pendingCatch = null)) else state
+
     fun reset(): GameState {
         check(state.isDead) { "Reset is available only after death" }
         val now = now()
         return commit(withHealth(state, 100, now, "reset").copy(
-            recoveryAnchorMillis = now, lastObservedMillis = now, lockoutUntilMillis = 0))
+            recoveryAnchorMillis = now, lastObservedMillis = now, lockoutUntilMillis = 0, pendingCatch = null))
     }
 
     /** Debug integration only; production UI should use reset(). */
@@ -103,7 +122,7 @@ class GameEngine(
         require(health in 0..100)
         val now = now()
         return commit(withHealth(state, health, now, "debug").copy(
-            recoveryAnchorMillis = now, lastObservedMillis = now, lockoutUntilMillis = 0))
+            recoveryAnchorMillis = now, lastObservedMillis = now, lockoutUntilMillis = 0, pendingCatch = null))
     }
 
     /**
@@ -133,9 +152,16 @@ class GameEngine(
             lastCatchMillis = now,
             lockoutUntilMillis = now + source.config.lockoutSeconds * 1000L,
             recoveryAnchorMillis = now,
+            pendingCatch = PendingCatch("$now-${source.totalCatches + 1}", null),
         )
 
     private fun recovered(source: GameState, now: Long): GameState {
+        if (!source.config.active) {
+            val until = source.config.disabledUntilMillis
+            if (until == null || now < until) return source.copy(lastObservedMillis = now, recoveryAnchorMillis = now)
+            return recovered(source.copy(config = source.config.copy(active = true, disabledUntilMillis = null),
+                recoveryAnchorMillis = maxOf(source.recoveryAnchorMillis, until)), now)
+        }
         val hours = (now - source.recoveryAnchorMillis).coerceAtLeast(0) / HOUR_MILLIS
         var next = source.copy(lastObservedMillis = now)
         if (hours > 0) {

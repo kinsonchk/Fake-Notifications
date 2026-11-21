@@ -10,13 +10,10 @@ import androidx.compose.material3.InputChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -24,7 +21,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.codejam.taptation.debug.WhitelistAppsPanel
 import com.codejam.taptation.logic.AppProfile
-import com.codejam.taptation.logic.CatchLevel
+import com.codejam.taptation.logic.Difficulty
 import com.codejam.taptation.logic.GameConfig
 import com.codejam.taptation.logic.GameRepository
 import com.codejam.taptation.ui.common.SectionCard
@@ -49,6 +46,8 @@ fun SettingsScreen(contentPadding: PaddingValues) {
             return@TabScreen
         }
         item { GameRulesCard(config, repository) }
+        item { ActivationControls(repository, config) }
+        item { CatchPermissionCard() }
         item { WhitelistAppsPanel(repository, config.whitelistedPackages) }
         item {
             SectionCard("People", "A notification whose title matches a VIP name is always safe.") {
@@ -75,26 +74,24 @@ fun SettingsScreen(contentPadding: PaddingValues) {
 
 @Composable
 private fun GameRulesCard(config: GameConfig, repository: GameRepository) {
-    SectionCard("Game", "How likely a bait tap is caught and how hard it hits.") {
-        var probability by remember(config.catchProbability) {
-            mutableFloatStateOf(config.catchProbability.toFloat())
-        }
-        Text("Catch chance: ${"%.1f".format(probability * 100)}%")
-        Slider(
-            value = probability,
-            onValueChange = { probability = it },
-            onValueChangeFinished = {
-                repository.updateConfig { it.copy(catchProbability = probability.toDouble()) }
-            },
-        )
-        Text("Level: ${config.level.name} (-${config.damage(config.level)} health per catch)")
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            CatchLevel.entries.forEach { level ->
-                val select = { repository.updateConfig { it.copy(level = level) }; Unit }
-                if (level == config.level) Button(onClick = select) { Text(level.name) }
-                else OutlinedButton(onClick = select) { Text(level.name) }
+    SectionCard("Difficulty", "Fixed chance of a catch on an eligible bait tap.") {
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Difficulty.entries.forEach { difficulty ->
+                val select = { repository.updateConfig { it.copy(difficulty = difficulty, debugCatchProbability = null) }; Unit }
+                val label = "${difficulty.name} ${(difficulty.probability * 100).toInt()}%"
+                if (difficulty == config.difficulty) Button(onClick = select) { Text(label) }
+                else OutlinedButton(onClick = select) { Text(label) }
             }
         }
+        Text("Only catch fresh notifications: ${config.freshnessWindowMillis / 60_000} min")
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            listOf(5, 10, 30, 60).forEach { minutes ->
+                OutlinedButton(onClick = { repository.updateConfig { it.copy(freshnessWindowMillis = minutes * 60_000L) } }) {
+                    Text("$minutes min")
+                }
+            }
+        }
+        Text("Older taps skip bait checks and catches.")
     }
 }
 

@@ -9,6 +9,8 @@ import android.service.notification.StatusBarNotification
 import android.util.Log
 import com.codejam.taptation.logic.TapDispatcher
 import com.codejam.taptation.logic.NotificationContext
+import com.codejam.taptation.TaptationApplication
+import android.app.ActivityOptions
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -69,6 +71,7 @@ class TapListenerService : NotificationListenerService() {
     }
 
     override fun onNotificationPosted(sbn: StatusBarNotification, rankingMap: RankingMap) {
+        if (skipWhileDisabled()) return
         // update=true: same key already active, so the app replaced it (e.g. a new chat message).
         val update = contexts.containsKey(sbn.key)
         val context = contextFor(sbn, rankingMap)
@@ -84,6 +87,7 @@ class TapListenerService : NotificationListenerService() {
     }
 
     override fun onNotificationRankingUpdate(rankingMap: RankingMap) {
+        if (skipWhileDisabled()) return
         // Conversation/channel information can arrive after the original posted callback.
         contexts.entries.forEach { entry ->
             val updated = withRanking(entry.value, rankingMap)
@@ -104,6 +108,7 @@ class TapListenerService : NotificationListenerService() {
         rankingMap: RankingMap,
         reason: Int,
     ) {
+        if (skipWhileDisabled()) return
         val context = withRanking(contexts.remove(sbn.key) ?: contextFor(sbn, rankingMap), rankingMap)
             .copy(ageMillis = System.currentTimeMillis() - sbn.postTime)
         simulations.remove(sbn.key)
@@ -154,7 +159,23 @@ class TapListenerService : NotificationListenerService() {
             actions = notification.actions.orEmpty()
                 .mapNotNull { it?.title?.toString()?.takeIf(String::isNotBlank) },
             ageMillis = System.currentTimeMillis() - sbn.postTime,
+            openOriginal = notification.contentIntent?.let { pending -> {
+                // Only invoked by an explicit button tap on the caught UI.
+                val options = if (Build.VERSION.SDK_INT >= 34) ActivityOptions.makeBasic().apply {
+                    @Suppress("DEPRECATION")
+                    setPendingIntentBackgroundActivityStartMode(ActivityOptions.MODE_BACKGROUND_ACTIVITY_START_ALLOWED)
+                }.toBundle() else null
+                pending.send(this, 0, null, null, null, null, options)
+            } },
         ), rankingMap)
+    }
+
+    private fun skipWhileDisabled(): Boolean {
+        val config = (application as TaptationApplication).game.state.value?.config
+        if (config?.isActive(System.currentTimeMillis()) == true) return false
+        contexts.clear(); simulations.clear(); _observations.value = emptyList()
+        TapDispatcher.handler.onListenerReset()
+        return true
     }
 
     private fun withRanking(context: NotificationContext, rankingMap: RankingMap): NotificationContext {

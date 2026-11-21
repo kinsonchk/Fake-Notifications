@@ -11,7 +11,7 @@ object GameStateCodec {
     fun encode(state: GameState): String {
         val buffer = ByteArrayOutputStream()
         DataOutputStream(buffer).use { out ->
-            out.writeInt(3)
+            out.writeInt(4)
             out.writeInt(state.health)
             out.writeLong(state.recoveryAnchorMillis)
             out.writeLong(state.lastObservedMillis)
@@ -40,6 +40,13 @@ object GameStateCodec {
                 }
                 out.channels(importantChannels)
                 out.channels(baitChannels)
+                out.writeUTF(difficulty.name)
+                out.writeBoolean(debugCatchProbability != null)
+                debugCatchProbability?.let(out::writeDouble)
+                out.writeBoolean(active)
+                out.writeBoolean(disabledUntilMillis != null)
+                disabledUntilMillis?.let(out::writeLong)
+                out.writeLong(freshnessWindowMillis)
             }
             out.writeInt(state.tapsPerApp.size)
             state.tapsPerApp.toSortedMap().forEach { (pkg, count) ->
@@ -68,6 +75,12 @@ object GameStateCodec {
                 out.writeUTF(it.reason)
                 out.writeUTF(it.level?.name.orEmpty())
             }
+            out.writeBoolean(state.pendingCatch != null)
+            state.pendingCatch?.let {
+                out.writeUTF(it.id)
+                out.writeBoolean(it.packageName != null)
+                it.packageName?.let(out::writeUTF)
+            }
         }
         return Base64.getEncoder().encodeToString(buffer.toByteArray())
     }
@@ -75,15 +88,17 @@ object GameStateCodec {
     fun decode(encoded: String): GameState =
         DataInputStream(ByteArrayInputStream(Base64.getDecoder().decode(encoded))).use { input ->
             val version = input.readInt()
-            require(version in 1..3) { "Unsupported game store version" }
+            require(version in 1..4) { "Unsupported game store version" }
             val health = input.readInt().also { require(it in 0..100) }
             val anchor = input.readLong()
             val observed = input.readLong()
             val lockout = input.readLong()
             val lastCatch = input.readLong().takeUnless { it == -1L }
             val catches = input.readLong().also { require(it >= 0) }
+            val legacyProbability = input.readDouble()
+            require(legacyProbability.isFinite() && legacyProbability in 0.0..1.0)
             var config = GameConfig(
-                catchProbability = input.readDouble(),
+                difficulty = Difficulty.entries.minBy { kotlin.math.abs(it.probability - legacyProbability) },
                 level = CatchLevel.valueOf(input.readUTF()),
                 mildDamage = input.readInt(),
                 mediumDamage = input.readInt(),
@@ -106,6 +121,13 @@ object GameStateCodec {
                     baitChannels = input.channels(),
                 )
             }
+            if (version >= 4) config = config.copy(
+                difficulty = Difficulty.valueOf(input.readUTF()),
+                debugCatchProbability = if (input.readBoolean()) input.readDouble() else null,
+                active = input.readBoolean(),
+                disabledUntilMillis = if (input.readBoolean()) input.readLong() else null,
+                freshnessWindowMillis = input.readLong(),
+            )
             val counts = buildMap {
                 repeat(input.count()) {
                     put(input.readUTF(), input.readLong().also { require(it >= 0) })
@@ -132,8 +154,10 @@ object GameStateCodec {
                 val level = input.readUTF().takeIf(String::isNotEmpty)?.let(CatchLevel::valueOf)
                 HealthRecord(timestamp, before, after, reason, level)
             }
+            val pending = if (version >= 4 && input.readBoolean()) PendingCatch(input.readUTF(),
+                if (input.readBoolean()) input.readUTF() else null) else null
             require(input.available() == 0) { "Trailing game store data" }
-            GameState(health, config, anchor, observed, lockout, lastCatch, catches, counts, taps, history)
+            GameState(health, config, anchor, observed, lockout, lastCatch, catches, counts, taps, history, pending)
         }
 
     private fun DataOutputStream.strings(values: Set<String>) {

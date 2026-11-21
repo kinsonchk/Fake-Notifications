@@ -20,4 +20,6 @@ data class NotificationContext(
     val channelName: String? = null,
     val ageMillis: Long? = null,
     val actions: List<String> = emptyList(),
+    /** Transient user action for the original notification; never persisted or invoked automatically. */
+    val openOriginal: (() -> Unit)? = null,
 )

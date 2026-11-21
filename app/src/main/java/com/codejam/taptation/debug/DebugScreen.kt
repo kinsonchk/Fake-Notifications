@@ -6,9 +6,12 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
+import androidx.compose.material3.Slider
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
@@ -35,6 +38,10 @@ fun DebugScreen(contentPadding: PaddingValues = PaddingValues(), controls: DemoC
     val scope = rememberCoroutineScope()
     val demoControls = controls ?: remember(repository, scope) { RepositoryDemoControls(repository, scope) }
     val error by repository.error.collectAsStateWithLifecycle()
+    val snapshot by repository.state.collectAsStateWithLifecycle()
+    var override by remember(snapshot?.config?.catchProbability) {
+        mutableFloatStateOf(((snapshot?.config?.catchProbability ?: 0.2) * 100).toFloat())
+    }
 
     var accessGranted by remember { mutableStateOf(PermissionHelper.isNotificationAccessGranted(context)) }
     var batteryUnrestricted by remember { mutableStateOf(PermissionHelper.isIgnoringBatteryOptimizations(context)) }
@@ -76,6 +83,14 @@ fun DebugScreen(contentPadding: PaddingValues = PaddingValues(), controls: DemoC
         }
 
         item { DemoControlsPanel(demoControls) }
+        item {
+            SectionCard("Debug probability override", "Release builds always use the chosen difficulty.") {
+                Text("Catch chance: ${override.toInt()}%")
+                Slider(value = override, valueRange = 0f..100f, onValueChange = { override = it },
+                    onValueChangeFinished = { repository.setDebugCatchProbability(override / 100.0) })
+                TextButton(onClick = { repository.setDebugCatchProbability(null) }) { Text("Use difficulty value") }
+            }
+        }
 
         item { StatsHarnessPanel() }
 
@@ -89,6 +104,11 @@ fun DebugScreen(contentPadding: PaddingValues = PaddingValues(), controls: DemoC
                     },
                     modifier = Modifier.fillMaxWidth(),
                 ) { Text("Simulate bait tap (com.test.fake)") }
+                OutlinedButton(onClick = {
+                    repository.processTap(NotificationContext("com.test.fake", title = "Old demo notification",
+                        text = "Routine update", category = "promo", isConversation = false,
+                        ageMillis = (snapshot?.config?.freshnessWindowMillis ?: 600_000) + 1))
+                }, modifier = Modifier.fillMaxWidth()) { Text("Simulate stale bait (skip catch logic)") }
             }
         }
     }

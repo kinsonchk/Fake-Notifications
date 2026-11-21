@@ -4,6 +4,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
+Latest agreed revision: read [docs/revised-catch-flow.md](docs/revised-catch-flow.md) before
+working on settings, catch feedback, activation or statistics. It supersedes older probability
+and compulsory-lockout instructions here: public difficulties are Easy/Medium/Hard 20/40/70%,
+debug overrides are separate, activation has a repository-enforced 10-second confirmation,
+known stale taps skip classification/roll, and catches present two destination choices.
+Home's final visual metric remains undecided. The user authorized this revision across owners.
+
 **Fake Notifications** (Gradle project `Taptation`, package `com.codejam.taptation`): 1-day hackathon Android app, team of 4. App watches other apps' notifications; tapping a "bait" notification (social, games) has a small random chance (5-10%) to "catch" the user, lowering a health state (tree/pet) and showing a short lockout. Urgent apps (family, work, rides, banking) are whitelisted and never penalized.
 
 Planning docs live in `docs/`, one folder per person (`docs/person-1` … `docs/person-4`), each with a `README.md` listing that person's docs, status and remaining work. Read the relevant one before working on a teammate's area:
@@ -77,14 +84,14 @@ Full rules, defaults and the Person 3 API are in `docs/person-2/PERSON_2_INTEGRA
 
 | Topic | Brief | Code on `main` |
 |---|---|---|
-| Catch probability default | 10% | 7.5% |
+| Catch probability default | 10% | Easy 20%; Medium 40%; Hard 70% |
 | Damage Mild/Medium/Savage | 5 / 10 / 20 | 10 / 20 / 35 |
 | Default level | Medium | Mild |
 | Bypass rules | whitelist, call/alarm/reminder/event, VIP title, urgent keyword | same, plus important channels and Discord DMs/@mentions (`NotificationClassifier`) |
 | Urgent keywords default | urgent, emergency, code, verification | urgent, code, meeting invite, meeting invitation |
 | Unmatched notification | bait (A3 rule 6) | bait only for promo/social, msg/email, configured bait, or a configured app profile; anything else `Unknown` -> `NoPenalty`, no roll |
 | Missing title or text | not covered | `Unknown` -> `NoPenalty` (can't rule out VIP/urgent) |
-| Freshness window | 10 min, no roll if older | not implemented: `ageMillis` is only recorded in `TapRecord` (negative age -> `Unknown`) |
+| Freshness window | 10 min, no roll if older | implemented: known ages greater than the window skip classification/roll |
 | Health at 0 | patch resets | stays dead until UI calls `reset()` |
 | Tap interface | `onTap(packageName, ageMillis)` | `onTap(NotificationContext)` with `ageMillis` set by the service; `ResultTapHandler.onTap(packageName, ageMillis)` also exists |
 | Settings storage | new `SettingsRepository` + DataStore | `GameConfig` in `GameRepository` (SharedPreferences), incl. `vipNames`, `importantKeywords`, channels, app profiles |
@@ -119,4 +126,4 @@ Each person works on their own branch and merges into `main` via PR.
 | `ui/`: onboarding, tree/pet visuals, lockout, stats, real navigation in `MainActivity` | Person 3 |
 | `debug/` extensions, adb scripts, demo | Person 4 |
 
-Don't edit another person's area; leave a `// TODO(Person X)` instead. Out of scope for the service: cancelling/snoozing other apps' notifications. Don't add dependencies beyond the standard Compose/AndroidX set unless essential.
+Coordinate cross-area edits unless the user explicitly authorizes them (as for the revised catch flow). Out of scope for the service: cancelling/snoozing other apps' notifications. Don't add dependencies beyond the standard Compose/AndroidX set unless essential.

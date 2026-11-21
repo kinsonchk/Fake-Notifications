@@ -23,7 +23,8 @@ class SqliteStatsStore(context: Context, name: String? = DATABASE_NAME) :
                 type TEXT NOT NULL,
                 age_ms INTEGER,
                 classification TEXT NOT NULL,
-                caught INTEGER NOT NULL
+                caught INTEGER NOT NULL,
+                category TEXT
             )
             """.trimIndent(),
         )
@@ -31,7 +32,7 @@ class SqliteStatsStore(context: Context, name: String? = DATABASE_NAME) :
     }
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
-        // Version 1 only. Add ALTER TABLE steps here when the schema changes; never drop user data.
+        if (oldVersion < 2) db.execSQL("ALTER TABLE $TABLE ADD COLUMN category TEXT")
     }
 
     override fun insert(event: StatsEvent) {
@@ -52,7 +53,7 @@ class SqliteStatsStore(context: Context, name: String? = DATABASE_NAME) :
     override fun eventsBetween(fromMillis: Long, toMillis: Long): List<StatsEvent> =
         readableDatabase.query(
             TABLE,
-            arrayOf("timestamp", "package", "type", "age_ms", "classification", "caught"),
+            arrayOf("timestamp", "package", "type", "age_ms", "classification", "caught", "category"),
             "timestamp >= ? AND timestamp < ?",
             arrayOf(fromMillis.toString(), toMillis.toString()),
             null, null, "timestamp ASC",
@@ -71,6 +72,7 @@ class SqliteStatsStore(context: Context, name: String? = DATABASE_NAME) :
                             ageMillis = if (cursor.isNull(3)) null else cursor.getLong(3),
                             classification = classification,
                             caught = cursor.getInt(5) != 0,
+                            category = cursor.getString(6),
                         ),
                     )
                 }
@@ -91,11 +93,12 @@ class SqliteStatsStore(context: Context, name: String? = DATABASE_NAME) :
         if (ageMillis != null) put("age_ms", ageMillis) else putNull("age_ms")
         put("classification", classification.name)
         put("caught", if (caught) 1 else 0)
+        put("category", category)
     }
 
     companion object {
         const val DATABASE_NAME = "stats.db"
-        private const val VERSION = 1
+        private const val VERSION = 2
         private const val TABLE = "events"
     }
 }
