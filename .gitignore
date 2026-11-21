@@ -1,1 +1,23 @@
 .DS_Store
+
+# Gradle / build output
+.gradle/
+build/
+.kotlin/
+captures/
+.externalNativeBuild/
+.cxx/
+
+# Local machine config (SDK path, secrets)
+local.properties
+
+# IDE
+.idea/
+*.iml
+
+# Signing keys
+*.keystore
+*.jks
+
+# Logs
+*.log
