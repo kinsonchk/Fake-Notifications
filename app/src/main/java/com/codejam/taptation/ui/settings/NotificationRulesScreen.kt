@@ -76,7 +76,8 @@ fun NotificationRulesScreen(contentPadding: PaddingValues, repository: GameRepos
             SectionCard(
                 "Your apps",
                 "“Always important” notifications are never penalized. " +
-                    "“Always bait” notifications can get you caught if you tap them quickly.",
+                    "“Always bait” notifications can get you caught if you tap them quickly. " +
+                    "Only apps allowed to send notifications are listed.",
             ) {
                 OutlinedTextField(
                     value = search, onValueChange = { search = it }, label = { Text("Find an app") },
@@ -109,8 +110,10 @@ private fun AppRuleList(
         }
     }
     val query = search.trim()
+    // Only apps allowed to send notifications.
     val matches = apps.filter {
-        query.isEmpty() || it.label.contains(query, ignoreCase = true) || it.packageName.contains(query, ignoreCase = true)
+        it.notificationsEnabled &&
+            (query.isEmpty() || it.label.contains(query, ignoreCase = true) || it.packageName.contains(query, ignoreCase = true))
     }
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         if (matches.isEmpty()) Text("No matching apps.", color = MaterialTheme.colorScheme.onSurfaceVariant)
