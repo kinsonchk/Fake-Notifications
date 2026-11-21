@@ -16,6 +16,8 @@ object TapExplanations {
         "discord_mention" -> "Discord @mention"
         "missing_content" -> "Title or text missing, so urgent can't be ruled out"
         "invalid_age" -> "Notification age is invalid"
+        "stale" -> "Notification is older than the freshness window; classification skipped"
+        "disabled" -> "App is disabled; processing skipped"
         "bait_channel" -> "Channel marked bait for this app"
         "uncertain_discord_conversation" -> "Discord, but the conversation flag is unknown"
         "unrecognized_conversation" -> "Conversation from an app without a profile"
@@ -44,6 +46,7 @@ object TapExplanations {
             "lockout" -> "During lockout: no extra penalty"
             "dead" -> "Tree is already dead"
             "stale" -> "Too old: tapped after the freshness window, bait rules don't apply"
+            "disabled" -> "App disabled: no monitoring or penalty"
             else -> "Not penalized: unsure notifications are never penalized"
         }
     }

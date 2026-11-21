@@ -26,7 +26,7 @@ class RepositoryDemoControls(
 
     override fun setCatchProbability(percent: Int) {
         val probability = percent.coerceIn(0, 100) / 100.0
-        repository.updateConfig { it.copy(catchProbability = probability) }
+        repository.setDebugCatchProbability(probability)
     }
 
     override fun setHealth(value: Int) {

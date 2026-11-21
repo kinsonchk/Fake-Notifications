@@ -74,7 +74,10 @@ class StatsRepository(
     private suspend fun lastDays(days: Int, includeImportant: Boolean): StatsSummary {
         val now = clock()
         // +1 so an event recorded in this same millisecond is included (the range end is exclusive).
-        return summary(now - days * DAY_MILLIS, now + 1, includeImportant)
+        val start = java.time.Instant.ofEpochMilli(now).atZone(java.time.ZoneId.systemDefault())
+            .toLocalDate().minusDays(days - 1L).atStartOfDay(java.time.ZoneId.systemDefault())
+            .toInstant().toEpochMilli()
+        return summary(start, now + 1, includeImportant)
     }
 
     private suspend fun record(event: StatsEvent) = withContext(dispatcher) {

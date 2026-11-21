@@ -13,13 +13,16 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 /** Process-wide queue: no disk I/O on notification callbacks and no competing state writes. */
-class GameRepository(context: Context, private val stats: StatsRepository? = null) : ResultTapHandler {
+class GameRepository(context: Context, private val stats: StatsRepository? = null,
+    private val onCaught: (PendingCatch, (() -> Unit)?) -> Unit = { _, _ -> },
+) : ResultTapHandler {
     private val packageManager = context.applicationContext.packageManager
     private val appCategories = mutableMapOf<String, Int?>()
     private val notificationContexts = linkedMapOf<String, NotificationContext>()
     private val worker = Executors.newSingleThreadExecutor()
     private val store = PreferencesGameStore(context.applicationContext)
     private val debug = context.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0
+    private val disableGate = DisableGate(android.os.SystemClock::elapsedRealtime)
     private lateinit var engine: GameEngine
     private val _state = MutableStateFlow<GameState?>(null)
     val state: StateFlow<GameState?> = _state.asStateFlow()
@@ -31,7 +34,7 @@ class GameRepository(context: Context, private val stats: StatsRepository? = nul
     init {
         worker.execute {
             try {
-                engine = GameEngine(store)
+                engine = GameEngine(store, allowDebugOverrides = debug)
                 _state.value = engine.refresh()
             } catch (error: Exception) {
                 report(error)
@@ -44,6 +47,7 @@ class GameRepository(context: Context, private val stats: StatsRepository? = nul
 
     override fun onNotificationPosted(context: NotificationContext) {
         worker.execute {
+            if (::engine.isInitialized && !engine.state.config.isActive(System.currentTimeMillis())) return@execute
             context.key?.let { notificationContexts[it] = context }
             if (notificationContexts.size > 500) notificationContexts.remove(notificationContexts.keys.first())
         }
@@ -57,12 +61,12 @@ class GameRepository(context: Context, private val stats: StatsRepository? = nul
         val candidates = notificationContexts.values.filter { it.packageName == packageName }
         val context = candidates.singleOrNull()?.also { it.key?.let(notificationContexts::remove) }
             ?: NotificationContext(packageName)
-        recordResult(onTap(context.copy(ageMillis = ageMillis)), packageName, ageMillis)
+        recordResult(onTap(context.copy(ageMillis = ageMillis)), context.copy(ageMillis = ageMillis))
     }
 
     fun processTap(context: NotificationContext): CompletableFuture<TapResult> = submit {
         context.key?.let(notificationContexts::remove)
-        recordResult(onTap(withAppCategory(context)), context.packageName, context.ageMillis)
+        recordResult(onTap(withAppCategory(context)), context)
     }
 
     /**
@@ -72,9 +76,11 @@ class GameRepository(context: Context, private val stats: StatsRepository? = nul
     override fun onDismiss(context: NotificationContext) {
         if (stats == null) return
         submit {
+            refresh()
+            if (!state.config.isActive(System.currentTimeMillis())) return@submit
             val assessment = NotificationClassifier.assess(withAppCategory(context), state.config)
             stats.submit(StatsEvent(System.currentTimeMillis(), context.packageName, StatsEventType.DISMISS,
-                context.ageMillis, assessment.classification))
+                context.ageMillis, assessment.classification, category = context.category))
         }
     }
 
@@ -94,11 +100,15 @@ class GameRepository(context: Context, private val stats: StatsRepository? = nul
         return context.copy(appCategory = category)
     }
 
-    private fun recordResult(result: TapResult, packageName: String, ageMillis: Long?): TapResult = result.also {
+    private fun recordResult(result: TapResult, context: NotificationContext): TapResult = result.also {
         _lastResult.value = it
-        stats?.submit(StatsEvent(System.currentTimeMillis(), packageName, StatsEventType.TAP, ageMillis,
-            it.classification, caught = it.outcome == TapOutcome.Caught))
-        Log.d("FakeNotifs", "tap pkg=$packageName outcome=${it.outcome} " +
+        if (it.reason != "disabled") stats?.submit(StatsEvent(System.currentTimeMillis(), context.packageName,
+            StatsEventType.TAP, context.ageMillis, it.classification,
+            caught = it.outcome == TapOutcome.Caught, category = context.category))
+        if (it.outcome == TapOutcome.Caught) it.state.pendingCatch?.let { pending ->
+            onCaught(pending, context.openOriginal)
+        }
+        Log.d("FakeNotifs", "tap pkg=${context.packageName} outcome=${it.outcome} " +
             "reason=${it.reason} rule=${it.rule} health=${it.state.health}")
     }
 
@@ -107,12 +117,35 @@ class GameRepository(context: Context, private val stats: StatsRepository? = nul
     fun isWhitelisted(packageName: String): Boolean =
         state.value?.config?.whitelistedPackages?.contains(packageName) == true
     fun refresh(): CompletableFuture<GameState> = submit { refresh() }
-    fun applyCatch(level: CatchLevel): CompletableFuture<GameState> = submit { applyCatch(level) }
+    fun applyCatch(level: CatchLevel): CompletableFuture<GameState> = submit {
+        val before = state.pendingCatch?.id
+        applyCatch(level).also { next ->
+            next.pendingCatch?.takeIf { it.id != before }?.let { onCaught(it, null) }
+        }
+    }
     fun reset(): CompletableFuture<GameState> = submit { reset() }
 
     /** Transform runs on the queue so simultaneous settings changes cannot lose updates. */
     fun updateConfig(change: (GameConfig) -> GameConfig): CompletableFuture<GameState> = submit {
-        updateConfig(change(state.config))
+        val changed = change(state.config)
+        require(changed.active == state.config.active && changed.disabledUntilMillis == state.config.disabledUntilMillis) {
+            "Use the confirmed disable flow to change activation"
+        }
+        updateConfig(if (debug) changed else changed.copy(debugCatchProbability = null))
+    }
+
+    fun beginDisable(): CompletableFuture<DisableGate.Challenge> = submit { disableGate.begin() }
+    fun cancelDisable(): CompletableFuture<Unit> = submit { disableGate.cancel() }
+    fun confirmDisable(id: String, minutes: Int?): CompletableFuture<GameState> = submit {
+        require(minutes == null || minutes in setOf(15, 60))
+        disableGate.confirm(id)
+        setActive(false, minutes?.let { System.currentTimeMillis() + it * 60_000L })
+    }
+    fun enable(): CompletableFuture<GameState> = submit { disableGate.cancel(); setActive(true) }
+    fun dismissCatch(id: String): CompletableFuture<GameState> = submit { dismissCatch(id) }
+    fun setDebugCatchProbability(value: Double?): CompletableFuture<GameState> = submit {
+        check(debug) { "Debug overrides are disabled in release builds" }
+        updateConfig(state.config.copy(debugCatchProbability = value))
     }
 
     fun setWhitelisted(packageName: String, enabled: Boolean): CompletableFuture<GameState> {

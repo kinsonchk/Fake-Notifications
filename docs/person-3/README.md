@@ -1,5 +1,10 @@
 # Person 3: UI and stats
 
+**Latest revision:** [revised catch flow](../revised-catch-flow.md) is implemented with
+two-destination caught feedback, activation friction, fixed difficulty settings and real
+SQLite-backed graphs. The older lockout/notification plan below is historical. Home's visual
+metric and complete onboarding remain undecided/unfinished.
+
 Docs:
 - [../classification-and-settings-brief.md](../classification-and-settings-brief.md): Section B (settings page spec and acceptance criteria).
 - [../person-2/PERSON_2_INTEGRATION.md](../person-2/PERSON_2_INTEGRATION.md): "Person 3 API" (`GameRepository` state, whitelist, `updateConfig`, reset).

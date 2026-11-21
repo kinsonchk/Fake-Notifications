@@ -43,7 +43,7 @@ class GameEngineTest {
     @Test fun removingWhitelistRestoresBaitRuleAndPreservesOtherWhitelistEntries() {
         val f = Fixture()
         f.configure { it.copy(
-            catchProbability = 1.0,
+            debugCatchProbability = 1.0,
             whitelistedPackages = setOf("bait", "important"),
         ) }
 
@@ -86,21 +86,21 @@ class GameEngineTest {
 
     @Test fun probabilityZeroNeverCatches() {
         val f = Fixture()
-        f.configure { it.copy(catchProbability = 0.0) }
+        f.configure { it.copy(debugCatchProbability = 0.0) }
         assertEquals(TapOutcome.NoPenalty, f.tap("bait").outcome)
     }
 
     @Test fun probabilityOneAlwaysCatches() {
         val f = Fixture()
         f.roll = 0.999999
-        f.configure { it.copy(catchProbability = 1.0) }
+        f.configure { it.copy(debugCatchProbability = 1.0) }
         assertEquals(TapOutcome.Caught, f.tap("bait").outcome)
     }
 
     @Test fun rollAtThresholdIsNotCaught() {
         val f = Fixture()
         f.configure()
-        f.roll = 0.075
+        f.roll = 0.20
         assertEquals(TapOutcome.NoPenalty, f.tap("bait").outcome)
     }
 
@@ -162,7 +162,7 @@ class GameEngineTest {
 
     @Test fun missedRollStillResetsRecoveryButBypassAndUnknownDoNot() {
         val f = Fixture()
-        f.configure { it.copy(catchProbability = 0.0, whitelistedPackages = setOf("urgent")) }
+        f.configure { it.copy(debugCatchProbability = 0.0, whitelistedPackages = setOf("urgent")) }
         f.game.setHealthForDebug(50)
         f.hours(0.75)
         f.tap("bait")
@@ -219,7 +219,7 @@ class GameEngineTest {
 
     @Test fun configAndAllHistoryRoundTrip() {
         val f = Fixture()
-        f.configure { it.copy(catchProbability = 0.4, level = CatchLevel.Savage,
+        f.configure { it.copy(debugCatchProbability = 0.4, level = CatchLevel.Savage,
             whitelistedPackages = setOf("urgent"), baitKeywords = setOf("sale"),
             baitAppCategories = setOf(0, 2), mildDamage = 12, recoveryPerHour = 7) }
         f.game.onTap("urgent")
@@ -269,13 +269,13 @@ class GameEngineTest {
 
     @Test fun invalidConfigAndCorruptStoreAreRejected() {
         listOf(-0.1, 1.1, Double.NaN).forEach { probability ->
-            assertThrows(IllegalArgumentException::class.java) { GameConfig(catchProbability = probability) }
+            assertThrows(IllegalArgumentException::class.java) { GameConfig(debugCatchProbability = probability) }
         }
         assertThrows(IllegalArgumentException::class.java) { GameConfig(baitKeywords = setOf(" ")) }
         assertThrows(Exception::class.java) { GameStateCodec.decode("broken") }
         val encoded = GameStateCodec.encode(GameState())
         val bytes = java.util.Base64.getDecoder().decode(encoded)
-        bytes[3] = 5
+        bytes[3] = 6
         assertThrows(IllegalArgumentException::class.java) {
             GameStateCodec.decode(java.util.Base64.getEncoder().encodeToString(bytes))
         }
@@ -283,7 +283,7 @@ class GameEngineTest {
 
     @Test fun baitTapKeepsClassifierRuleNextToRollResult() {
         val f = Fixture()
-        f.configure { it.copy(catchProbability = 1.0) }
+        f.configure { it.copy(debugCatchProbability = 1.0) }
         val result = f.tap("bait")
         assertEquals("caught", result.reason)
         assertEquals(Classification.Bait, result.classification)
@@ -295,31 +295,23 @@ class GameEngineTest {
     }
 
     @Test fun versionTwoBaitTapsDecodeWithUnknownRule() {
-        val f = Fixture()
-        f.configure { it.copy(catchProbability = 1.0) }
-        f.tap("bait")
-        val bytes = java.util.Base64.getDecoder().decode(GameStateCodec.encode(f.game.state)).toMutableList()
-        // Rebuild as v2: version 2, and drop the trailing rule string of the only tap record.
-        val rule = "configured_bait".toByteArray()
-        val ruleStart = java.util.Collections.indexOfSubList(bytes, rule.toList()) - 2
-        repeat(rule.size + 2) { bytes.removeAt(ruleStart) }
-        repeat(5) { bytes.removeAt(bytes.size - 1) } // v4 freshness settings at the end
-        bytes[3] = 2
-        val decoded = GameStateCodec.decode(java.util.Base64.getEncoder().encodeToString(bytes.toByteArray()))
+        // Fixed historical v2 snapshot; don't fabricate v2 by editing the current format.
+        val fixture = "AAAAAgAAAFoAAAAAAAAD6AAAAAAAAAPoAAAAAAAAeRgAAAAAAAAD6AAAAAAAAAABP/AAAAAAAAAABE1pbGQAAAAKAAAAFAAAACMAAAAFAAAAHgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAAAAA+gABGJhaXQABEJhaXQABkNhdWdodAAAAGQAAABaAAAACgAGY2F1Z2h0AQAAAAAAABOIAAAAAA=="
+        val decoded = GameStateCodec.decode(fixture)
         assertEquals("caught", decoded.taps.single().reason)
         assertEquals("", decoded.taps.single().rule)
     }
 
     @Test fun staleBaitTapSkipsRollDamageAndTimerReset() {
         val f = Fixture()
-        f.configure { it.copy(catchProbability = 1.0, freshnessSeconds = 60) }
+        f.configure { it.copy(debugCatchProbability = 1.0, freshnessSeconds = 60) }
         val anchor = f.game.state.recoveryAnchorMillis
         f.now += 1000
         val result = f.game.onTap(f.context("bait").copy(ageMillis = 61_000))
         assertEquals(TapOutcome.NoPenalty, result.outcome)
         assertEquals("stale", result.reason)
-        assertEquals(Classification.Bait, result.classification)
-        assertEquals("configured_bait", result.rule)
+        assertEquals(Classification.Unknown, result.classification)
+        assertEquals("stale", result.rule)
         assertEquals(0, f.rolls)
         assertEquals(100, result.state.health)
         assertEquals(anchor, result.state.recoveryAnchorMillis)
@@ -328,16 +320,16 @@ class GameEngineTest {
 
     @Test fun freshBaitAndUnknownAgeStillRoll() {
         val f = Fixture()
-        f.configure { it.copy(catchProbability = 1.0, freshnessSeconds = 60) }
+        f.configure { it.copy(debugCatchProbability = 1.0, freshnessSeconds = 60) }
         assertEquals(TapOutcome.Caught, f.game.onTap(f.context("bait").copy(ageMillis = 60_000)).outcome)
         val g = Fixture()
-        g.configure { it.copy(catchProbability = 1.0, freshnessSeconds = 60) }
+        g.configure { it.copy(debugCatchProbability = 1.0, freshnessSeconds = 60) }
         assertEquals(TapOutcome.Caught, g.game.onTap(g.context("bait").copy(ageMillis = null)).outcome)
     }
 
     @Test fun freshnessOffNeverSkips() {
         val f = Fixture()
-        f.configure { it.copy(catchProbability = 1.0, freshnessSeconds = 0) }
+        f.configure { it.copy(debugCatchProbability = 1.0, freshnessSeconds = 0) }
         assertEquals(TapOutcome.Caught, f.game.onTap(f.context("bait").copy(ageMillis = 86_400_000)).outcome)
     }
 
@@ -357,10 +349,9 @@ class GameEngineTest {
         val decoded = GameStateCodec.decode(GameStateCodec.encode(state))
         assertEquals(30, decoded.config.freshnessSeconds)
         assertTrue(decoded.config.freshnessFromFirstSeen)
-        // v3 store = v4 without the trailing freshness fields.
-        val bytes = java.util.Base64.getDecoder().decode(GameStateCodec.encode(state)).dropLast(5).toByteArray()
-        bytes[3] = 3
-        val old = GameStateCodec.decode(java.util.Base64.getEncoder().encodeToString(bytes))
+        // Fixed original v3 fixture: current formats append more fields than freshness alone.
+        val fixture = "AAAAAwAAAFoAAAAAAAAD6AAAAAAAAAPoAAAAAAAAeRgAAAAAAAAD6AAAAAAAAAABP/AAAAAAAAAABE1pbGQAAAAKAAAAFAAAACMAAAAFAAAAHgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAAAAA+gABGJhaXQABEJhaXQABkNhdWdodAAAAGQAAABaAAAACgAGY2F1Z2h0AQAAAAAAABOIAA9jb25maWd1cmVkX2JhaXQAAAAA"
+        val old = GameStateCodec.decode(fixture)
         assertEquals(GameConfig().freshnessSeconds, old.config.freshnessSeconds)
         assertFalse(old.config.freshnessFromFirstSeen)
         assertThrows(IllegalArgumentException::class.java) { GameConfig(freshnessSeconds = -1) }
@@ -368,7 +359,7 @@ class GameEngineTest {
 
     @Test fun debugFastForwardRecoversAndEndsLockout() {
         val f = Fixture()
-        f.configure { it.copy(catchProbability = 1.0) }
+        f.configure { it.copy(debugCatchProbability = 1.0) }
         f.tap("bait")
         assertEquals(90, f.game.state.health)
         assertTrue(f.game.state.isLockedOut(f.now))
@@ -380,7 +371,7 @@ class GameEngineTest {
 
     @Test fun debugResetClearsStatsButKeepsSettings() {
         val f = Fixture()
-        f.configure { it.copy(catchProbability = 1.0, whitelistedPackages = setOf("work")) }
+        f.configure { it.copy(debugCatchProbability = 1.0, whitelistedPackages = setOf("work")) }
         f.tap("bait")
         val state = f.game.resetDemoDataForDebug()
         assertEquals(100, state.health)

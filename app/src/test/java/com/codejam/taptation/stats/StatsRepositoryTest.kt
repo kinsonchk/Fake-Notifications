@@ -41,7 +41,8 @@ class StatsRepositoryTest {
         repository.insertForDebug(history)
         assertEquals(history.size, repository.count())
         val month = repository.monthly(includeImportant = true)
-        assertEquals(history.size, month.taps + month.dismissals)
+        assertEquals(history.count { it.timestampMillis in month.fromMillis until month.toMillis }, month.taps + month.dismissals)
+        assertEquals(30, month.dailyCatches.size)
         repository.clearForDebug()
         assertEquals(0, repository.count())
     }
