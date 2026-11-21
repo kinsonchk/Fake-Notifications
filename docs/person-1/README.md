@@ -7,6 +7,7 @@ Docs:
 ## Done (on `main`)
 
 - `TapListenerService`: tap = `REASON_CLICK` only; skips group summaries, ongoing notifications, own package in release.
+- Swipes and clear-all are reported as dismissals (`TapHandler.onDismiss`) for stats; see `../decision-stats-handler.md`.
 - Caches title/text/category per notification key (500-entry in-memory LRU) and dispatches a `NotificationContext` to `TapDispatcher`.
 - `TapDetection` pure filter + unit tests; `TapLog` (last 20 taps).
 - `PermissionHelper`: notification-access check/settings, battery-optimization check/settings.

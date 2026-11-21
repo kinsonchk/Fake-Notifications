@@ -17,6 +17,11 @@ interface TapHandler {
 
     /** Existing package-only handlers remain source-compatible. */
     fun onTap(context: NotificationContext) = onTap(context.packageName)
+    /**
+     * The user swiped the notification away or used "Clear all" (never a tap). No game effect;
+     * used for stats. [NotificationContext.ageMillis] is set.
+     */
+    fun onDismiss(context: NotificationContext) {}
     fun onNotificationPosted(context: NotificationContext) {}
     fun onNotificationRemoved(key: String) {}
     fun onListenerReset() {}
@@ -40,6 +45,7 @@ object TapDispatcher {
 
     fun dispatch(packageName: String) = handler.onTap(packageName)
     fun dispatch(context: NotificationContext) = handler.onTap(context)
+    fun dispatchDismiss(context: NotificationContext) = handler.onDismiss(context)
     fun dispatch(packageName: String, ageMillis: Long): CompletableFuture<TapResult> =
         (handler as? ResultTapHandler)?.onTap(packageName, ageMillis)
             ?: CompletableFuture<TapResult>().apply {

@@ -114,7 +114,7 @@ class TapListenerService : NotificationListenerService() {
         Log.d(TAG, "removed pkg=$pkg reason=${TapDetection.reasonName(reason)}($reason) " +
             "${signals.describe(System.currentTimeMillis())} key=${sbn.key}")
 
-        val isTap = TapDetection.shouldDispatch(
+        val kind = TapDetection.removalKind(
             reason = reason,
             flags = flags,
             channelId = sbn.notification?.channelId,
@@ -122,17 +122,19 @@ class TapListenerService : NotificationListenerService() {
             ownPackageName = packageName,
             includeOwnPackage = isDebugBuild(),
         )
-        if (!isTap) {
-            TapDispatcher.handler.onNotificationRemoved(sbn.key)
-            return
-        }
-
-        TapLog.record(pkg)
         try {
-            TapDispatcher.dispatch(context)
+            when (kind) {
+                TapDetection.RemovalKind.Tap -> {
+                    TapLog.record(pkg)
+                    TapDispatcher.dispatch(context)
+                }
+                // Swipe or clear-all: no game effect, only recorded for stats.
+                TapDetection.RemovalKind.Dismiss -> TapDispatcher.dispatchDismiss(context)
+                TapDetection.RemovalKind.Ignored -> Unit
+            }
         } catch (e: Exception) {
             // A bug in the handler must not take down the listener.
-            Log.e(TAG, "TapHandler threw for $pkg", e)
+            Log.e(TAG, "TapHandler threw for $pkg ($kind)", e)
         } finally {
             TapDispatcher.handler.onNotificationRemoved(sbn.key)
         }

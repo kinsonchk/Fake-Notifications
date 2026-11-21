@@ -78,12 +78,44 @@ class TapDetectionTest {
     }
 
     @Test
+    fun swipeAndClearAll_areDismissals() {
+        listOf(NotificationListenerService.REASON_CANCEL, NotificationListenerService.REASON_CANCEL_ALL).forEach {
+            assertEquals(TapDetection.RemovalKind.Dismiss, kind(it, pkg = other))
+        }
+        assertEquals(TapDetection.RemovalKind.Tap, kind(NotificationListenerService.REASON_CLICK, pkg = other))
+    }
+
+    @Test
+    fun otherRemovalReasons_areIgnored() {
+        listOf(
+            NotificationListenerService.REASON_APP_CANCEL,
+            NotificationListenerService.REASON_APP_CANCEL_ALL,
+            NotificationListenerService.REASON_GROUP_SUMMARY_CANCELED,
+            NotificationListenerService.REASON_SNOOZED,
+            NotificationListenerService.REASON_TIMEOUT,
+            NotificationListenerService.REASON_LISTENER_CANCEL,
+        ).forEach { assertEquals("reason $it", TapDetection.RemovalKind.Ignored, kind(it, pkg = other)) }
+    }
+
+    @Test
+    fun dismissFilters_matchTapFilters() {
+        val cancel = NotificationListenerService.REASON_CANCEL
+        assertEquals(TapDetection.RemovalKind.Ignored, kind(cancel, pkg = other, flags = Notification.FLAG_GROUP_SUMMARY))
+        assertEquals(TapDetection.RemovalKind.Ignored, kind(cancel, pkg = other, flags = Notification.FLAG_ONGOING_EVENT))
+        assertEquals(TapDetection.RemovalKind.Ignored, kind(cancel, pkg = own, channel = "catches"))
+        assertEquals(TapDetection.RemovalKind.Dismiss, kind(cancel, pkg = own, channel = TapDetection.OWN_TEST_CHANNEL_ID))
+    }
+
+    @Test
     fun tapLog_keepsNewestTwenty() {
         repeat(TapLog.CAPACITY + 5) { TapLog.record("pkg$it", timestampMillis = it.toLong()) }
         val entries = TapLog.entries.value
         assertEquals(TapLog.CAPACITY, entries.size)
         assertEquals("pkg${TapLog.CAPACITY + 4}", entries.first().packageName)
     }
+
+    private fun kind(reason: Int, pkg: String, flags: Int = 0, channel: String? = "any") =
+        TapDetection.removalKind(reason, flags, channel, pkg, own, includeOwnPackage = true)
 
     private fun dispatch(flags: Int, pkg: String, debug: Boolean, channel: String? = "any") =
         TapDetection.shouldDispatch(

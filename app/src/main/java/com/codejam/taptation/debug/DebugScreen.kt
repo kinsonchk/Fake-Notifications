@@ -77,6 +77,8 @@ fun DebugScreen(contentPadding: PaddingValues = PaddingValues(), controls: DemoC
 
         item { DemoControlsPanel(demoControls) }
 
+        item { StatsHarnessPanel() }
+
         item {
             SectionCard("Shortcuts", "Skip the notification shade. Custom taps are on the Notifications tab.") {
                 OutlinedButton(
