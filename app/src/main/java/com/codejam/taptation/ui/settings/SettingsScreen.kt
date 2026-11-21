@@ -1,6 +1,7 @@
 package com.codejam.taptation.ui.settings
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
@@ -12,9 +13,11 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.key
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
@@ -24,6 +27,16 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Icon
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.selected
+import com.codejam.taptation.R
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.codejam.taptation.debug.WhitelistAppsPanel
 import com.codejam.taptation.logic.AppProfile
@@ -36,60 +49,98 @@ import com.codejam.taptation.ui.common.rememberGameRepository
 
 /**
  * "How does the game behave?" Every control writes through GameRepository.updateConfig, the single
- * saved source of settings. TODO(Person 3): final settings design (brief Section B).
+ * saved source of settings.
  */
 @Composable
 fun SettingsScreen(contentPadding: PaddingValues) {
     val repository = rememberGameRepository()
     val snapshot by repository.state.collectAsStateWithLifecycle()
     val error by repository.error.collectAsStateWithLifecycle()
+    var page by rememberSaveable { mutableStateOf("main") }
+    BackHandler(enabled = page != "main") { page = "main" }
 
-    TabScreen(contentPadding, "Settings") {
+    val title = when (page) {
+        "apps" -> "Always safe."
+        "rules" -> "Every app,\nyour way."
+        "words" -> "Words that matter."
+        "feedback" -> "A moment\nto choose."
+        else -> "Make it intentional."
+    }
+    key(page) {
+    TabScreen(contentPadding, title, eyebrow = "Your rules, your pace") {
         error?.let { message -> item { Text(message, color = MaterialTheme.colorScheme.error) } }
         val config = snapshot?.config
         if (config == null) {
             item { Text("Loading saved settings…") }
             return@TabScreen
         }
-        item { GameRulesCard(config, repository) }
+        if (page != "main") item { TextButton(onClick = { page = "main" }) { Text("←  Back to settings") } }
+        if (page == "apps") {
+            item { WhitelistAppsPanel(repository, config.whitelistedPackages) }
+            return@TabScreen
+        }
+        if (page == "rules") {
+            item { PerAppRulesCard(config, repository) }
+            return@TabScreen
+        }
+        if (page == "feedback") {
+            item { CatchPermissionCard() }
+            return@TabScreen
+        }
+        if (page == "words") {
+            item {
+                SectionCard("Important words", "Whole words and phrases in notification titles and text.") {
+                    TermSetEditor("Important keyword", config.importantKeywords) { term ->
+                        repository.updateConfig { it.copy(importantKeywords = it.importantKeywords.toggle(term)) }
+                    }
+                }
+            }
+            item {
+                SectionCard("Distracting words") {
+                    TermSetEditor("Bait keyword", config.baitKeywords) { term ->
+                        repository.updateConfig { it.copy(baitKeywords = it.baitKeywords.toggle(term)) }
+                    }
+                }
+            }
+            return@TabScreen
+        }
         item { ActivationControls(repository, config) }
-        item { CatchPermissionCard() }
-        item { WhitelistAppsPanel(repository, config.whitelistedPackages) }
+        item { GameRulesCard(config, repository) }
+        item { FreshnessControls(config, repository) }
         item {
-            SectionCard("People", "A notification whose title matches a VIP name is always safe.") {
+            SectionCard("People who matter", "VIP names matched in notification titles.") {
                 TermSetEditor("VIP name", config.vipNames) { name ->
                     repository.updateConfig { it.copy(vipNames = it.vipNames.toggle(name)) }
                 }
             }
         }
-        item {
-            SectionCard("Words", "Matched as whole words or phrases in the title and text, ignoring case.") {
-                Text("Important keywords (always safe)", style = MaterialTheme.typography.titleSmall)
-                TermSetEditor("Important keyword", config.importantKeywords) { term ->
-                    repository.updateConfig { it.copy(importantKeywords = it.importantKeywords.toggle(term)) }
-                }
-                Text("Bait keywords", style = MaterialTheme.typography.titleSmall)
-                TermSetEditor("Bait keyword", config.baitKeywords) { term ->
-                    repository.updateConfig { it.copy(baitKeywords = it.baitKeywords.toggle(term)) }
-                }
-            }
-        }
-        item { PerAppRulesCard(config, repository) }
+        item { SettingsLink("Always-safe apps", "${config.whitelistedPackages.size} apps protected", R.drawable.ic_tab_home) { page = "apps" } }
+        item { SettingsLink("Notification rules", "Conversations and community updates", R.drawable.ic_tab_notifications) { page = "rules" } }
+        item { SettingsLink("Important & distracting words", "Fine-tune what gets your attention", R.drawable.ic_tab_settings) { page = "words" } }
+        item { SettingsLink("Caught feedback", "Overlay and notification access", R.drawable.ic_tab_notifications) { page = "feedback" } }
+    }
     }
 }
 
 @Composable
 private fun GameRulesCard(config: GameConfig, repository: GameRepository) {
     SectionCard("Difficulty", "Fixed chance of a catch on an eligible bait tap.") {
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Difficulty.entries.forEach { difficulty ->
                 val select = { repository.updateConfig { it.copy(difficulty = difficulty, debugCatchProbability = null) }; Unit }
-                val label = "${difficulty.name} ${(difficulty.probability * 100).toInt()}%"
-                if (difficulty == config.difficulty) Button(onClick = select) { Text(label) }
-                else OutlinedButton(onClick = select) { Text(label) }
+                val isSelected = difficulty == config.difficulty
+                Surface(onClick = select, modifier = Modifier.weight(1f).semantics { selected = isSelected },
+                    shape = RoundedCornerShape(16.dp), border = if (isSelected) null else BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                    color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainerLowest,
+                    contentColor = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant) {
+                    Column(Modifier.padding(vertical = 14.dp), horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text(difficulty.name, style = MaterialTheme.typography.labelLarge)
+                        Text("${(difficulty.probability * 100).toInt()}%", style = MaterialTheme.typography.headlineSmall)
+                    }
+                }
             }
         }
-        FreshnessControls(config, repository)
     }
 }
 
@@ -104,6 +155,14 @@ private fun freshnessLabel(seconds: Int): String = when {
 
 @Composable
 private fun FreshnessControls(config: GameConfig, repository: GameRepository) {
+    var expanded by rememberSaveable { mutableStateOf(false) }
+    SectionCard("Fresh notifications only", if (config.freshnessSeconds == 0) "Every eligible bait tap enters the draw."
+        else "Older taps skip bait checks and catches.") {
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+        Text("Window: ${freshnessLabel(config.freshnessSeconds)}", style = MaterialTheme.typography.titleSmall)
+        TextButton(onClick = { expanded = !expanded }) { Text(if (expanded) "Done" else "Adjust") }
+    }
+    if (expanded) {
     // Saved values not on the list (set elsewhere) snap to the nearest step on the slider.
     val savedIndex = freshnessSteps.indices.minBy { kotlin.math.abs(freshnessSteps[it] - config.freshnessSeconds) }
     var index by remember(config.freshnessSeconds) { mutableFloatStateOf(savedIndex.toFloat()) }
@@ -136,6 +195,28 @@ private fun FreshnessControls(config: GameConfig, repository: GameRepository) {
             enabled = seconds != 0,
             onCheckedChange = { on -> repository.updateConfig { it.copy(freshnessFromFirstSeen = on) } },
         )
+    }
+    }
+    }
+}
+
+@Composable
+private fun SettingsLink(title: String, subtitle: String, icon: Int, onClick: () -> Unit) {
+    Surface(onClick = onClick, shape = RoundedCornerShape(22.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerLowest,
+        contentColor = MaterialTheme.colorScheme.onSurface,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) {
+        Row(Modifier.fillMaxWidth().padding(18.dp), verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+            Surface(shape = RoundedCornerShape(13.dp), color = MaterialTheme.colorScheme.primaryContainer) {
+                Icon(painterResource(icon), null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(10.dp))
+            }
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                Text(title, style = MaterialTheme.typography.titleSmall)
+                Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            Text("›", style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
     }
 }
 
