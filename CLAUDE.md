@@ -74,11 +74,14 @@ Full rules, defaults and the Person 3 API are in `docs/person-2/PERSON_2_INTEGRA
 | Catch probability default | 10% | 7.5% |
 | Damage Mild/Medium/Savage | 5 / 10 / 20 | 10 / 20 / 35 |
 | Default level | Medium | Mild |
-| Unmatched notification | bait (A3 rule 6) | `Unknown` -> `NoPenalty`, no roll |
-| Freshness window | 10 min, no roll if older | not implemented |
-| VIP names, urgent keywords, call/alarm/reminder/event bypass | yes | not on `main` (on `codex/person-2-logic`) |
-| Tap interface | `onTap(packageName, ageMillis)` | `onTap(NotificationContext)`; `ageMillis` only on `codex/person-2-logic` |
-| Settings storage | new `SettingsRepository` + DataStore | `GameConfig` in `GameRepository` (SharedPreferences) |
+| Bypass rules | whitelist, call/alarm/reminder/event, VIP title, urgent keyword | same, plus important channels and Discord DMs/@mentions (`NotificationClassifier`) |
+| Urgent keywords default | urgent, emergency, code, verification | urgent, code, meeting invite, meeting invitation |
+| Unmatched notification | bait (A3 rule 6) | bait only for promo/social, msg/email, configured bait, or a configured app profile; anything else `Unknown` -> `NoPenalty`, no roll |
+| Missing title or text | not covered | `Unknown` -> `NoPenalty` (can't rule out VIP/urgent) |
+| Freshness window | 10 min, no roll if older | not implemented: `ageMillis` is only recorded in `TapRecord` (negative age -> `Unknown`) |
+| Health at 0 | patch resets | stays dead until UI calls `reset()` |
+| Tap interface | `onTap(packageName, ageMillis)` | `onTap(NotificationContext)` with `ageMillis` set by the service; `ResultTapHandler.onTap(packageName, ageMillis)` also exists |
+| Settings storage | new `SettingsRepository` + DataStore | `GameConfig` in `GameRepository` (SharedPreferences), incl. `vipNames`, `importantKeywords`, channels, app profiles |
 | compile/target SDK | 36 | 37 |
 
 Brief C2 asks Person 1 to "log" titles: show them on the debug screen from memory only; the never-log/never-persist rule for title/text still applies.

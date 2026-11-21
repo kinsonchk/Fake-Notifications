@@ -47,13 +47,13 @@ object PermissionHelper {
         try {
             context.startActivity(intent)
         } catch (e: ActivityNotFoundException) {
-            Log.w(TAG, "No activity for ${intent.action}, opening App info instead", e)
-            val fallback = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
-                .setData(Uri.fromParts("package", context.packageName, null))
-            if (context !is Activity) fallback.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            context.startActivity(fallback)
-        }
-    }
+    Log.w(TAG, "No activity for ${intent.action}, opening App info instead", e)
+    val fallback = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
+        .setData(Uri.fromParts("package", context.packageName, null))
+    if (context !is Activity) fallback.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+    context.startActivity(fallback)
+}
+}
 
-    private const val TAG = "FakeNotifs"
+private const val TAG = "FakeNotifs"
 }
