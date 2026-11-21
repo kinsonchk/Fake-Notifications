@@ -236,11 +236,11 @@ Set the debug catch probability to 100%, set health to 100, and configure an app
 
 - **Go to Taptation** saves the choice and brings Taptation Home. Health should reflect only the normal catch damage.
 - **Continue in the original app · −5 health** saves the choice, removes 5 more health once, and invokes the notification's original action when available. If unavailable, Taptation falls back to opening the source app or reports that it is no longer available.
-- **Not now** closes the overlay and adds no extra damage. The catch stays pending for when Taptation is opened.
+- There is no dismiss/skip button. Leaving the app without selecting a destination does not add the extra damage; only the explicit continue choice does.
 
 For a custom notification posted by Taptation, expect the two-choice Compose dialog in Taptation, because tapping the test notification opens Taptation itself. This checks the foreground path, not the background overlay.
 
-To check the fallback, turn off overlay access in Android Settings, trigger another catch, and tap the **A moment to choose** notification. The same choices should appear in Taptation. Choosing **Not now** or dismissing the fallback notification must not add the extra damage; the pending choice remains reachable through the in-app **Choose now** reminder. If Android suppresses an overlay or notification, the catch remains saved and should be presented when Taptation is opened.
+To check the fallback, turn off overlay access in Android Settings, trigger another catch, and tap the **A moment to choose** notification. The two choices should appear in Taptation. If Android suppresses an overlay or notification, the catch remains saved and should be presented when Taptation is opened.
 
 Reset health and repeat both choices to compare the results. Rapidly tap the continue choice twice; health must lose only 5 extra points once. Repeat with the package whitelisted: no pending catch choice should appear. Swipe a bait notification away: it should not create a catch choice. Closing Taptation or leaving the source app is not treated as a continue choice; only the explicit **Continue in the original app** button adds the extra damage.
 ### D. Check the release build

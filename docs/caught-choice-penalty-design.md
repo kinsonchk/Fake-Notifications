@@ -138,7 +138,7 @@ Do not apply an extra penalty to catches created before this feature or to manua
 5. Repeat from health 100. Tap **Go to Taptation**. Confirm health drops only by the base amount.
 6. Reset health and repeat. Tap **Continue in the original app**. Confirm health drops by the base amount plus the small extra amount and the original app opens.
 7. Try tapping a choice rapidly twice. Confirm the catch receives no duplicate extra damage.
-8. Trigger another catch, close/dismiss the overlay without choosing, then open Taptation. Confirm the base damage remains, no extra damage was added, and the choice is still available.
+8. The prompt has only two buttons. Leaving Taptation or switching apps without choosing must not add the extra damage. Reopen Taptation and confirm its saved pending catch is presented through the existing feedback flow.
 9. Turn overlay permission off and test the fallback notification. Dismissing that notification must not count as choosing Continue or add extra damage.
 10. Repeat using Taptation's own test notification only as a foreground-path check; use a real source-app notification for the background overlay path.
 
@@ -150,7 +150,7 @@ The first implementation now follows this design:
 - New notification catches save a 5-point continuation penalty with the pending choice.
 - **Go to Taptation** settles the pending choice with no extra damage.
 - **Continue in the original app** applies the saved extra damage once, records it as `continue_after_catch`, then follows the original notification action or package-launch fallback.
-- **Not now**, Back, or dismissing the overlay leaves the catch pending and adds no continuation damage. In Taptation, a small reminder remains with a **Choose now** button; the overlay can be shown again when returning from the original app.
+- The interface has only the two destination choices. There is no **Not now** action or deferred-choice reminder. Leaving the app without choosing does not count as continuing and adds no extra damage; the saved pending catch can still be presented by the existing catch feedback when Taptation next presents it.
 - The saved game format is now version 6. Version 5 and earlier pending catches load with a zero continuation penalty so an upgrade does not unexpectedly charge someone for a prompt that was already open.
 - The penalty is committed in game logic before navigation. Duplicate settlement requests find no matching pending catch and cannot apply damage again.
 

@@ -179,7 +179,6 @@ class CatchFeedback(private val context: Context) {
             context.getString(R.string.caught_original_app_with_penalty, pending.continueExtraDamage)
         else context.getString(R.string.caught_original_app)
         panel.addView(choice(continueLabel, false) { choose(pending, false) })
-        panel.addView(choice(context.getText(R.string.caught_later), false) { removeOverlay() })
         val params = WindowManager.LayoutParams(
             minOf(context.resources.displayMetrics.widthPixels - dp(32), dp(480)), WindowManager.LayoutParams.WRAP_CONTENT,
             WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,

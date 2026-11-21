@@ -7,7 +7,4 @@
     <string name="caught_our_app">Go to Taptation</string>
     <string name="caught_original_app">Continue in the original app</string>
     <string name="caught_original_app_with_penalty">Continue in the original app · −%1$d health</string>
-    <string name="caught_later">Not now</string>
-    <string name="caught_choice_pending">Your catch choice is still waiting.</string>
-    <string name="caught_choose_now">Choose now</string>
 </resources>

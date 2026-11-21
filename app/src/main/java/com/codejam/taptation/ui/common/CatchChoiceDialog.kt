@@ -13,8 +13,8 @@ import com.codejam.taptation.R
 
 /** Choosing a destination settles an already-applied catch; only continuing adds its saved extra damage. */
 @Composable
-fun CatchChoiceDialog(continueExtraDamage: Int, onTaptation: () -> Unit, onOriginal: () -> Unit, onLater: () -> Unit) {
-    Dialog(onDismissRequest = onLater) {
+fun CatchChoiceDialog(continueExtraDamage: Int, onTaptation: () -> Unit, onOriginal: () -> Unit) {
+    Dialog(onDismissRequest = {}) {
         Surface(shape = RoundedCornerShape(26.dp), color = MaterialTheme.colorScheme.surfaceContainerLowest,
             contentColor = MaterialTheme.colorScheme.onSurface,
             border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) {
@@ -33,9 +33,6 @@ fun CatchChoiceDialog(continueExtraDamage: Int, onTaptation: () -> Unit, onOrigi
                     shape = RoundedCornerShape(16.dp)) {
                     Text(if (continueExtraDamage > 0) stringResource(R.string.caught_original_app_with_penalty, continueExtraDamage)
                         else stringResource(R.string.caught_original_app))
-                }
-                TextButton(onClick = onLater, modifier = Modifier.fillMaxWidth()) {
-                    Text(stringResource(R.string.caught_later))
                 }
             }
         }
