@@ -55,6 +55,7 @@ fun TaptationApp(debug: Boolean) {
     var tutorialComplete by rememberSaveable { mutableStateOf(isTutorialComplete(context)) }
     var accessReady by rememberSaveable { mutableStateOf(false) }
     var checkAccess by rememberSaveable { mutableStateOf(false) }
+    var showTutorial by rememberSaveable { mutableStateOf(false) }
 
     androidx.lifecycle.compose.LifecycleEventEffect(androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
         val notificationGranted = com.codejam.taptation.service.PermissionHelper.isNotificationAccessGranted(context)
@@ -63,12 +64,13 @@ fun TaptationApp(debug: Boolean) {
         checkAccess = true
     }
 
-    if (!tutorialComplete || (checkAccess && !accessReady)) {
+    if (!tutorialComplete || showTutorial || (checkAccess && !accessReady)) {
         OnboardingScreen(
-            startAtSetup = tutorialComplete,
+            startAtSetup = tutorialComplete && !showTutorial,
             onComplete = {
                 completeTutorial(context)
                 tutorialComplete = true
+                showTutorial = false
                 accessReady = true
             },
         )
@@ -76,12 +78,12 @@ fun TaptationApp(debug: Boolean) {
     }
     if (!checkAccess || !accessReady) return
 
-    AppTabs(debug)
+    AppTabs(debug, onTutorial = { showTutorial = true })
 }
 
 /** Bottom tabs. Debug-only tabs are hidden in release builds. */
 @Composable
-private fun AppTabs(debug: Boolean) {
+private fun AppTabs(debug: Boolean, onTutorial: () -> Unit) {
     val tabs = Tab.entries.filter { debug || !it.debugOnly }
     val compact = LocalConfiguration.current.screenWidthDp < 380
     var selected by rememberSaveable { mutableStateOf(Tab.Home) }
@@ -124,7 +126,7 @@ private fun AppTabs(debug: Boolean) {
     ) { padding ->
         tabState.SaveableStateProvider(selected.name) {
             when (selected) {
-                Tab.Home -> HomeScreen(padding, onSettings = { selected = Tab.Settings })
+                Tab.Home -> HomeScreen(padding, onSettings = { selected = Tab.Settings }, onTutorial = onTutorial)
                 Tab.Stats -> StatsScreen(padding)
                 Tab.Notifications -> NotificationsScreen(padding)
                 Tab.Settings -> SettingsScreen(padding)
