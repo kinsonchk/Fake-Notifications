@@ -3,7 +3,7 @@
 **Latest revision:** [revised catch flow](../revised-catch-flow.md) supersedes the old
 probability/lockout behavior below. GameConfig now has fixed difficulty, debug-only override,
 activation and freshness. The repository exposes begin/cancel/confirm disable, enable and
-pending-catch acknowledgment. Game storage is v4; SQLite event storage is v2.
+pending-catch acknowledgment. Game storage is v5 (reads main's v4 first-seen freshness); SQLite event storage is v2.
 
 ## Ownership and current status
 
@@ -95,9 +95,11 @@ Profiles implement these examples as heuristics, not guaranteed sender/DM detect
 Tune them on the demo phone; the Android conversation flag does not prove a direct message.
 No observed Outlook/Instagram/Discord samples were supplied with this change.
 
-Notification age is recorded but does not alter catch probability or importance: no age
-threshold was specified. A negative age is uncertain and cannot be penalized. Old
-notifications are not automatically considered safe or bait solely because of age.
+Notification age never changes the classification. After classification, a bait tap older
+than `GameConfig.freshnessSeconds` (default 600, 0 = off) is `NoPenalty` with reason `stale`:
+no roll, no damage, no clean-timer reset. Age is `ageMillis` (since the newest update; Android
+restarts `postTime` on every update) or, with `freshnessFromFirstSeen`, `firstSeenAgeMillis`.
+Unknown ages are never stale. A negative age is uncertain and cannot be penalized.
 
 ## Person 1 contract
 
@@ -173,7 +175,7 @@ observe `StateFlow` for Compose state or explicitly dispatch UI work to the main
 Example settings updates:
 
 ```kotlin
-repository.updateConfig { it.copy(catchProbability = 0.10, level = CatchLevel.Medium) }
+repository.updateConfig { it.copy(difficulty = Difficulty.Medium) }
 repository.updateConfig { it.copy(baitKeywords = setOf("sale", "limited offer")) }
 repository.setWhitelisted("com.example.messages", true)
 repository.updateConfig { it.copy(vipNames = setOf("Alex Smith")) }

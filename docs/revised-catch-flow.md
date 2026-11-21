@@ -27,10 +27,14 @@ settings and lockout instructions in the older briefs.
 - While disabled, listener metadata capture, new tap/dismiss recording, catch rolls, damage
   and clean-hour recovery stop. Existing history/settings remain. The OS notification-access
   grant is not revoked; the service remains bound so timed/manual activation can work.
-- Freshness defaults to **10 minutes**, configurable to 5/10/30/60 minutes. A known age
+- Freshness defaults to **10 minutes**. The integrated Settings control includes off, short
+  demo windows and minute presets. A known age
   strictly greater than the window skips classification and the catch roll. Equality remains
   eligible. Stale actions can be recorded as unsure but do not reset the clean-hour timer.
   Legacy package-only calls retain the conservative metadata classifier behavior.
+  Person 1's first-seen tracker is preserved: choose latest-update age (default), or age
+  since the listener first observed that notification key. If first-seen time is unavailable,
+  the rule falls back to update age.
 
 ## Statistics
 
@@ -57,9 +61,10 @@ The debug tab adds a 0–100% probability override, a clear-override action, and
 scenario. Release GameEngine ignores debug probability overrides, even if one remains in
 local storage after installing a different build. Selecting difficulty clears the override.
 
-Game snapshot format v4 reads v1–v3, preserves health/history/rules, and maps old arbitrary
+Game snapshot format v5 reads v1–v4, preserves health/history/rules/freshness, and maps old arbitrary
 probabilities to the closest fixed difficulty. New activation, freshness, debug override and
-pending-choice fields are saved atomically with game state. Notification actions/title/text
+pending-choice fields are saved atomically with game state. Main's v4 first-seen freshness
+layout is kept intact as the prefix, with new fields appended in v5. Notification actions/title/text
 remain transient. SQLite v2 adds the category column with ALTER TABLE and preserves old rows.
 
 ## Verification

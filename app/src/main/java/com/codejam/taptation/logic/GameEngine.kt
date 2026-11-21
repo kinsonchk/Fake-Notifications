@@ -26,7 +26,7 @@ class GameEngine(
             commit(next)
             return TapResult(TapOutcome.NoPenalty, state, "disabled")
         }
-        val assessment = if (context.ageMillis != null && context.ageMillis > next.config.freshnessWindowMillis)
+        val assessment = if (next.config.isStale(context))
             Assessment(Classification.Unknown, "stale")
         else NotificationClassifier.assess(context, next.config)
         val classification = assessment.classification

@@ -104,6 +104,18 @@ class RevisedFlowTest {
         assertNull(engine.state.pendingCatch)
     }
 
+    @Test fun mainVersionFourFreshnessStoreMigratesWithoutLosingItsSettings() {
+        val fixture = "AAAABAAAAFoAAAAAAAAD6AAAAAAAAAPoAAAAAAAAeRgAAAAAAAAD6AAAAAAAAAABP/AAAAAAAAAABE1pbGQAAAAKAAAAFAAAACMAAAAFAAAAHgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAAAAA+gABGJhaXQABEJhaXQABkNhdWdodAAAAGQAAABaAAAACgAGY2F1Z2h0AQAAAAAAABOIAA9jb25maWd1cmVkX2JhaXQAAAAAAAAAKgE="
+        val old = GameStateCodec.decode(fixture)
+        assertEquals(90, old.health)
+        assertEquals(1L, old.totalCatches)
+        assertEquals(42, old.config.freshnessSeconds)
+        assertTrue(old.config.freshnessFromFirstSeen)
+        assertEquals("configured_bait", old.taps.single().rule)
+        assertNull(old.pendingCatch)
+        assertEquals(old, GameStateCodec.decode(GameStateCodec.encode(old)))
+    }
+
     @Test fun disableGateEnforcesWaitCancelAndSingleUse() {
         var elapsed = 0L
         val gate = DisableGate { elapsed }

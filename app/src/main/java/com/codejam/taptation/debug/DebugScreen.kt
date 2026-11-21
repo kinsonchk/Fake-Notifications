@@ -104,7 +104,7 @@ fun DebugScreen(contentPadding: PaddingValues = PaddingValues(), controls: DemoC
                     },
                     modifier = Modifier.fillMaxWidth(),
                 ) { Text("Simulate bait tap (com.test.fake)") }
-                OutlinedButton(onClick = {
+                OutlinedButton(enabled = snapshot?.config?.freshnessSeconds != 0, onClick = {
                     repository.processTap(NotificationContext("com.test.fake", title = "Old demo notification",
                         text = "Routine update", category = "promo", isConversation = false,
                         ageMillis = (snapshot?.config?.freshnessWindowMillis ?: 600_000) + 1))

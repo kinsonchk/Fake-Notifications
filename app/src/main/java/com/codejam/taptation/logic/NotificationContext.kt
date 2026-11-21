@@ -6,6 +6,10 @@ package com.codejam.taptation.logic
  * Notification contents are transient: title, text, action titles and contact identities are
  * never persisted or logged. Only user-entered VIP names belong in saved settings.
  *
+ * @property ageMillis time since Android's postTime, which restarts on every update (each new
+ *   chat message re-posts the same key), set by the listener at removal.
+ * @property firstSeenAgeMillis time since the listener first saw this key; updates keep it. Equals
+ *   [ageMillis] when the listener didn't see the first post (e.g. it was restarted).
  * @property actions titles of the notification's action buttons (e.g. "Reply", "Mark as read"),
  *   in display order. Empty when the notification has none.
  */
@@ -19,6 +23,7 @@ data class NotificationContext(
     val isConversation: Boolean? = null,
     val channelName: String? = null,
     val ageMillis: Long? = null,
+    val firstSeenAgeMillis: Long? = null,
     val actions: List<String> = emptyList(),
     /** Transient user action for the original notification; never persisted or invoked automatically. */
     val openOriginal: (() -> Unit)? = null,

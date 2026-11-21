@@ -27,19 +27,32 @@ data class GameConfig(
     val baitChannels: Map<String, Set<String>> = emptyMap(),
     val active: Boolean = true,
     val disabledUntilMillis: Long? = null,
-    val freshnessWindowMillis: Long = 10 * 60_000L,
+    val freshnessSeconds: Int = 600,
+    val freshnessFromFirstSeen: Boolean = false,
 ) {
     val catchProbability: Double get() = debugCatchProbability ?: difficulty.probability
+    val freshnessWindowMillis: Long get() = freshnessSeconds * 1000L
     fun isActive(nowMillis: Long): Boolean = active || disabledUntilMillis?.let { nowMillis >= it } == true
     init {
         require(catchProbability.isFinite() && catchProbability in 0.0..1.0)
         require(listOf(mildDamage, mediumDamage, savageDamage).all { it in 1..100 })
         require(recoveryPerHour in 0..100)
         require(lockoutSeconds in 1..3600)
-        require(freshnessWindowMillis in 1_000..3_600_000)
+        require(freshnessSeconds in 0..MAX_FRESHNESS_SECONDS)
         require((whitelistedPackages + baitPackages + baitKeywords + vipNames + importantKeywords +
             appProfiles.keys + importantChannels.keys + baitChannels.keys +
             importantChannels.values.flatten() + baitChannels.values.flatten()).none { it.isBlank() })
+    }
+
+    /** True when [context] is older than the freshness window; unknown ages are never stale. */
+    fun isStale(context: NotificationContext): Boolean {
+        if (freshnessSeconds == 0) return false
+        val age = (if (freshnessFromFirstSeen) context.firstSeenAgeMillis else null) ?: context.ageMillis
+        return age != null && age > freshnessSeconds * 1000L
+    }
+
+    companion object {
+        const val MAX_FRESHNESS_SECONDS = 24 * 60 * 60
     }
 
     fun damage(level: CatchLevel): Int = when (level) {

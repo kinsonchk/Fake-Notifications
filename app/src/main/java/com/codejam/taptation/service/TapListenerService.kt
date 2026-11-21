@@ -30,6 +30,12 @@ class TapListenerService : NotificationListenerService() {
             size > 500
     }
 
+    // When each key was first posted. Updates re-post the same key with a new postTime, so this keeps
+    // the original time. Same bound as contexts.
+    private val firstSeen = object : LinkedHashMap<String, Long>() {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, Long>?): Boolean = size > 500
+    }
+
     // Debug-only overrides for our own test notifications, by key. Re-applied after every ranking
     // update so ranking data can't overwrite the simulated channel/conversation values.
     private val simulations = HashMap<String, DebugSimulation>()
@@ -43,6 +49,7 @@ class TapListenerService : NotificationListenerService() {
     override fun onListenerDisconnected() {
         super.onListenerDisconnected()
         contexts.clear()
+        firstSeen.clear()
         simulations.clear()
         TapDispatcher.handler.onListenerReset()
         _observations.value = emptyList()
@@ -63,6 +70,7 @@ class TapListenerService : NotificationListenerService() {
 
     override fun onDestroy() {
         contexts.clear()
+        firstSeen.clear()
         simulations.clear()
         TapDispatcher.handler.onListenerReset()
         _observations.value = emptyList()
@@ -74,6 +82,7 @@ class TapListenerService : NotificationListenerService() {
         if (skipWhileDisabled()) return
         // update=true: same key already active, so the app replaced it (e.g. a new chat message).
         val update = contexts.containsKey(sbn.key)
+        firstSeen.putIfAbsent(sbn.key, sbn.postTime)
         val context = contextFor(sbn, rankingMap)
         contexts[sbn.key] = context
         TapDispatcher.handler.onNotificationPosted(context)
@@ -109,14 +118,17 @@ class TapListenerService : NotificationListenerService() {
         reason: Int,
     ) {
         if (skipWhileDisabled()) return
+        val now = System.currentTimeMillis()
+        val firstSeenAt = firstSeen.remove(sbn.key) ?: sbn.postTime
         val context = withRanking(contexts.remove(sbn.key) ?: contextFor(sbn, rankingMap), rankingMap)
-            .copy(ageMillis = System.currentTimeMillis() - sbn.postTime)
+            .copy(ageMillis = now - sbn.postTime, firstSeenAgeMillis = now - minOf(firstSeenAt, sbn.postTime))
         simulations.remove(sbn.key)
         // Simulated package for our debug notifications, the real one otherwise.
         val pkg = context.packageName
         val flags = sbn.notification?.flags ?: 0
         val signals = NotificationSignals.from(sbn, rankingMap)
         Log.d(TAG, "removed pkg=$pkg reason=${TapDetection.reasonName(reason)}($reason) " +
+            "firstSeenAge=${context.firstSeenAgeMillis}ms " +
             "${signals.describe(System.currentTimeMillis())} key=${sbn.key}")
 
         val kind = TapDetection.removalKind(
@@ -173,7 +185,7 @@ class TapListenerService : NotificationListenerService() {
     private fun skipWhileDisabled(): Boolean {
         val config = (application as TaptationApplication).game.state.value?.config
         if (config?.isActive(System.currentTimeMillis()) == true) return false
-        contexts.clear(); simulations.clear(); _observations.value = emptyList()
+        contexts.clear(); firstSeen.clear(); simulations.clear(); _observations.value = emptyList()
         TapDispatcher.handler.onListenerReset()
         return true
     }
