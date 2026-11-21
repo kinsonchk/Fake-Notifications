@@ -41,8 +41,10 @@ system -> TapListenerService.onNotificationPosted   (cache NotificationContext b
        -> TapDetection.shouldDispatch(...)          (pure filter)
        -> TapLog.record(pkg)                        (in-memory last 20, StateFlow, debug screen)
        -> TapDispatcher.dispatch(NotificationContext) -> TapDispatcher.handler.onTap(context)
+          (swipe / clear-all: TapDispatcher.dispatchDismiss -> handler.onDismiss, stats only)
        -> GameRepository (installed by TaptationApplication.onCreate)
        -> single-thread worker -> GameEngine.onTap -> PreferencesGameStore
+       -> StatsRepository.submit(StatsEvent) -> SqliteStatsStore (stats.db, one row per tap/dismissal)
 ```
 
 - `logic/TapHandler.kt`: the **shared contract**. `TapHandler.onTap(packageName)` plus `onTap(context: NotificationContext)` (defaults to the package-only one); `TapDispatcher` holds a `@Volatile` handler with both `dispatch` overloads. Package-only calls stay supported.
@@ -57,6 +59,7 @@ system -> TapListenerService.onNotificationPosted   (cache NotificationContext b
 - `service/PermissionHelper.kt`: notification-access check/settings intents and battery-optimization helpers; reuse for onboarding UI.
 - `ui/TaptationApp.kt`: bottom tabs Home · Stats · Notifications · Settings · Debug (Notifications and Debug only in debug builds); `rememberSaveableStateHolder` keeps each tab's state. `ui/home`, `ui/stats`, `ui/settings` read/write `GameRepository`; `ui/common` holds layout helpers, `rememberNow` (lockout ticker + periodic `refresh`) and `TapExplanations` (rule/outcome codes → text).
 - `debug/`: `DebugScreen` (system status, `DemoControlsPanel` backed by `RepositoryDemoControls`), `NotificationsScreen` (composer, saved `NotificationPreset`s with an image in `NotificationIcons`, last 20 taps with reasons, observed notifications with a live classifier preview), `TestNotification` posts an auto-cancel notification with a contentIntent so tapping it yields `REASON_CLICK`. Presets hold only user-typed values; observed notifications stay memory-only.
+- `stats/`: `StatsRepository` (built in `TaptationApplication`, `app.stats`) records taps and dismissals with classification, caught and age in `SqliteStatsStore`; `weekly()` / `monthly()` return a precomputed `StatsSummary` (`StatsCalculator`: tap rate %, medians, averages capped at 1 h, bait only by default). See `docs/decision-stats-handler.md`. Debug tab > Stats harness generates fake history.
 - `TapRecord.rule` / `TapResult.rule`: the classifier rule behind the classification (`vip_title`, `bait_category`…); `reason` is the final decision (`caught`, `roll_passed`…). Taps stored before codec v3 have an empty rule for bait.
 - `service/DebugSimulation.kt`: package/channel name/conversation/app category overrides carried in the extras of our test-channel notification. The listener applies them only in debuggable builds and only on `OWN_TEST_CHANNEL_ID`, so a debug notification can stand in for another app.
 
@@ -91,7 +94,7 @@ Brief C2 asks Person 1 to "log" titles: show them on the debug screen from memor
 
 ## Tap detection rules (don't regress)
 
-- Count a removal as a tap **only** when `reason == REASON_CLICK`. Swipe (`REASON_CANCEL`), clear-all, app-cancel, group-summary-cancel and every other reason are ignored.
+- Count a removal as a tap **only** when `reason == REASON_CLICK`. Swipe (`REASON_CANCEL`) and clear-all (`REASON_CANCEL_ALL`) are dismissals: stats only, never a game effect. App-cancel, group-summary-cancel and every other reason are ignored.
 - Skip notifications with `FLAG_GROUP_SUMMARY` or `FLAG_ONGOING_EVENT`.
 - Own package counts only in debuggable builds **and only on the test channel** (`TapDetection.OWN_TEST_CHANNEL_ID`, used by the in-app test notification); ignored in release. Any other notification we post (e.g. a "you got caught" alert) must never count, or tapping it would trigger another catch in a loop.
 - Override only the **three-argument** `onNotificationRemoved`. The base three-arg version forwards to the one-arg one, so overriding both double-handles.
