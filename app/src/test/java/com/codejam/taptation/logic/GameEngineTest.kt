@@ -37,6 +37,28 @@ class GameEngineTest {
         assertEquals(1L, result.state.tapsPerApp["bait"])
     }
 
+    @Test fun removingWhitelistRestoresBaitRuleAndPreservesOtherWhitelistEntries() {
+        val f = Fixture()
+        f.configure { it.copy(
+            catchProbability = 1.0,
+            whitelistedPackages = setOf("bait", "important"),
+        ) }
+
+        val safe = f.game.onTap("bait")
+        assertEquals(TapOutcome.Bypass, safe.outcome)
+        assertEquals(0, f.rolls)
+        assertEquals(100, safe.state.health)
+
+        f.game.updateConfig(f.game.state.config.copy(
+            whitelistedPackages = f.game.state.config.whitelistedPackages - "bait",
+        ))
+        assertEquals(setOf("important"), f.game.state.config.whitelistedPackages)
+
+        val caught = f.game.onTap("bait")
+        assertEquals(TapOutcome.Caught, caught.outcome)
+        assertEquals(1, f.rolls)
+        assertEquals(90, caught.state.health)
+    }
     @Test fun unknownNeverRolls() {
         val f = Fixture()
         assertEquals("unknown", f.game.onTap("unknown").reason)

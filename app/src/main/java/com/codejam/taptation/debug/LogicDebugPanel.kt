@@ -94,20 +94,15 @@ fun LogicDebugPanel() {
                     }
                 }
             }
+            WhitelistAppsPanel(repository, state.config.whitelistedPackages)
             var packageName by remember { mutableStateOf("") }
             OutlinedTextField(value = packageName, onValueChange = { packageName = it },
-                label = { Text("App package name") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+                label = { Text("Bait app package name (demo control)") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
             val pkg = packageName.trim()
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedButton(enabled = pkg.isNotEmpty(), onClick = {
-                    repository.setWhitelisted(pkg, pkg !in state.config.whitelistedPackages)
-                }) { Text(if (pkg in state.config.whitelistedPackages) "Unwhitelist" else "Whitelist") }
-                OutlinedButton(enabled = pkg.isNotEmpty(), onClick = {
-                    repository.updateConfig { it.copy(baitPackages = if (pkg in it.baitPackages)
-                        it.baitPackages - pkg else it.baitPackages + pkg) }
-                }) { Text(if (pkg in state.config.baitPackages) "Remove bait" else "Mark bait") }
-            }
-            Text("Whitelist: ${state.config.whitelistedPackages.sorted().joinToString().ifEmpty { "none" }}")
+            OutlinedButton(enabled = pkg.isNotEmpty(), onClick = {
+                repository.updateConfig { it.copy(baitPackages = if (pkg in it.baitPackages)
+                    it.baitPackages - pkg else it.baitPackages + pkg) }
+            }) { Text(if (pkg in state.config.baitPackages) "Remove bait" else "Mark bait") }
             Text("Bait apps: ${state.config.baitPackages.sorted().joinToString().ifEmpty { "none" }}")
             var keyword by remember { mutableStateOf("") }
             OutlinedTextField(value = keyword, onValueChange = { keyword = it },

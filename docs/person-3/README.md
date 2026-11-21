@@ -11,6 +11,7 @@ Before building the settings page: Section B proposes a new `SettingsRepository`
 
 Reuse `service/PermissionHelper.kt` for the onboarding permission step and battery-optimization prompt.
 
+
 ## Catch notification ("you lost a life")
 
 A notification is the only practical way to show a catch at the moment it happens. A tap on a bait notification opens the other app, and since Android 10 a background app can't start its own screen (being a notification listener doesn't exempt us). The alternative is an overlay (`SYSTEM_ALERT_WINDOW`), which needs an extra, scary permission.
@@ -24,3 +25,5 @@ Plan:
 - **Lifetime**: `setTimeoutAfter(lockout)` so it disappears when the lockout ends; auto-cancel; needs `POST_NOTIFICATIONS` on Android 13+ (the debug screen already requests it).
 
 Needs Person 1's loop guard (branch `person1/signal-logging`) merged first.
+
+

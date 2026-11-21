@@ -10,6 +10,15 @@ $env:JAVA_HOME = "C:\Program Files\Java\jdk-25"
 $env:Path = "$env:JAVA_HOME\bin;$env:Path"
 .\gradlew.bat --stop
 ```
+Rerun this if want to reupdate your app to the new change. installDebug builds the latest debug app and installs it.
+```powershell
+$env:ANDROID_HOME = "C:\Users\OfflineUser\AppData\Local\Android\Sdk"
+$env:JAVA_HOME = "C:\Program Files\Java\jdk-25"
+$env:Path = "$env:ANDROID_HOME\platform-tools;$env:JAVA_HOME\bin;$env:Path"
+
+& "$env:ANDROID_HOME\platform-tools\adb.exe" devices -l
+.\gradlew.bat installDebug --console=plain
+```
 
 These are environment variables for the current PowerShell window. PowerShell passes them to Gradle when it starts:
 
@@ -75,6 +84,12 @@ Do this:
 
 **What success looks like:** the command ends with `BUILD SUCCESSFUL`.
 
+
+The JVM unit suite also covers the whitelist without a phone:
+
+- `whitelistWinsOverAllBaitRules` proves a whitelisted package bypasses bait and keyword rules, causes no random roll or health loss, and is still recorded.
+- `removingWhitelistRestoresBaitRuleAndPreservesOtherWhitelistEntries` proves disabling the whitelist restores the bait consequence while preserving other selected apps.
+- `configAndAllHistoryRoundTrip` proves the whitelist configuration survives save/load.
 ### B. Connect a phone or start an emulator, then run the demo-panel test
 
 The command you tried started ADB successfully. That part is normal. Because nothing appeared below **List of devices attached**, ADB did not find a phone or a running emulator yet. The test command needs one before it can run.
@@ -132,9 +147,9 @@ With either the phone or emulator listed as `device`, run:
 .\gradlew.bat connectedDebugAndroidTest --console=plain
 ```
 
-**What this checks:** the instrumentation test opens the controls panel, presses the buttons, and confirms the fake received requests for 0%, 100%, health 1, force catch, one-hour fast-forward, and reset. It also checks the “Not connected yet” message.
+**What this checks:** the instrumentation test opens the Demo controls panel, presses its buttons, and confirms a fake implementation received requests for 0%, 100%, health 1, force catch, one-hour fast-forward, and reset. This tests button wiring only; use the Consequence logic panel for real whitelist and game behavior.
 
-**What success looks like:** Gradle ends with `BUILD SUCCESSFUL`, and the report lists `DemoControlsPanelTest` as passing.
+**What success looks like:** Gradle ends with `BUILD SUCCESSFUL`, and the report lists `DemoControlsPanelTest` as passing. These tests do not cover the whitelist picker.
 
 If you have no phone/emulator, you cannot run an Android instrumentation test. You can only compile its APK:
 
@@ -178,21 +193,39 @@ To see diagnostic messages, open another PowerShell window and run:
 
 A tapped notification should log `reason=CLICK`. A swipe should log a cancel reason and should not be dispatched as a tap.
 
-### C.1 Test the whitelist (after Persons 2 and 3 connect their features)
+### C.1 Test the whitelist on your Android phone
 
-**This test cannot pass in the current project yet.** The code currently has no whitelist screen or saved whitelist from Person 3, and no consequence logic from Person 2 to bypass. The `DemoControls` panel also says it is not connected. Finish those pieces and connect them before expecting health/catches to change.
+This feature is implemented in the debug build. Use a notification posted by the actual app you select: Android identifies each notification by the package that posted it. The Taptation test notification always belongs to Taptation, so it cannot stand in for Instagram, YouTube, or another app.
 
-When they are ready, test with a notification from a real installed app, because Android identifies a notification by the package that posted it:
+#### Prepare the phone and app
 
-1. In Taptation, use Person 3's whitelist screen to add one installed app, for example a social app used for the demo.
-2. Use the connected debug controls to set catch chance to **100%**.
-3. Make that app post a notification. Tap it in the Android notification shade.
-4. Return to Taptation. The tap may still appear in tap history, but because the app is whitelisted there should be **no catch and no health loss**.
-5. Turn that same app off in the whitelist.
-6. Make the same app post another notification and tap it. With probability set to 100%, this time it should be caught and health should decrease according to Person 2's rule.
-7. Swipe away another notification from the app. A swipe should not count as a tap or cause a catch, whether or not the app is whitelisted.
+1. Pick an installed app that can post a notification you can trigger during the demo. It must appear in **Whitelisted apps** (the picker lists apps with launcher icons).
+2. Find the app's exact package name. For example, to check whether Instagram or YouTube is installed:
 
-Use notifications that disappear when tapped; some apps keep their notifications visible, so the listener may not receive a `REASON_CLICK` removal for those. Do not use Taptation's own test notification to pretend to test another app's whitelist entry: its package name remains `com.codejam.taptation`.
+   ```powershell
+   & "$env:ANDROID_HOME\platform-tools\adb.exe" shell pm list packages | findstr /i "instagram youtube"
+   ```
+
+   Use the full value after `package:`. You can use any installed app that can send a testable notification, not only those examples.
+
+#### Prove the whitelist bypasses a catch
+
+1. In Taptation's debug logic controls, set **Catch chance** to 100% by moving its slider all the way right.
+2. Enter the selected app's package name in **Bait app package name (demo control)** and tap **Mark bait**. The initial bait list is empty, so this step is needed for a clear comparison.
+3. In **Whitelisted apps**, search for that app and turn its switch on. Wait for the switch to reflect the saved setting.
+4. Note the current **Health** and **Catches** values.
+5. Cause that app to post a notification (for example, send yourself a test message or trigger an app alert). Open Android's notification shade by dragging down from the top of the phone screen, then tap the app's notification. Do not swipe it away.
+6. Return to Taptation. **Last tap** should show `Bypass (whitelisted)`. Health and catch count should be unchanged. The notification should still have opened its own app normally.
+
+#### Prove turning the whitelist off restores the bait rule
+
+1. Return to Taptation. Turn off the same app's whitelist switch. Keep it marked as bait and keep catch chance at 100%.
+2. Cause the same app to post another auto-cancel notification, then tap it in the notification shade.
+3. Return to Taptation. The tap should be caught and health should decrease. The catch count should increase. If the app is already in lockout or the tree is dead, use the debug **Health 100** control to reset it before repeating.
+4. Turn the whitelist switch back on, close and reopen Taptation, and confirm that it remains selected. This checks saved settings.
+5. Finally, swipe away one more notification from that app. It should not create a new tap row or cause a catch.
+
+If no suitable app can post a notification during the demo, the unit tests below still verify the game rule. Taptation's **Post test notification** button checks notification tap detection, but it is not a substitute for this app-specific whitelist check.
 ### D. Check the release build
 
 Run:
@@ -213,12 +246,6 @@ These commands succeeded after the Person 4 changes:
 
 The instrumentation tests have now run successfully on the API 37 emulator. The real notification-shade checks (tap, swipe, access settings, and battery behavior) still need to be done on the presentation phone.
 
-## What still needs another part of the app
+## Remaining phone-only check
 
-Person 2 needs to implement the real health, probability, catch, time, and reset logic, then provide a `DemoControls` implementation and connect it to the debug screen. Until that happens, the panel's controls are only tested as button-to-interface requests. They do not change real health or trigger real catches.
-
-A whitelist check also needs a notification posted by the actual whitelisted app. The notification's title cannot make it count as another app.
-
-
-
-
+The whitelist picker and bypass logic are implemented. The remaining manual verification is to use a real notification from the selected app on the presentation phone; automated JVM tests cannot exercise Android's notification shade, notification access permission, or app package identity.
