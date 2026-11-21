@@ -2,6 +2,9 @@
 
 Team docs, one folder per person: [docs/](docs/README.md).
 
+UI work: follow the [design guide](docs/UI_DESIGN_GUIDE.md) for visual rules, reusable patterns,
+reference screenshots and a copy-and-paste prompt for AI contributors.
+
 Latest behavior: [revised catch flow](docs/revised-catch-flow.md) — fixed Easy/Medium/Hard
 20/40/70%, activation with confirmation friction, freshness filtering, two-destination caught
 feedback, and SQLite-backed statistics. This guide supersedes older defaults below.

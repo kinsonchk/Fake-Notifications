@@ -2,6 +2,14 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## UI design contract
+
+Before creating or changing any UI, read [docs/UI_DESIGN_GUIDE.md](docs/UI_DESIGN_GUIDE.md)
+and the nearest existing screen. Follow its visual tokens, component recipes and definition
+of done unless the user explicitly requests a different design. Reuse the shared theme and
+layout components; inspect actual Android renders before claiming visual verification.
+The guide includes portable reference screenshots and a ready-to-use prompt for future agents.
+
 ## Project
 
 Latest agreed revision: read [docs/revised-catch-flow.md](docs/revised-catch-flow.md) before
