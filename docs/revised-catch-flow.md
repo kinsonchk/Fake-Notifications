@@ -53,6 +53,19 @@ harness. Seven-/30-day views cover today and the preceding six/29 local calendar
 - Manual force-catch is a health/debug operation, not a notification tap, so it does not
   fabricate a tap in SQLite. Use 100% plus a simulated or real bait tap for end-to-end stats.
 
+## Mockup styling
+
+The native Compose screens now follow the revised mockup: a fixed cream/forest/sage palette,
+serif headings, rounded white cards, compact bottom navigation, difficulty tiles and a tree
+illustration. Dark mode uses the same green palette. Android wallpaper colors no longer override
+the design. Home, Stats, Settings and both caught presentations use this styling; settings
+sections open at the top and support Android Back. Debug controls remain accessible in debug builds.
+
+The Home tree is decorative while the team chooses its final metric. Health and actual activity
+remain available below it. Stats continue to display real SQLite history and honest empty states.
+`MockupScreensTest` exercises navigation and exports light/dark device screenshots into the test
+app's external-files `ui-previews` directory (collect before the test APK is uninstalled).
+
 ## Debug and compatibility
 
 Notifications and Debug tabs remain debug-only. The notification composer, presets, system

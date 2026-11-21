@@ -12,6 +12,10 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.Alignment
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.codejam.taptation.TaptationApplication
 import com.codejam.taptation.stats.DailyCatches
@@ -35,13 +39,23 @@ fun StatsScreen(contentPadding: PaddingValues) {
             error = null
         } catch (failure: Exception) { error = failure.localizedMessage ?: "Could not load history" }
     }
-    TabScreen(contentPadding, "Your activity") {
+    TabScreen(contentPadding, "Your attention,\nin perspective.", eyebrow = "Understand the pattern") {
         item {
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                FilterChip(selected = !month, onClick = { month = false }, label = { Text("Last 7 days") })
-                FilterChip(selected = month, onClick = { month = true }, label = { Text("Last 30 days") })
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Surface(shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.primaryContainer) {
+                Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                val colors = FilterChipDefaults.filterChipColors(containerColor = Color.Transparent,
+                    selectedContainerColor = MaterialTheme.colorScheme.surfaceContainerLowest,
+                    selectedLabelColor = MaterialTheme.colorScheme.onSurface)
+                FilterChip(selected = !month, onClick = { month = false }, label = { Text("Last 7 days") },
+                    modifier = Modifier.weight(1f), colors = colors, border = null, shape = RoundedCornerShape(12.dp))
+                FilterChip(selected = month, onClick = { month = true }, label = { Text("Last 30 days") },
+                    modifier = Modifier.weight(1f), colors = colors, border = null, shape = RoundedCornerShape(12.dp))
+                }
+                }
                 FilterChip(selected = includeImportant, onClick = { includeImportant = !includeImportant },
-                    label = { Text("Include important / unsure") })
+                    label = { Text("Include important / unsure", style = MaterialTheme.typography.labelMedium) },
+                    shape = RoundedCornerShape(12.dp), border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant))
             }
         }
         error?.let { item { Text(it, color = MaterialTheme.colorScheme.error) } }
@@ -49,19 +63,17 @@ fun StatsScreen(contentPadding: PaddingValues) {
         if (current == null) item { Text("Loading history…") }
         else {
             item {
-                SectionCard("At a glance") {
-                    LabelValue("Taps / dismissals", "${current.taps} / ${current.dismissals}")
-                    LabelValue("Tap-to-dismiss ratio", current.tapToDismissPercent.percent())
-                    LabelValue("Catches per tap", current.caughtPerTapPercent.percent())
-                    LabelValue("Catches", current.caught.toString())
-                    LabelValue("Average catches / day", "%.2f".format(current.averageCatchesPerDay))
-                    Text("Tap-to-dismiss = taps ÷ dismissals. Catches per tap = catches ÷ taps.",
-                        style = MaterialTheme.typography.bodySmall)
+                Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    MetricCard("Tap-to-dismiss ratio", current.tapToDismissPercent.percent(),
+                        "${current.taps} taps ÷ ${current.dismissals} dismissals", Modifier.weight(1f))
+                    MetricCard("Catches per tap", current.caughtPerTapPercent.percent(),
+                        "${current.caught} catches ÷ ${current.taps} taps", Modifier.weight(1f))
                 }
             }
             item {
                 SectionCard("Tap vs. dismiss by category") {
-                    if (current.categories.isEmpty()) Text("No activity yet. Your first detected tap or dismissal will appear here.")
+                    if (current.categories.isEmpty()) Text("A fresh start. Your first detected tap or dismissal will appear here.",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
                     current.categories.forEach { category ->
                         LabelValue(category.category, "${category.taps} taps / ${category.dismissals} dismissals")
                         Text("Tap/dismiss: ${category.tapToDismissPercent.percent()} · Catches/tap: ${category.caughtPerTapPercent.percent()}",
@@ -72,14 +84,17 @@ fun StatsScreen(contentPadding: PaddingValues) {
                                 contentDescription = "${category.category}: ${category.taps} tapped, ${category.dismissals} dismissed"
                             })
                     }
-                    Text("Filled portion: tapped. Remaining portion: dismissed. Older records without a category appear as unknown.",
-                        style = MaterialTheme.typography.bodySmall)
+                    if (current.categories.isNotEmpty()) Text("Green: tapped · Pale: dismissed. Older records appear as unknown.",
+                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
             item {
                 SectionCard("Catches over time") {
                     CatchBars(current.dailyCatches)
-                    Text("Daily average includes days with zero catches.", style = MaterialTheme.typography.bodySmall)
+                    LabelValue("Catches", current.caught.toString())
+                    LabelValue("Average per day", "%.2f".format(current.averageCatchesPerDay))
+                    Text("Includes days with zero catches.", style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
             item { Text("Based on detected notification actions. ${if (includeImportant) "Includes important and unsure notifications." else "Bait only; important and unsure notifications are excluded."}",
@@ -89,7 +104,30 @@ fun StatsScreen(contentPadding: PaddingValues) {
 }
 
 @Composable
+private fun MetricCard(label: String, value: String, context: String, modifier: Modifier) {
+    Surface(modifier.fillMaxHeight().heightIn(min = 148.dp), shape = RoundedCornerShape(22.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerLowest,
+        contentColor = MaterialTheme.colorScheme.onSurface,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(label, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(value, style = MaterialTheme.typography.headlineMedium)
+            Text(context, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+    }
+}
+
+@Composable
 private fun CatchBars(days: List<DailyCatches>) {
+    if (days.none { it.count > 0 }) {
+        Column(Modifier.fillMaxWidth().padding(vertical = 22.dp), horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text("Room to begin.", style = MaterialTheme.typography.headlineSmall)
+            Text("Your catches will appear here over time.", style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        return
+    }
     val color = MaterialTheme.colorScheme.primary
     val max = (days.maxOfOrNull { it.count } ?: 0).coerceAtLeast(1)
     Text("Highest day: ${days.maxOfOrNull { it.count } ?: 0} catches", style = MaterialTheme.typography.bodySmall)

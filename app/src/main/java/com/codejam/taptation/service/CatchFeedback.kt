@@ -8,6 +8,8 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.PixelFormat
+import android.graphics.Typeface
+import android.content.res.Configuration
 import android.graphics.drawable.GradientDrawable
 import android.os.Build
 import android.os.Handler
@@ -23,6 +25,8 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
+import androidx.compose.ui.graphics.toArgb
+import com.codejam.taptation.ui.theme.*
 import com.codejam.taptation.MainActivity
 import com.codejam.taptation.R
 import com.codejam.taptation.logic.GameRepository
@@ -130,22 +134,46 @@ class CatchFeedback(private val context: Context) {
     private fun showOverlay(pending: PendingCatch) {
         val density = context.resources.displayMetrics.density
         fun dp(value: Int) = (value * density).toInt()
-        val background = android.util.TypedValue().also {
-            context.theme.resolveAttribute(android.R.attr.colorBackground, it, true)
-        }.data
+        val dark = context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK == Configuration.UI_MODE_NIGHT_YES
+        val background = (if (dark) NightSurface else androidx.compose.ui.graphics.Color.White).toArgb()
+        val ink = (if (dark) NightInk else Ink).toArgb()
+        val muted = (if (dark) NightMuted else MutedGreen).toArgb()
+        val green = (if (dark) NightGreen else Forest).toArgb()
+        val onGreen = (if (dark) Night else androidx.compose.ui.graphics.Color.White).toArgb()
+        val border = (if (dark) NightBorder else BorderGreen).toArgb()
         val panel = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(24), dp(24), dp(24), dp(24))
-            this.background = GradientDrawable().apply { setColor(background); cornerRadius = dp(24).toFloat() }
+            this.background = GradientDrawable().apply {
+                setColor(background); cornerRadius = dp(26).toFloat(); setStroke(dp(1), border)
+            }
             elevation = dp(8).toFloat()
         }
-        panel.addView(TextView(context).apply { setText(R.string.caught_overlay_label); textSize = 22f })
+        panel.addView(TextView(context).apply {
+            setText(R.string.caught_overlay_label); textSize = 11f; setTextColor(green)
+            letterSpacing = 0.1f; setPadding(0, 0, 0, dp(16))
+        })
+        panel.addView(TextView(context).apply {
+            setText(R.string.caught_title); textSize = 34f; setTextColor(ink); typeface = Typeface.SERIF
+        })
         panel.addView(TextView(context).apply {
             setText(R.string.caught_message)
-            textSize = 16f; setPadding(0, dp(12), 0, dp(16))
+            textSize = 14f; setTextColor(muted); setPadding(0, dp(12), 0, dp(20))
         })
-        panel.addView(Button(context).apply { setText(R.string.caught_our_app); setOnClickListener { choose(pending, true) } })
-        panel.addView(Button(context).apply { setText(R.string.caught_original_app); setOnClickListener { choose(pending, false) } })
+        fun choice(label: Int, primary: Boolean, action: () -> Unit) = Button(context).apply {
+            setText(label); isAllCaps = false; textSize = 14f
+            setTextColor(if (primary) onGreen else green)
+            backgroundTintList = null; stateListAnimator = null
+            this.background = GradientDrawable().apply {
+                setColor(if (primary) green else background); cornerRadius = dp(16).toFloat()
+                if (!primary) setStroke(dp(1), border)
+            }
+            layoutParams = LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(8) }
+            minHeight = dp(48); setPadding(dp(12), dp(12), dp(12), dp(12))
+            setOnClickListener { action() }
+        }
+        panel.addView(choice(R.string.caught_our_app, true) { choose(pending, true) })
+        panel.addView(choice(R.string.caught_original_app, false) { choose(pending, false) })
         val params = WindowManager.LayoutParams(
             minOf(context.resources.displayMetrics.widthPixels - dp(32), dp(480)), WindowManager.LayoutParams.WRAP_CONTENT,
             WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,

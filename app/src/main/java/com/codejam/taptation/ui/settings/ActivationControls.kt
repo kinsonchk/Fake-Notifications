@@ -11,6 +11,10 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -18,10 +22,15 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.Surface
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import com.codejam.taptation.logic.DisableGate
@@ -39,11 +48,18 @@ fun ActivationControls(repository: GameRepository, config: GameConfig) {
     val scope = rememberCoroutineScope()
     var challenge by remember { mutableStateOf<DisableGate.Challenge?>(null) }
     var busy by remember { mutableStateOf(false) }
-    SectionCard("App active", if (active) "Monitoring and catches are on."
-        else "Monitoring, new activity recording and catches are off.") {
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text(if (active) "Active" else "Disabled")
-            Switch(checked = active, enabled = !busy, onCheckedChange = { enable ->
+    Surface(shape = RoundedCornerShape(22.dp), color = MaterialTheme.colorScheme.surfaceContainerLowest,
+        contentColor = MaterialTheme.colorScheme.onSurface,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) {
+        Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text("App active", style = MaterialTheme.typography.titleMedium)
+                Text(if (active) "Monitoring and catches are on." else "Monitoring and catches are paused.",
+                    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            Switch(checked = active, enabled = !busy, modifier = Modifier.semantics { contentDescription = "App active" }, onCheckedChange = { enable ->
                 busy = true
                 if (enable) repository.enable().whenComplete { _, _ -> scope.launch { busy = false } }
                 else repository.beginDisable().whenComplete { next, _ -> scope.launch {
@@ -53,6 +69,7 @@ fun ActivationControls(repository: GameRepository, config: GameConfig) {
         }
         config.disabledUntilMillis?.takeIf { !active }?.let {
             Text("Automatically resumes at ${java.text.DateFormat.getTimeInstance(java.text.DateFormat.SHORT).format(java.util.Date(it))}")
+        }
         }
     }
     challenge?.let { pending ->
