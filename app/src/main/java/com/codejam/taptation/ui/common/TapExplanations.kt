@@ -7,6 +7,9 @@ import com.codejam.taptation.logic.TapOutcome
 object TapExplanations {
     /** Why the classifier picked Important, Bait or Unknown ([com.codejam.taptation.logic.TapRecord.rule]). */
     fun rule(code: String): String = when (code) {
+        "app_always_important" -> "App set to Always important"
+        "app_always_bait" -> "App set to Always bait"
+        "let_us_decide" -> "Let us decide: counted as non-essential for now"
         "whitelisted" -> "App is whitelisted"
         "important_category" -> "Call, alarm, reminder or event"
         "vip_title" -> "Title matches a VIP name"
