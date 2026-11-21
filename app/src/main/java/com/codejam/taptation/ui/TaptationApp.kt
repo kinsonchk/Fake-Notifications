@@ -22,6 +22,8 @@ import com.codejam.taptation.ui.settings.SettingsScreen
 import com.codejam.taptation.ui.stats.StatsScreen
 import com.codejam.taptation.TaptationApplication
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.codejam.taptation.ui.common.CatchChoiceDialog
 import androidx.compose.foundation.layout.*
@@ -50,6 +52,7 @@ enum class Tab(val label: String, @param:DrawableRes val icon: Int, val debugOnl
 @Composable
 fun TaptationApp(debug: Boolean) {
     val tabs = Tab.entries.filter { debug || !it.debugOnly }
+    val compact = LocalConfiguration.current.screenWidthDp < 380
     var selected by rememberSaveable { mutableStateOf(Tab.Home) }
     val app = LocalContext.current.applicationContext as TaptationApplication
     val snapshot by app.game.state.collectAsStateWithLifecycle()
@@ -77,7 +80,9 @@ fun TaptationApp(debug: Boolean) {
                         verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         Icon(painterResource(tab.icon), contentDescription = null, modifier = Modifier.size(20.dp),
                             tint = if (active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
-                        Text(tab.label, style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
+                        Text(if (compact && tab == Tab.Notifications) "Notifs" else tab.label,
+                            maxLines = 1, overflow = TextOverflow.Ellipsis,
+                            style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
                             color = if (active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }

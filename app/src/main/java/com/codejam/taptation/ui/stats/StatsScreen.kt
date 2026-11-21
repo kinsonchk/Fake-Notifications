@@ -63,7 +63,7 @@ fun StatsScreen(contentPadding: PaddingValues) {
         if (current == null) item { Text("Loading history…") }
         else {
             item {
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     MetricCard("Tap-to-dismiss ratio", current.tapToDismissPercent.percent(),
                         "${current.taps} taps ÷ ${current.dismissals} dismissals", Modifier.weight(1f))
                     MetricCard("Catches per tap", current.caughtPerTapPercent.percent(),
@@ -105,7 +105,7 @@ fun StatsScreen(contentPadding: PaddingValues) {
 
 @Composable
 private fun MetricCard(label: String, value: String, context: String, modifier: Modifier) {
-    Surface(modifier.heightIn(min = 148.dp), shape = RoundedCornerShape(22.dp),
+    Surface(modifier.fillMaxHeight().heightIn(min = 148.dp), shape = RoundedCornerShape(22.dp),
         color = MaterialTheme.colorScheme.surfaceContainerLowest,
         contentColor = MaterialTheme.colorScheme.onSurface,
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) {
