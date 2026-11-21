@@ -195,7 +195,7 @@ A tapped notification should log `reason=CLICK`. A swipe should log a cancel rea
 
 ### C.1 Test the whitelist on your Android phone
 
-This feature is implemented in the debug build. Use a notification posted by the actual app you select: Android identifies each notification by the package that posted it. The Taptation test notification always belongs to Taptation, so it cannot stand in for Instagram, YouTube, or another app.
+This feature is implemented in the debug build. Use a notification posted by the actual app you select: Android identifies each notification by the package that posted it. The Taptation test notification always belongs to Taptation, so it cannot stand in for Instagram, YouTube, or another app. The **Custom notification** card (see "Custom notifications" below) can simulate another package in debug builds for quick checks; use the real app for the final demo check.
 
 #### Prepare the phone and app
 
@@ -226,6 +226,8 @@ This feature is implemented in the debug build. Use a notification posted by the
 5. Finally, swipe away one more notification from that app. It should not create a new tap row or cause a catch.
 
 If no suitable app can post a notification during the demo, the unit tests below still verify the game rule. Taptation's **Post test notification** button checks notification tap detection, but it is not a substitute for this app-specific whitelist check.
+
+For a quick check without the real app, post a **Custom notification** with the selected package (see "Custom notifications" below).
 ### D. Check the release build
 
 Run:
@@ -245,6 +247,27 @@ These commands succeeded after the Person 4 changes:
 - `assembleRelease` — the release build compiled.
 
 The instrumentation tests have now run successfully on the API 37 emulator. The real notification-shade checks (tap, swipe, access settings, and battery behavior) still need to be done on the presentation phone.
+
+## Demo controls are now connected
+
+`RepositoryDemoControls` implements `DemoControls` with Person 2's `GameRepository`, and the debug screen uses it. The buttons now change real game state through the same engine and store as normal taps:
+
+- **Set 0% / Set 100%**: catch chance (`updateConfig`).
+- **Set health**: `setHealthForDebug` (values outside 0-100 are clamped).
+- **Force catch**: `applyCatch` at the current level. Ignored while dead or locked out, like a real catch.
+- **Fast-forward 1 clean hour**: `advanceTimeForDebug`. Recovery and the lockout deadline move forward one hour.
+- **Reset demo data**: `resetDemoDataForDebug`. Health 100, no lockout, empty history and stats. Settings (whitelist, chance, level, VIPs) are kept.
+
+All of these refuse to run in a release build.
+
+## Custom notifications (stand in for another app)
+
+The debug screen has a **Custom notification** card. Fill in package, title, text, category, channel name, app category, conversation flag and action buttons, then:
+
+- **Post custom notification** posts a real notification from Taptation on the debug test channel. Tap it in the shade to run the full pipeline. In debug builds the listener replaces the package, channel name, conversation flag and app category with the values you typed, so the logic sees, for example, `com.instagram.android`. Title, text, category and action buttons are set on the notification itself.
+- **Simulate tap with these values** skips the shade and sends the same context straight to the logic.
+
+This makes the whitelist test in C.1 possible without the real app: whitelist a package, post a custom notification with that package, tap it, and check there is no catch. Use a real app's notification for the final demo check, because only the package override is simulated, not the app.
 
 ## Remaining phone-only check
 

@@ -55,7 +55,8 @@ system -> TapListenerService.onNotificationPosted   (cache NotificationContext b
 - `service/TapDetection.kt`: pure filter logic, framework constants only, so it runs in plain JVM tests. Keep new decision logic here, not in the service.
 - `service/NotificationSignals.kt`: builds the metadata in the `posted`/`removed` Logcat lines (category, channel, importance, conversation flags, auto-cancel, postTime/age). Logging only; never title/text.
 - `service/PermissionHelper.kt`: notification-access check/settings intents and battery-optimization helpers; reuse for onboarding UI.
-- `debug/`: `DebugScreen` + `LogicDebugPanel` (what `MainActivity` shows now), `TestNotification` posts an auto-cancel notification with a contentIntent so tapping it yields `REASON_CLICK`.
+- `debug/`: `DebugScreen` + `LogicDebugPanel` (what `MainActivity` shows now), `TestNotification` posts an auto-cancel notification with a contentIntent so tapping it yields `REASON_CLICK`. `CustomNotificationPanel` posts one from a typed `NotificationContext`; `RepositoryDemoControls` backs `DemoControlsPanel` with `GameRepository`.
+- `service/DebugSimulation.kt`: package/channel name/conversation/app category overrides carried in the extras of our test-channel notification. The listener applies them only in debuggable builds and only on `OWN_TEST_CHANNEL_ID`, so a debug notification can stand in for another app.
 
 Full rules, defaults and the Person 3 API are in `docs/person-2/PERSON_2_INTEGRATION.md`. Key gotchas from it: bait rules and whitelist start **empty**, so nothing is penalized until a bait package/keyword is configured; `Caught` already applied damage, so UI must not call `applyCatch` again; notification title/text are transient and must never be persisted or logged.
 

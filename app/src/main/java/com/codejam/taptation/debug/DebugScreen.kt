@@ -20,6 +20,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -28,6 +29,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.codejam.taptation.TaptationApplication
 import com.codejam.taptation.logic.TapDispatcher
 import com.codejam.taptation.service.PermissionHelper
 import com.codejam.taptation.service.TapListenerService
@@ -42,6 +44,9 @@ private val timeFormat = DateTimeFormatter.ofPattern("HH:mm:ss").withZone(ZoneId
 @Composable
 fun DebugScreen(contentPadding: PaddingValues = PaddingValues(), controls: DemoControls? = null) {
     val context = LocalContext.current
+    val repository = (context.applicationContext as TaptationApplication).game
+    val scope = rememberCoroutineScope()
+    val demoControls = controls ?: remember(repository, scope) { RepositoryDemoControls(repository, scope) }
 
     var accessGranted by remember { mutableStateOf(PermissionHelper.isNotificationAccessGranted(context)) }
     var batteryUnrestricted by remember { mutableStateOf(PermissionHelper.isIgnoringBatteryOptimizations(context)) }
@@ -54,11 +59,23 @@ fun DebugScreen(contentPadding: PaddingValues = PaddingValues(), controls: DemoC
     val connected by TapListenerService.connected.collectAsStateWithLifecycle()
     val taps by TapLog.entries.collectAsStateWithLifecycle()
 
+    // What to post once POST_NOTIFICATIONS is granted: the plain test notification or a custom one.
+    var pendingPost by remember { mutableStateOf<(() -> Unit)?>(null) }
     val notificationPermission = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { granted ->
-        if (granted) TestNotification.post(context)
+        if (granted) pendingPost?.invoke()
         else Toast.makeText(context, "Notification permission denied", Toast.LENGTH_SHORT).show()
+        pendingPost = null
+    }
+    fun postWithPermission(post: () -> Unit) {
+        if (TestNotification.canPost(context)) {
+            post()
+        } else {
+            // canPost() is only false on Android 13+, where this permission exists.
+            pendingPost = post
+            notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
     }
 
     LazyColumn(
@@ -87,14 +104,7 @@ fun DebugScreen(contentPadding: PaddingValues = PaddingValues(), controls: DemoC
                 ) { Text("Open notification access settings") }
 
                 Button(
-                    onClick = {
-                        if (TestNotification.canPost(context)) {
-                            TestNotification.post(context)
-                        } else {
-                            // canPost() is only false on Android 13+, where this permission exists.
-                            notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
-                        }
-                    },
+                    onClick = { postWithPermission { TestNotification.post(context) } },
                     modifier = Modifier.fillMaxWidth(),
                 ) { Text("Post test notification") }
 
@@ -119,10 +129,20 @@ fun DebugScreen(contentPadding: PaddingValues = PaddingValues(), controls: DemoC
             }
         }
 
+        item {
+            CustomNotificationPanel(
+                onPost = { spec -> postWithPermission { TestNotification.post(context, spec) } },
+                onSimulateTap = { spec ->
+                    TapLog.record(spec.packageName)
+                    TapDispatcher.dispatch(spec.copy(ageMillis = 0))
+                },
+            )
+        }
+
         item { LogicDebugPanel() }
 
         item {
-            DemoControlsPanel(controls)
+            DemoControlsPanel(demoControls)
         }
 
         item {
