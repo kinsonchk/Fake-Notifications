@@ -12,6 +12,8 @@ Docs:
 - `PermissionHelper`: notification-access check/settings, battery-optimization check/settings.
 - Rebind on disconnect (skipped when access was revoked); connected flag for the debug screen.
 - Debug screen: access/connected/battery status, post test notification, simulate tap, last 20 taps.
+- Loop guard: in debug builds only our **test notification** channel (`debug_test`) counts as a tap, so our own "you got caught" alert can never cause another catch (branch `person1/signal-logging`).
+- Logcat `posted`/`removed` lines include category, channel ID/name, importance, conversation and group-conversation flags, style, auto-cancel, `postTime`/age and `update` (branch `person1/signal-logging`; see README "Reading the Logcat lines").
 - Real `GameRepository` handler installed at app start (by Person 2).
 
 ## In progress elsewhere: review it
@@ -28,10 +30,18 @@ Check before it merges: the tap rules in `CLAUDE.md` still hold, `onNotification
 ## Left to do
 
 1. **Phone verification** (brief section 7): tap vs swipe on the test notification, a real app's tap, access off/on without crash, `Service connected` returns to yes.
-2. **Collect real data** (brief C2): post/tap notifications from Outlook, Instagram, Discord and record package, category, channel, conversation flag, and whether they auto-cancel (no auto-cancel = no `REASON_CLICK` = tap never detected).
-3. **Missing signals** asked for in brief A2/C2 and not captured yet: channel **ID** (only channel name on Person 2's branch), **importance**, group-conversation flag (`Notification.EXTRA_IS_GROUP_CONVERSATION`). Each needs a `NotificationContext` field (Person 2's file): agree with Person 2 first.
-4. **`postTime` on updated notifications** (brief C4): send several messages in one chat and check whether `sbn.postTime` moves to the newest message. Decides how the freshness window behaves.
+2. **Collect real data** (brief C2): with `adb logcat -s FakeNotifs` running, get notifications from Outlook, Instagram, Discord (DM, server message, like, email, meeting invite), tap some, swipe some, and save the `posted`/`removed` lines. Check `autoCancel`: false = no `REASON_CLICK` = tap never detected.
+3. **Missing signals** (brief A2/C2): channel ID, importance and group-conversation flag are now logged but not passed to the logic. Passing them needs `NotificationContext` fields (Person 2's file): agree with Person 2 first, using the collected data.
+4. **`postTime` on updated notifications** (brief C4): send several messages in one chat and compare `postTime` across the `update=true` lines. Decides how the freshness window behaves.
 5. **Reliability** (priority feature): reboot (listener should rebind without opening the app), 10+ minutes idle with screen off, app killed from recents, revoke access mid-session.
-6. **Hand-offs**: Person 3 reuses `PermissionHelper` for onboarding; Person 4 uses the debug screen and test notification.
+6. **Catch notification support**: when Person 3 adds the "you got caught" alert, check its channel is not `debug_test` and that tapping it does not log a tap.
+7. **Hand-offs**: Person 3 reuses `PermissionHelper` for onboarding; Person 4 uses the debug screen and test notification.
 
 Privacy rule: notification title/text may be shown on the debug screen from memory but must never be logged or persisted. Brief C2 asks to "log ... title": show it on screen, not in Logcat.
+## Discord #general: expected result
+
+On `main`: `Unknown` -> no penalty, unless Discord's package is marked as bait. On Person 2's branch it depends on Android's conversation flag (see [person-2 README](../person-2/README.md#discord-general)). Tomorrow's logs decide it: compare `conversation=`, `channel=` and `channelId=` on a Discord DM vs a #general message.
+
+## AI classification
+
+Person 1 does not build the classifier, but feeds it: the signals in the log lines are what an AI step (or tuned rules) would use. See [person-2 README](../person-2/README.md#ai-classification-optional).
