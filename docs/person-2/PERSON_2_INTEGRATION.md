@@ -90,9 +90,11 @@ Profiles implement these examples as heuristics, not guaranteed sender/DM detect
 Tune them on the demo phone; the Android conversation flag does not prove a direct message.
 No observed Outlook/Instagram/Discord samples were supplied with this change.
 
-Notification age is recorded but does not alter catch probability or importance: no age
-threshold was specified. A negative age is uncertain and cannot be penalized. Old
-notifications are not automatically considered safe or bait solely because of age.
+Notification age never changes the classification. After classification, a bait tap older
+than `GameConfig.freshnessSeconds` (default 600, 0 = off) is `NoPenalty` with reason `stale`:
+no roll, no damage, no clean-timer reset. Age is `ageMillis` (since the newest update; Android
+restarts `postTime` on every update) or, with `freshnessFromFirstSeen`, `firstSeenAgeMillis`.
+Unknown ages are never stale. A negative age is uncertain and cannot be penalized.
 
 ## Person 1 contract
 
