@@ -34,24 +34,61 @@ import com.codejam.taptation.ui.common.formatDuration
 import com.codejam.taptation.ui.common.rememberGameRepository
 import com.codejam.taptation.ui.common.rememberNow
 import com.codejam.taptation.ui.settings.ActivationControls
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.Surface
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.height
+import androidx.compose.ui.Alignment
 
-/** "How is my tree?" Status only for now. TODO(Person 3): tree/pet visual. */
+/** The tree is decorative until the team chooses the metric that should drive its appearance. */
 @Composable
-fun HomeScreen(contentPadding: PaddingValues) {
+fun HomeScreen(contentPadding: PaddingValues, onSettings: () -> Unit = {}) {
     val repository = rememberGameRepository()
     val snapshot by repository.state.collectAsStateWithLifecycle()
     val error by repository.error.collectAsStateWithLifecycle()
     val lastResult by repository.lastResult.collectAsStateWithLifecycle()
     val now = rememberNow(repository)
 
-    TabScreen(contentPadding, "Your tree") {
-        item { SetupBanner() }
+    TabScreen(contentPadding, "Room to grow.", eyebrow = "Your little corner") {
+        item {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Surface(color = MaterialTheme.colorScheme.primaryContainer, shape = RoundedCornerShape(50)) {
+                    Text(if (snapshot?.config?.isActive(now) == true) "●  Taptation is active" else "●  Taking a break",
+                        style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp))
+                }
+            }
+            TreeIllustration()
+            Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text("A little more room for you.", style = MaterialTheme.typography.titleMedium)
+                Text("Notice the urge. Choose what comes next.", style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
         error?.let { message -> item { Text(message, color = MaterialTheme.colorScheme.error) } }
         val state = snapshot
         if (state == null) {
             item { Text(if (error == null) "Loading saved game…" else "Saved game unavailable") }
         } else {
             item { ActivationControls(repository, state.config) }
+            item { SetupBanner() }
+            if (state.taps.isEmpty()) item {
+                SectionCard("Keep the important things close.", "Choose the apps and people that should always be safe.") {
+                    TextButton(onClick = onSettings) { Text("Choose my safe apps  →") }
+                }
+            }
+            else item {
+                SectionCard("Latest activity") {
+                    state.taps.takeLast(2).asReversed().forEach { tap ->
+                        Text(tap.packageName, style = MaterialTheme.typography.titleSmall)
+                        Text(TapExplanations.outcome(tap.outcome, tap.reason, tap.damage),
+                            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+            }
             item { TreeStatusCard(state, now, onReset = { repository.reset() }) }
             lastResult?.let { result -> item { LastTapCard(result) } }
         }
@@ -60,7 +97,7 @@ fun HomeScreen(contentPadding: PaddingValues) {
 
 @Composable
 private fun TreeStatusCard(state: GameState, now: Long, onReset: () -> Unit) {
-    SectionCard(title = "Health ${state.health}/100", subtitle = mood(state.health)) {
+    SectionCard(title = "Your progress", subtitle = "${mood(state.health)} · ${state.health}/100 health") {
         LinearProgressIndicator(
             progress = { state.health / 100f },
             modifier = Modifier.fillMaxWidth(),
@@ -103,13 +140,15 @@ private fun SetupBanner() {
     val connected by TapListenerService.connected.collectAsStateWithLifecycle()
     if (accessGranted && connected) return
     Card(
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
+        shape = RoundedCornerShape(22.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer),
         modifier = Modifier.fillMaxWidth(),
     ) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(
-                if (!accessGranted) "Notification access is off, so taps aren't detected."
-                else "The notification listener isn't connected yet.",
+                if (!accessGranted) "Let your tree notice notification taps."
+                else "Waiting for notification access to connect.",
+                color = MaterialTheme.colorScheme.onTertiaryContainer,
             )
             if (!accessGranted) {
                 Button(onClick = { PermissionHelper.openNotificationAccessSettings(context) }) {

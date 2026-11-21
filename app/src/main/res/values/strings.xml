@@ -1,7 +1,7 @@
 <resources>
     <string name="app_name">Taptation</string>
-    <string name="caught_overlay_label">Taptation · Caught</string>
-    <string name="caught_title">A moment to choose</string>
+    <string name="caught_overlay_label">TAPTATION · CAUGHT</string>
+    <string name="caught_title">A moment\nto choose.</string>
     <string name="caught_message">You opened a distracting notification. Where would you like to go next?</string>
     <string name="caught_our_app">Go to Taptation</string>
     <string name="caught_original_app">Go to original app</string>

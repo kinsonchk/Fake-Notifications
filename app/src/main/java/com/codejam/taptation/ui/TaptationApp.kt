@@ -3,8 +3,6 @@ package com.codejam.taptation.ui
 import androidx.annotation.DrawableRes
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Icon
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -26,6 +24,18 @@ import com.codejam.taptation.TaptationApplication
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.codejam.taptation.ui.common.CatchChoiceDialog
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.background
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 
 /** Bottom tabs. Debug-only tabs are hidden in release builds. */
 enum class Tab(val label: String, @param:DrawableRes val icon: Int, val debugOnly: Boolean) {
@@ -52,21 +62,33 @@ fun TaptationApp(debug: Boolean) {
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         bottomBar = {
-            NavigationBar {
+            Surface(color = MaterialTheme.colorScheme.surfaceContainerLowest, tonalElevation = 0.dp) {
+            Column {
+                androidx.compose.material3.HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                Row(Modifier.fillMaxWidth().windowInsetsPadding(WindowInsets.navigationBars)
+                    .padding(horizontal = 10.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                 tabs.forEach { tab ->
-                    NavigationBarItem(
-                        selected = tab == selected,
-                        onClick = { selected = tab },
-                        icon = { Icon(painterResource(tab.icon), contentDescription = null) },
-                        label = { Text(tab.label) },
-                    )
+                    val active = tab == selected
+                    Column(Modifier.weight(1f).clip(RoundedCornerShape(14.dp))
+                        .background(if (active) MaterialTheme.colorScheme.primaryContainer else Color.Transparent)
+                        .selectable(selected = active, role = Role.Tab, onClick = { selected = tab })
+                        .heightIn(min = 52.dp).padding(horizontal = 2.dp, vertical = 7.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Icon(painterResource(tab.icon), contentDescription = null, modifier = Modifier.size(20.dp),
+                            tint = if (active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(tab.label, style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
+                            color = if (active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
                 }
+                }
+            }
             }
         },
     ) { padding ->
         tabState.SaveableStateProvider(selected.name) {
             when (selected) {
-                Tab.Home -> HomeScreen(padding)
+                Tab.Home -> HomeScreen(padding, onSettings = { selected = Tab.Settings })
                 Tab.Stats -> StatsScreen(padding)
                 Tab.Notifications -> NotificationsScreen(padding)
                 Tab.Settings -> SettingsScreen(padding)
