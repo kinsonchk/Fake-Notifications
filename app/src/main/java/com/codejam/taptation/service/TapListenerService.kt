@@ -1,5 +1,6 @@
 package com.codejam.taptation.service
 
+import android.app.Notification
 import android.content.ComponentName
 import android.content.pm.ApplicationInfo
 import android.service.notification.NotificationListenerService
@@ -72,13 +73,33 @@ class TapListenerService : NotificationListenerService() {
         )
         if (!isTap) return
 
-        TapLog.record(pkg)
+        val tapped = toTappedNotification(sbn)
+        TapLog.record(tapped)
         try {
-            TapDispatcher.dispatch(pkg)
+            // TODO(Person 2): pass `tapped` once TapHandler.onTap takes a TappedNotification.
+            TapDispatcher.dispatch(tapped.packageName)
         } catch (e: Exception) {
             // A bug in the handler must not take down the listener.
             Log.e(TAG, "TapHandler threw for $pkg", e)
         }
+    }
+
+    /** Copies what the handler needs out of [sbn] into plain Kotlin types. */
+    private fun toTappedNotification(sbn: StatusBarNotification): TappedNotification {
+        val notification: Notification? = sbn.notification
+        val extras = notification?.extras
+        return TappedNotification(
+            packageName = sbn.packageName,
+            title = extras?.getCharSequence(Notification.EXTRA_TITLE)?.toString(),
+            // Big text is the full expanded body; plain text is often truncated.
+            text = (extras?.getCharSequence(Notification.EXTRA_BIG_TEXT)
+                ?: extras?.getCharSequence(Notification.EXTRA_TEXT))?.toString(),
+            category = notification?.category,
+            channelId = notification?.channelId,
+            key = sbn.key,
+            postTimeMillis = sbn.postTime,
+            tapTimeMillis = System.currentTimeMillis(),
+        )
     }
 
     private fun isDebugBuild(): Boolean =

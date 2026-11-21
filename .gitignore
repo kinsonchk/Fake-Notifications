@@ -14,6 +14,8 @@ local.properties
 # IDE
 .idea/
 *.iml
+# Claude Code local config and skills
+.claude/
 
 # Signing keys
 *.keystore

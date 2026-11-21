@@ -32,6 +32,7 @@ import com.codejam.taptation.logic.TapDispatcher
 import com.codejam.taptation.service.PermissionHelper
 import com.codejam.taptation.service.TapListenerService
 import com.codejam.taptation.service.TapLog
+import com.codejam.taptation.service.TappedNotification
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -100,8 +101,20 @@ fun DebugScreen(contentPadding: PaddingValues = PaddingValues()) {
 
                 OutlinedButton(
                     onClick = {
-                        TapLog.record("com.test.fake")
-                        TapDispatcher.dispatch("com.test.fake")
+                        val now = System.currentTimeMillis()
+                        val fake = TappedNotification(
+                            packageName = "com.test.fake",
+                            title = "Simulated tap",
+                            text = "Someone liked your photo",
+                            category = "social", // Notification.CATEGORY_SOCIAL
+                            channelId = null,
+                            key = "simulated-$now",
+                            postTimeMillis = now,
+                            tapTimeMillis = now,
+                        )
+                        TapLog.record(fake)
+                        // TODO(Person 2): pass `fake` once TapHandler.onTap takes a TappedNotification.
+                        TapDispatcher.dispatch(fake.packageName)
                     },
                     modifier = Modifier.fillMaxWidth(),
                 ) { Text("Simulate tap") }
@@ -136,8 +149,11 @@ fun DebugScreen(contentPadding: PaddingValues = PaddingValues()) {
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                 ) {
-                    Text(tap.packageName, modifier = Modifier.weight(1f))
-                    Text(timeFormat.format(Instant.ofEpochMilli(tap.timestampMillis)))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(tap.packageName)
+                        tap.title?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
+                    }
+                    Text(timeFormat.format(Instant.ofEpochMilli(tap.tapTimeMillis)))
                 }
             }
         }

@@ -6,7 +6,7 @@ and does other stuff as well
 ## Notification service
 
 Watches other apps' notifications and reports every **tap** to the consequence logic through one call:
-`TapDispatcher.dispatch(packageName)` → `TapDispatcher.handler.onTap(packageName)`.
+`TapDispatcher.dispatch(packageName)` → `TapDispatcher.handler.onTap(packageName)`. The service already builds a `TappedNotification` (package name, title, text, category, channel id, key, post and tap times) for each tap; Person 2 will switch the contract to pass it (see `TODO(Person 2)`).
 
 | File | What it does |
 |---|---|
@@ -14,7 +14,8 @@ Watches other apps' notifications and reports every **tap** to the consequence l
 | `service/TapListenerService.kt` | `NotificationListenerService`. Dispatches only `REASON_CLICK` removals |
 | `service/TapDetection.kt` | Pure `isTap(reason)` and `shouldDispatch(...)` filters (unit tested) |
 | `service/PermissionHelper.kt` | Notification access check + settings intents, battery settings. Reuse for onboarding |
-| `service/TapLog.kt` | In-memory list of the last 20 taps |
+| `service/TappedNotification.kt` | Plain-Kotlin copy of a tapped notification (title, text, category, ...) |
+| `service/TapLog.kt` | In-memory list of the last 20 `TappedNotification`s |
 | `debug/DebugScreen.kt`, `debug/TestNotification.kt` | Debug screen shown by `MainActivity` |
 
 ### Run

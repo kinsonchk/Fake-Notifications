@@ -35,24 +35,27 @@ Tap pipeline (one direction, one contract):
 ```
 system -> TapListenerService.onNotificationRemoved(sbn, rankingMap, reason)
        -> TapDetection.shouldDispatch(...)   (pure filter)
-       -> TapLog.record(pkg)                 (in-memory last 20, StateFlow)
-       -> TapDispatcher.dispatch(pkg) -> TapDispatcher.handler.onTap(pkg)
+       -> toTappedNotification(sbn)          (copy into plain-Kotlin TappedNotification)
+       -> TapLog.record(tapped)              (in-memory last 20, StateFlow)
+       -> TapDispatcher.dispatch(tapped.packageName) -> TapDispatcher.handler.onTap(pkg)
+          (TODO(Person 2): switch to passing the whole TappedNotification)
 ```
 
 - `logic/TapHandler.kt`: the **shared contract** between teammates. `TapHandler.onTap(packageName)`, `TapDispatcher` (holds a `@Volatile` handler), `LoggingTapHandler` stub. Real consequence logic plugs in by setting `TapDispatcher.handler = ...` at app start; the service must never change for that. Don't change the interface signature without the team.
 - `service/TapListenerService.kt`: `NotificationListenerService`, bound by the system once the user grants Notification access (no foreground service). Exposes `connected: StateFlow<Boolean>`; requests rebind on disconnect unless access was revoked. Handler exceptions are caught so they can't kill the listener.
+- `service/TappedNotification.kt`: plain-Kotlin copy of a tapped notification (package, title, text, category, channelId, key, post/tap times), built by the service from the `StatusBarNotification`. Plain types so handlers unit-test on the JVM.
 - `service/TapDetection.kt`: pure logic, no framework calls beyond constants, so it runs in plain JVM tests. Keep new decision logic here, not in the service.
 - `service/PermissionHelper.kt`: notification-access check/settings intents and battery-optimization helpers; meant for reuse by onboarding UI.
 - `debug/`: Compose debug screen (currently what `MainActivity` shows) and `TestNotification` that posts an auto-cancel notification with a contentIntent so tapping it yields `REASON_CLICK`.
 
 ## Shared interfaces (agreed between teammates)
 
-- `onTap(packageName)`: Person 1 -> Person 2 (implemented as `TapHandler`).
+- `onTap(packageName)`: Person 1 -> Person 2 (implemented as `TapHandler`). Planned: Person 2 changes it to `onTap(notification: TappedNotification)` and updates the two `TODO(Person 2)` call sites in `TapListenerService` and `DebugScreen`.
 - `applyCatch(level)`, `getHealth()`: Person 2 -> Person 3.
 - `isWhitelisted(packageName)`: Person 2 and Person 3.
 - Storage owned by Person 2, read by Person 3. Settings screen (Person 3) feeds probability and level to Person 2.
 
-Note: the features doc says Person 2's `onTap` handler returns `Bypass` / `NoPenalty` / `Caught`, but the current `TapHandler.onTap` returns `Unit`. Agree with the team before changing the signature.
+Note: the features doc says Person 2's `onTap` handler returns `Bypass` / `NoPenalty` / `Caught`, but the current `TapHandler.onTap` returns `Unit`. Never log notification title/text: it can contain other apps' private messages. Agree with the team before changing the signature.
 
 ## Tap detection rules (don't regress)
 

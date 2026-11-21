@@ -64,7 +64,14 @@ class TapDetectionTest {
 
     @Test
     fun tapLog_keepsNewestTwenty() {
-        repeat(TapLog.CAPACITY + 5) { TapLog.record("pkg$it", timestampMillis = it.toLong()) }
+        repeat(TapLog.CAPACITY + 5) {
+            TapLog.record(
+                TappedNotification(
+                    packageName = "pkg$it", title = null, text = null, category = null,
+                    channelId = null, key = "key$it", postTimeMillis = 0, tapTimeMillis = it.toLong(),
+                )
+            )
+        }
         val entries = TapLog.entries.value
         assertEquals(TapLog.CAPACITY, entries.size)
         assertEquals("pkg${TapLog.CAPACITY + 4}", entries.first().packageName)
