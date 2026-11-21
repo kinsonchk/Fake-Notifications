@@ -1,0 +1,52 @@
+Test in layers, from the core outward. If the base layer is broken, nothing above it matters.
+
+1. Prove tap detection (first 1-2 hours)
+
+Grant notification access on a real phone (emulators are unreliable for this).
+Send yourself a notification from a real app (a message from a friend, a calendar reminder), tap it, and check that your log shows the package name with REASON_CLICK.
+Then swipe a notification away and confirm it does not count as a tap. Dismiss and click are the two cases you must separate.
+
+2. Generate notifications on demand
+
+adb: adb shell cmd notification post -t "Test" tag "Someone liked your photo" posts a notification without needing another app.
+Helper app: a tiny second app with buttons (“fake Instagram”, “fake boss message”) that posts notifications with different package names and categories. This is better for demos and for testing the whitelist.
+
+3. Test the logic without the phone
+
+Unit test Person 2’s code directly: whitelisted app returns Bypass; a bait app with the probability at 100% always returns Caught; at 0% it never does; health drops by the right amount per level; health at 0 triggers the reset.
+Run the random roll 1,000 times at 10% and check the catch rate lands near 10%.
+
+4. Build a debug menu (this is Person 4’s most useful deliverable)
+
+Force-catch button
+Set health to any value
+Fast-forward time (so you can show regrowth and death in seconds)
+Set the probability to 0% or 100%
+Reset all data
+
+5. End-to-end checklist on the demo phone
+
+Fresh install, onboarding, permission granted
+Tap a bait notification at 100%: lockout screen appears and health drops
+Tap a whitelisted app’s notification: nothing happens
+Swipe-dismiss a bait notification: nothing happens
+Health reaches 0: tree resets
+Stats screen matches what you just did
+
+6. Edge cases that break demos
+
+Battery optimization killing the service after the screen is off for a while: leave the phone idle 10+ minutes, then test again.
+Reboot: does the service reconnect on its own?
+Permission revoked mid-session: does the app handle it or crash?
+Several notifications at once, and app killed from recents.
+Different Android versions, if teammates have different phones.
+
+7. Rehearse the demo itself
+
+Run the full 2-minute demo script at least 3 times on the exact phone you’ll present on.
+Set the demo probability high (or use force-catch) so it never depends on luck.
+Record a backup video of a successful run before the deadline.
+
+Priority if time is short: steps 1, 4, and 5. If tap detection works, the debug menu exists, and the end-to-end checklist passes on the demo phone, you’re safe.
+
+Want me to turn this into a test checklist file for Person 4?
