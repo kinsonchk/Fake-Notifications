@@ -1,21 +1,44 @@
 # Fake Notifications
 
-It creates fake notifications
-and does other stuff as well
+Team docs, one folder per person: [docs/](docs/README.md).
+
+Android hackathon app (launcher name **Taptation**) that tracks notification taps and
+applies configurable, probabilistic consequences to notifications classified as bait.
+The notification listener and Person 2's logic are connected; the current activity is
+an integration/debug screen. Person 3's final product UI is still to be connected.
+
+## Consequence logic (Person 2)
+
+Implemented: app whitelist, package/keyword/app-category bait classification, configurable
+catch chance, Mild/Medium/Savage damage, recovery, death/reset, persistent lockout deadlines,
+tap counts per app, catch totals, and bounded tap/health history. Raw notification text
+is used transiently for classification and is never written to the game store.
+
+Defaults: 7.5% catch probability, 100 maximum health, damage of 10/20/35, +5 health per
+completed clean hour, and a 30-second lockout deadline. Bait rules and the whitelist start
+empty: **configure a bait package or keyword before expecting normal taps to cause catches**.
+
+See [Person 2 integration and demo guide](docs/person-2/PERSON_2_INTEGRATION.md) for the exact rules,
+Person 3 APIs, storage behavior, testing commands, and remaining UI work.
 
 ## Notification service
 
 Watches other apps' notifications and reports every **tap** to the consequence logic through one call:
-`TapDispatcher.dispatch(packageName)` → `TapDispatcher.handler.onTap(packageName)`.
+`TapDispatcher.dispatch(context)` → `TapDispatcher.handler.onTap(context)`.
+The original `dispatch(packageName)` / `onTap(packageName)` entry points remain supported.
 
 | File | What it does |
 |---|---|
-| `logic/TapHandler.kt` | `TapHandler` interface, `TapDispatcher`, logging stub. Install the real handler at app start with `TapDispatcher.handler = ...` |
+| `logic/TapHandler.kt` | Backward-compatible `TapHandler` interface and `TapDispatcher` |
+| `logic/GameEngine.kt` | Pure classification, catch, health and recovery rules |
+| `logic/GameRepository.kt` | Serialized background operations and observable state |
+| `logic/PreferencesGameStore.kt`, `logic/GameStateCodec.kt` | Versioned, atomic local snapshots |
+| `TaptationApplication.kt` | Installs the real handler even when the activity is not open |
 | `service/TapListenerService.kt` | `NotificationListenerService`. Dispatches only `REASON_CLICK` removals |
 | `service/TapDetection.kt` | Pure `isTap(reason)` and `shouldDispatch(...)` filters (unit tested) |
 | `service/PermissionHelper.kt` | Notification access check + settings intents, battery settings. Reuse for onboarding |
 | `service/TapLog.kt` | In-memory list of the last 20 taps |
-| `debug/DebugScreen.kt`, `debug/TestNotification.kt` | Debug screen shown by `MainActivity` |
+| `debug/DebugScreen.kt`, `debug/LogicDebugPanel.kt`, `debug/TestNotification.kt` | Listener and logic integration screen shown by `MainActivity` |
 
 ### Run
 
@@ -39,7 +62,7 @@ adb shell cmd notification allow_listener com.codejam.taptation/com.codejam.tapt
 
 ### Verify
 
-1. **Post test notification**, then tap the notification: a new row shows up in *Last 20 taps* and Logcat shows `TAP (stub handler): com.codejam.taptation`.
+1. **Post test notification**, then tap the notification: a new row shows up in *Last 20 taps* and Logcat shows `tap pkg=com.codejam.taptation outcome=NoPenalty reason=unknown health=100` on a fresh install.
 2. Post another one and **swipe it away**: no new row (Logcat shows `reason=CANCEL`).
 3. Tap a notification from a real app (Messages, Gmail): a row shows up with that app's package name.
 4. **Simulate tap**: a `com.test.fake` row shows up and the stub handler logs it.

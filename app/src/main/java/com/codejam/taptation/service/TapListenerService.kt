@@ -1,11 +1,13 @@
 package com.codejam.taptation.service
 
 import android.content.ComponentName
+import android.app.Notification
 import android.content.pm.ApplicationInfo
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
 import android.util.Log
 import com.codejam.taptation.logic.TapDispatcher
+import com.codejam.taptation.logic.NotificationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -19,6 +21,11 @@ import kotlinx.coroutines.flow.asStateFlow
  * Callbacks arrive on the main thread. Keep them to filter + log + dispatch.
  */
 class TapListenerService : NotificationListenerService() {
+    // Text stays in memory only; bound the cache even if removal callbacks are missed.
+    private val contexts = object : LinkedHashMap<String, NotificationContext>() {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, NotificationContext>?): Boolean =
+            size > 500
+    }
 
     override fun onListenerConnected() {
         super.onListenerConnected()
@@ -28,6 +35,7 @@ class TapListenerService : NotificationListenerService() {
 
     override fun onListenerDisconnected() {
         super.onListenerDisconnected()
+        contexts.clear()
         Log.d(TAG, "onListenerDisconnected")
         _connected.value = false
         // If access was revoked, there is nothing to rebind to: just stop quietly.
@@ -44,11 +52,13 @@ class TapListenerService : NotificationListenerService() {
     }
 
     override fun onDestroy() {
+        contexts.clear()
         _connected.value = false
         super.onDestroy()
     }
 
     override fun onNotificationPosted(sbn: StatusBarNotification) {
+        contexts[sbn.key] = contextFor(sbn)
         Log.d(TAG, "posted pkg=${sbn.packageName} key=${sbn.key}")
     }
 
@@ -60,6 +70,7 @@ class TapListenerService : NotificationListenerService() {
         reason: Int,
     ) {
         val pkg = sbn.packageName
+        val context = contexts.remove(sbn.key) ?: contextFor(sbn)
         val flags = sbn.notification?.flags ?: 0
         Log.d(TAG, "removed pkg=$pkg reason=${TapDetection.reasonName(reason)}($reason) key=${sbn.key}")
 
@@ -74,11 +85,24 @@ class TapListenerService : NotificationListenerService() {
 
         TapLog.record(pkg)
         try {
-            TapDispatcher.dispatch(pkg)
+            TapDispatcher.dispatch(context)
         } catch (e: Exception) {
             // A bug in the handler must not take down the listener.
             Log.e(TAG, "TapHandler threw for $pkg", e)
         }
+    }
+
+    private fun contextFor(sbn: StatusBarNotification): NotificationContext {
+        val notification = sbn.notification
+        val extras = notification.extras
+        return NotificationContext(
+            packageName = sbn.packageName,
+            key = sbn.key,
+            title = extras?.getCharSequence(Notification.EXTRA_TITLE)?.toString(),
+            text = (extras?.getCharSequence(Notification.EXTRA_BIG_TEXT)
+                ?: extras?.getCharSequence(Notification.EXTRA_TEXT))?.toString(),
+            category = notification.category,
+        )
     }
 
     private fun isDebugBuild(): Boolean =

@@ -119,6 +119,8 @@ fun DebugScreen(contentPadding: PaddingValues = PaddingValues(), controls: DemoC
             }
         }
 
+        item { LogicDebugPanel() }
+
         item {
             DemoControlsPanel(controls)
         }

@@ -1,0 +1,88 @@
+package com.codejam.taptation.logic
+
+enum class CatchLevel { Mild, Medium, Savage }
+enum class Classification { Bait, Unknown }
+enum class TapOutcome { Bypass, NoPenalty, Caught }
+
+/** Metadata is transient: notification text and contact identities are never persisted. */
+data class NotificationContext(
+    val packageName: String,
+    val key: String? = null,
+    val title: String? = null,
+    val text: String? = null,
+    val category: String? = null,
+    val appCategory: Int? = null,
+)
+
+data class GameConfig(
+    val catchProbability: Double = 0.075,
+    val level: CatchLevel = CatchLevel.Mild,
+    val mildDamage: Int = 10,
+    val mediumDamage: Int = 20,
+    val savageDamage: Int = 35,
+    val recoveryPerHour: Int = 5,
+    val lockoutSeconds: Int = 30,
+    val whitelistedPackages: Set<String> = emptySet(),
+    val baitPackages: Set<String> = emptySet(),
+    val baitKeywords: Set<String> = emptySet(),
+    val baitAppCategories: Set<Int> = emptySet(),
+) {
+    init {
+        require(catchProbability.isFinite() && catchProbability in 0.0..1.0)
+        require(listOf(mildDamage, mediumDamage, savageDamage).all { it in 1..100 })
+        require(recoveryPerHour in 0..100)
+        require(lockoutSeconds in 1..3600)
+        require((whitelistedPackages + baitPackages + baitKeywords).none { it.isBlank() })
+    }
+
+    fun damage(level: CatchLevel): Int = when (level) {
+        CatchLevel.Mild -> mildDamage
+        CatchLevel.Medium -> mediumDamage
+        CatchLevel.Savage -> savageDamage
+    }
+}
+
+data class TapRecord(
+    val timestampMillis: Long,
+    val packageName: String,
+    val classification: Classification,
+    val outcome: TapOutcome,
+    val healthBefore: Int,
+    val healthAfter: Int,
+    val damage: Int,
+    val reason: String,
+)
+
+data class HealthRecord(
+    val timestampMillis: Long,
+    val before: Int,
+    val after: Int,
+    val reason: String,
+    val level: CatchLevel? = null,
+)
+
+data class GameState(
+    val health: Int = 100,
+    val config: GameConfig = GameConfig(),
+    val recoveryAnchorMillis: Long = 0,
+    val lastObservedMillis: Long = 0,
+    val lockoutUntilMillis: Long = 0,
+    val lastCatchMillis: Long? = null,
+    val totalCatches: Long = 0,
+    val tapsPerApp: Map<String, Long> = emptyMap(),
+    val taps: List<TapRecord> = emptyList(),
+    val healthHistory: List<HealthRecord> = emptyList(),
+) {
+    val isDead: Boolean get() = health == 0
+    fun isLockedOut(nowMillis: Long): Boolean = nowMillis < lockoutUntilMillis
+    fun timeSinceLastCatchMillis(nowMillis: Long): Long? =
+        lastCatchMillis?.let { (nowMillis - it).coerceAtLeast(0) }
+}
+
+data class TapResult(val outcome: TapOutcome, val state: GameState, val reason: String)
+
+interface GameStore {
+    fun load(): GameState?
+    /** Throw on failure; the engine publishes a new state only after a successful save. */
+    fun save(state: GameState)
+}
