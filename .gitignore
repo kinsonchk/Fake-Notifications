@@ -21,3 +21,6 @@ local.properties
 
 # Logs
 *.log
+
+# helper
+doc/testing/
