@@ -275,7 +275,7 @@ class GameEngineTest {
         assertThrows(Exception::class.java) { GameStateCodec.decode("broken") }
         val encoded = GameStateCodec.encode(GameState())
         val bytes = java.util.Base64.getDecoder().decode(encoded)
-        bytes[3] = 4
+        bytes[3] = 5
         assertThrows(IllegalArgumentException::class.java) {
             GameStateCodec.decode(java.util.Base64.getEncoder().encodeToString(bytes))
         }
@@ -303,10 +303,67 @@ class GameEngineTest {
         val rule = "configured_bait".toByteArray()
         val ruleStart = java.util.Collections.indexOfSubList(bytes, rule.toList()) - 2
         repeat(rule.size + 2) { bytes.removeAt(ruleStart) }
+        repeat(5) { bytes.removeAt(bytes.size - 1) } // v4 freshness settings at the end
         bytes[3] = 2
         val decoded = GameStateCodec.decode(java.util.Base64.getEncoder().encodeToString(bytes.toByteArray()))
         assertEquals("caught", decoded.taps.single().reason)
         assertEquals("", decoded.taps.single().rule)
+    }
+
+    @Test fun staleBaitTapSkipsRollDamageAndTimerReset() {
+        val f = Fixture()
+        f.configure { it.copy(catchProbability = 1.0, freshnessSeconds = 60) }
+        val anchor = f.game.state.recoveryAnchorMillis
+        f.now += 1000
+        val result = f.game.onTap(f.context("bait").copy(ageMillis = 61_000))
+        assertEquals(TapOutcome.NoPenalty, result.outcome)
+        assertEquals("stale", result.reason)
+        assertEquals(Classification.Bait, result.classification)
+        assertEquals("configured_bait", result.rule)
+        assertEquals(0, f.rolls)
+        assertEquals(100, result.state.health)
+        assertEquals(anchor, result.state.recoveryAnchorMillis)
+        assertEquals("stale", result.state.taps.last().reason)
+    }
+
+    @Test fun freshBaitAndUnknownAgeStillRoll() {
+        val f = Fixture()
+        f.configure { it.copy(catchProbability = 1.0, freshnessSeconds = 60) }
+        assertEquals(TapOutcome.Caught, f.game.onTap(f.context("bait").copy(ageMillis = 60_000)).outcome)
+        val g = Fixture()
+        g.configure { it.copy(catchProbability = 1.0, freshnessSeconds = 60) }
+        assertEquals(TapOutcome.Caught, g.game.onTap(g.context("bait").copy(ageMillis = null)).outcome)
+    }
+
+    @Test fun freshnessOffNeverSkips() {
+        val f = Fixture()
+        f.configure { it.copy(catchProbability = 1.0, freshnessSeconds = 0) }
+        assertEquals(TapOutcome.Caught, f.game.onTap(f.context("bait").copy(ageMillis = 86_400_000)).outcome)
+    }
+
+    @Test fun firstSeenModeIgnoresUpdatesThatRestartPostTime() {
+        // A chat notification first posted 20 min ago, updated by a new message 10 s ago.
+        val chat = NotificationContext("bait", title = "Demo", text = "Routine update", category = "email",
+            isConversation = false, ageMillis = 10_000, firstSeenAgeMillis = 20 * 60_000)
+        val latest = GameConfig(baitPackages = setOf("bait"), freshnessSeconds = 600)
+        assertFalse(latest.isStale(chat))
+        assertTrue(latest.copy(freshnessFromFirstSeen = true).isStale(chat))
+        // No first-seen time (listener restarted): falls back to the update age.
+        assertFalse(latest.copy(freshnessFromFirstSeen = true).isStale(chat.copy(firstSeenAgeMillis = null)))
+    }
+
+    @Test fun freshnessSettingsPersistAndOldStoresGetDefaults() {
+        val state = GameState(config = GameConfig(freshnessSeconds = 30, freshnessFromFirstSeen = true))
+        val decoded = GameStateCodec.decode(GameStateCodec.encode(state))
+        assertEquals(30, decoded.config.freshnessSeconds)
+        assertTrue(decoded.config.freshnessFromFirstSeen)
+        // v3 store = v4 without the trailing freshness fields.
+        val bytes = java.util.Base64.getDecoder().decode(GameStateCodec.encode(state)).dropLast(5).toByteArray()
+        bytes[3] = 3
+        val old = GameStateCodec.decode(java.util.Base64.getEncoder().encodeToString(bytes))
+        assertEquals(GameConfig().freshnessSeconds, old.config.freshnessSeconds)
+        assertFalse(old.config.freshnessFromFirstSeen)
+        assertThrows(IllegalArgumentException::class.java) { GameConfig(freshnessSeconds = -1) }
     }
 
     @Test fun debugFastForwardRecoversAndEndsLockout() {

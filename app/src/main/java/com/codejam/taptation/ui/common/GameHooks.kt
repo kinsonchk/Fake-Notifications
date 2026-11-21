@@ -56,12 +56,12 @@ private val clockFormat = DateTimeFormatter.ofPattern("HH:mm:ss").withZone(ZoneI
 
 fun formatClock(millis: Long): String = clockFormat.format(Instant.ofEpochMilli(millis))
 
-/** "45 s", "12 min", "3 h 5 min". */
+/** "45 s", "12 min 5 s", "3 h 5 min" (seconds dropped from an hour up). */
 fun formatDuration(millis: Long): String {
     val seconds = millis.coerceAtLeast(0) / 1000
     return when {
         seconds < 60 -> "$seconds s"
-        seconds < 3600 -> "${seconds / 60} min"
+        seconds < 3600 -> if (seconds % 60 == 0L) "${seconds / 60} min" else "${seconds / 60} min ${seconds % 60} s"
         else -> "${seconds / 3600} h ${seconds % 3600 / 60} min"
     }
 }

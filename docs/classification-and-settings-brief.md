@@ -124,6 +124,7 @@ Accounts, cloud sync, theming, localization, and the Gemini or model integration
 2. **What are the real values?** Person 1's debug screen should log category, channel ID, conversation flag, importance, and title for real notifications from Outlook, Instagram, and Discord. Adjust the rules from that data, not from assumptions.
 3. **What are the default urgent keywords?** Agree on a short list, and make it editable later.
 4. **Do updated notifications reset `postTime`?** Test with a real messaging app. This decides whether the freshness window counts from the newest message.
+   **Answer (AOSP source):** yes. Every `notify()` with the same id builds a new `StatusBarNotification` with `postTime = System.currentTimeMillis()` (`NotificationManagerService.enqueueNotificationInternal`); the original time survives only in the system's internal `NotificationRecord.mCreationTimeMs`, which listeners can't read. The listener now keeps its own first-seen time per key (`NotificationContext.firstSeenAgeMillis`), and Settings has a switch to measure the freshness window from it. Still worth confirming on the Pixel: some chat apps cancel and re-post instead of updating, which also restarts the time.
 5. **Who owns `Settings` defaults?** Suggest Person 3 owns the screen and the repository, and Person 2 owns the meaning of each value.
 6. **Is the classifier fast enough?** It must stay cheap at post time. Any model call (later) must be asynchronous and fail safe.
 

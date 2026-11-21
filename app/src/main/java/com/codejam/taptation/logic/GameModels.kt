@@ -22,15 +22,37 @@ data class GameConfig(
     val appProfiles: Map<String, AppProfile> = emptyMap(),
     val importantChannels: Map<String, Set<String>> = emptyMap(),
     val baitChannels: Map<String, Set<String>> = emptyMap(),
+    /**
+     * A bait tap later than this after the notification counts as no penalty: no roll, no damage,
+     * no clean-timer reset. 0 turns the window off. Taps with an unknown age are always checked.
+     */
+    val freshnessSeconds: Int = 600,
+    /**
+     * false: age since the newest update (Android's postTime restarts on every update, e.g. each new
+     * chat message). true: age since the listener first saw the notification.
+     */
+    val freshnessFromFirstSeen: Boolean = false,
 ) {
     init {
         require(catchProbability.isFinite() && catchProbability in 0.0..1.0)
         require(listOf(mildDamage, mediumDamage, savageDamage).all { it in 1..100 })
         require(recoveryPerHour in 0..100)
         require(lockoutSeconds in 1..3600)
+        require(freshnessSeconds in 0..MAX_FRESHNESS_SECONDS)
         require((whitelistedPackages + baitPackages + baitKeywords + vipNames + importantKeywords +
             appProfiles.keys + importantChannels.keys + baitChannels.keys +
             importantChannels.values.flatten() + baitChannels.values.flatten()).none { it.isBlank() })
+    }
+
+    /** True when [context] is older than the freshness window; unknown ages are never stale. */
+    fun isStale(context: NotificationContext): Boolean {
+        if (freshnessSeconds == 0) return false
+        val age = (if (freshnessFromFirstSeen) context.firstSeenAgeMillis else null) ?: context.ageMillis
+        return age != null && age > freshnessSeconds * 1000L
+    }
+
+    companion object {
+        const val MAX_FRESHNESS_SECONDS = 24 * 60 * 60
     }
 
     fun damage(level: CatchLevel): Int = when (level) {

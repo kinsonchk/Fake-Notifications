@@ -43,6 +43,7 @@ object TapExplanations {
             "roll_passed" -> "Roll missed: no penalty this time"
             "lockout" -> "During lockout: no extra penalty"
             "dead" -> "Tree is already dead"
+            "stale" -> "Too old: tapped after the freshness window, bait rules don't apply"
             else -> "Not penalized: unsure notifications are never penalized"
         }
     }

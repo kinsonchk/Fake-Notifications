@@ -1,6 +1,7 @@
 package com.codejam.taptation.ui.settings
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -11,6 +12,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Slider
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -19,6 +21,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -75,7 +78,7 @@ fun SettingsScreen(contentPadding: PaddingValues) {
 
 @Composable
 private fun GameRulesCard(config: GameConfig, repository: GameRepository) {
-    SectionCard("Game", "How likely a bait tap is caught and how hard it hits.") {
+    SectionCard("Game", "How likely a bait tap is caught, how hard it hits, and for how long.") {
         var probability by remember(config.catchProbability) {
             mutableFloatStateOf(config.catchProbability.toFloat())
         }
@@ -87,6 +90,7 @@ private fun GameRulesCard(config: GameConfig, repository: GameRepository) {
                 repository.updateConfig { it.copy(catchProbability = probability.toDouble()) }
             },
         )
+        FreshnessControls(config, repository)
         Text("Level: ${config.level.name} (-${config.damage(config.level)} health per catch)")
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             CatchLevel.entries.forEach { level ->
@@ -95,6 +99,52 @@ private fun GameRulesCard(config: GameConfig, repository: GameRepository) {
                 else OutlinedButton(onClick = select) { Text(level.name) }
             }
         }
+    }
+}
+
+/** Freshness choices: off, then short windows for demos, then the usual minutes. */
+private val freshnessSteps = listOf(0, 30, 60, 2 * 60, 5 * 60, 10 * 60, 15 * 60, 30 * 60, 60 * 60)
+
+private fun freshnessLabel(seconds: Int): String = when {
+    seconds == 0 -> "off"
+    seconds < 60 -> "$seconds s"
+    else -> "${seconds / 60} min"
+}
+
+@Composable
+private fun FreshnessControls(config: GameConfig, repository: GameRepository) {
+    // Saved values not on the list (set elsewhere) snap to the nearest step on the slider.
+    val savedIndex = freshnessSteps.indices.minBy { kotlin.math.abs(freshnessSteps[it] - config.freshnessSeconds) }
+    var index by remember(config.freshnessSeconds) { mutableFloatStateOf(savedIndex.toFloat()) }
+    val seconds = freshnessSteps[index.toInt()]
+    Text("Freshness window: ${freshnessLabel(seconds)}")
+    Slider(
+        value = index,
+        onValueChange = { index = it },
+        valueRange = 0f..(freshnessSteps.size - 1).toFloat(),
+        steps = freshnessSteps.size - 2,
+        onValueChangeFinished = {
+            repository.updateConfig { it.copy(freshnessSeconds = freshnessSteps[index.toInt()]) }
+        },
+    )
+    Text(
+        if (seconds == 0) "Every bait tap can get you caught, however old the notification."
+        else "Only taps within ${freshnessLabel(seconds)} of the notification can get you caught.",
+        style = MaterialTheme.typography.bodySmall,
+    )
+    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+        Column(Modifier.weight(1f)) {
+            Text("Count from the first post")
+            Text(
+                "Off: each update (a new chat message) restarts the clock. On: the clock starts at the first post.",
+                style = MaterialTheme.typography.bodySmall,
+            )
+        }
+        Switch(
+            checked = config.freshnessFromFirstSeen,
+            enabled = seconds != 0,
+            onCheckedChange = { on -> repository.updateConfig { it.copy(freshnessFromFirstSeen = on) } },
+        )
     }
 }
 

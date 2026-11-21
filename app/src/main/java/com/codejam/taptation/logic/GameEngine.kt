@@ -35,6 +35,11 @@ class GameEngine(
                 outcome = TapOutcome.NoPenalty
                 reason = assessment.reason
             }
+            // Too old: the bait rules don't apply at all, so no roll and no clean-timer reset.
+            next.config.isStale(context) -> {
+                outcome = TapOutcome.NoPenalty
+                reason = "stale"
+            }
             else -> {
                 next = next.copy(recoveryAnchorMillis = now)
                 when {
