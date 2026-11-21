@@ -55,7 +55,9 @@ system -> TapListenerService.onNotificationPosted   (cache NotificationContext b
 - `service/TapDetection.kt`: pure filter logic, framework constants only, so it runs in plain JVM tests. Keep new decision logic here, not in the service.
 - `service/NotificationSignals.kt`: builds the metadata in the `posted`/`removed` Logcat lines (category, channel, importance, conversation flags, auto-cancel, postTime/age). Logging only; never title/text.
 - `service/PermissionHelper.kt`: notification-access check/settings intents and battery-optimization helpers; reuse for onboarding UI.
-- `debug/`: `DebugScreen` + `LogicDebugPanel` (what `MainActivity` shows now), `TestNotification` posts an auto-cancel notification with a contentIntent so tapping it yields `REASON_CLICK`. `CustomNotificationPanel` posts one from a typed `NotificationContext`; `RepositoryDemoControls` backs `DemoControlsPanel` with `GameRepository`.
+- `ui/TaptationApp.kt`: bottom tabs Home · Stats · Notifications · Settings · Debug (Notifications and Debug only in debug builds); `rememberSaveableStateHolder` keeps each tab's state. `ui/home`, `ui/stats`, `ui/settings` read/write `GameRepository`; `ui/common` holds layout helpers, `rememberNow` (lockout ticker + periodic `refresh`) and `TapExplanations` (rule/outcome codes → text).
+- `debug/`: `DebugScreen` (system status, `DemoControlsPanel` backed by `RepositoryDemoControls`), `NotificationsScreen` (composer, saved `NotificationPreset`s with an image in `NotificationIcons`, last 20 taps with reasons, observed notifications with a live classifier preview), `TestNotification` posts an auto-cancel notification with a contentIntent so tapping it yields `REASON_CLICK`. Presets hold only user-typed values; observed notifications stay memory-only.
+- `TapRecord.rule` / `TapResult.rule`: the classifier rule behind the classification (`vip_title`, `bait_category`…); `reason` is the final decision (`caught`, `roll_passed`…). Taps stored before codec v3 have an empty rule for bait.
 - `service/DebugSimulation.kt`: package/channel name/conversation/app category overrides carried in the extras of our test-channel notification. The listener applies them only in debuggable builds and only on `OWN_TEST_CHANNEL_ID`, so a debug notification can stand in for another app.
 
 Full rules, defaults and the Person 3 API are in `docs/person-2/PERSON_2_INTEGRATION.md`. Key gotchas from it: bait rules and whitelist start **empty**, so nothing is penalized until a bait package/keyword is configured; `Caught` already applied damage, so UI must not call `applyCatch` again; notification title/text are transient and must never be persisted or logged.
@@ -109,8 +111,8 @@ Each person works on their own branch and merges into `main` via PR.
 
 | Area | Owner |
 |---|---|
-| `service/`, `debug/DebugScreen.kt`, `debug/TestNotification.kt` | Person 1 (notification service) |
-| `logic/`, `TaptationApplication.kt`, `debug/LogicDebugPanel.kt`: whitelist, classification, roll, health, storage | Person 2 |
+| `service/`, `debug/DebugScreen.kt`, `debug/NotificationsScreen.kt`, `debug/TestNotification.kt` | Person 1 (notification service) |
+| `logic/`, `TaptationApplication.kt`: whitelist, classification, roll, health, storage | Person 2 |
 | `ui/`: onboarding, tree/pet visuals, lockout, stats, real navigation in `MainActivity` | Person 3 |
 | `debug/` extensions, adb scripts, demo | Person 4 |
 

@@ -20,14 +20,14 @@ The app picker is a small card in the existing debug/settings surface. It has se
 1. Install and open the debug build of Taptation on an emulator or phone.
 2. Grant Taptation **Notification access** in Android Settings. The notification tap detector needs this permission.
 3. In Taptation, choose an app that can post a notification and that you can make post one during the demo. Taptation's own test notification can verify tap detection, but its package is Taptation, so it does not imitate Instagram or YouTube.
-4. In the debug logic controls, set **Catch chance** to 100%.
-5. Put the chosen app's exact package name into **Bait app package name (demo control)** and tap **Mark bait**.
+4. In the **Settings** tab, set **Catch chance** to 100%.
+5. In *Per-app rules*, enter the chosen app's exact package name and tap **Mark as bait app**.
 
 ### Show that whitelist wins
 
 1. Search for the app under **Whitelisted apps** and turn its switch on.
 2. Make the chosen app post a notification, then tap that notification (do not swipe it away).
-3. Return to Taptation. Show **Last tap: Bypass (whitelisted)**. Health and catch count should be unchanged.
+3. Return to Taptation. Home shows **Last tap: Important: App is whitelisted**. Health and catch count should be unchanged.
 4. Explain: “This notification still works normally. Taptation simply treats this app's tap as safe.”
 
 ### Show the effect of turning it off

@@ -11,7 +11,7 @@ Docs:
 - `TapDetection` pure filter + unit tests; `TapLog` (last 20 taps).
 - `PermissionHelper`: notification-access check/settings, battery-optimization check/settings.
 - Rebind on disconnect (skipped when access was revoked); connected flag for the debug screen.
-- Debug screen: access/connected/battery status, post test notification, simulate tap, last 20 taps.
+- Debug tab: access/connected/battery status, last tap seen by the listener, demo controls. Notifications tab: test notification, custom notification form + saved presets with images, last 20 taps with reasons, observed notifications.
 - Loop guard: in debug builds only our **test notification** channel (`debug_test`) counts as a tap, so our own "you got caught" alert can never cause another catch (branch `person1/signal-logging`).
 - Logcat `posted`/`removed` lines include category, channel ID/name, importance, conversation and group-conversation flags, style, auto-cancel, `postTime`/age and `update` (branch `person1/signal-logging`; see README "Reading the Logcat lines").
 - Real `GameRepository` handler installed at app start (by Person 2).
@@ -23,7 +23,7 @@ Person 2's branch `codex/person-2-logic` (commit `cbf3925`, not merged to `main`
 - overrides the two-argument `onNotificationPosted(sbn, rankingMap)` and adds `onNotificationRankingUpdate`;
 - adds `channelName` and `isConversation` (API 31+) from `Ranking`, and `ageMillis = now - sbn.postTime` (brief A8);
 - calls new `TapHandler.onNotificationPosted / onNotificationRemoved / onListenerReset` hooks;
-- exposes `TapListenerService.observations` (last 10 posted, debug builds only, memory only) shown in `LogicDebugPanel`.
+- exposes `TapListenerService.observations` (last 10 posted, debug builds only, memory only) shown on the Notifications tab with the classification each would get now.
 
 Check before it merges: the tap rules in `CLAUDE.md` still hold, `onNotificationRankingUpdate` stays cheap (it walks up to 500 cached entries on the main thread), and nothing logs title/text.
 

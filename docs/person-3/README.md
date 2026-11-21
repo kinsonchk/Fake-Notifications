@@ -5,7 +5,7 @@ Docs:
 - [../person-2/PERSON_2_INTEGRATION.md](../person-2/PERSON_2_INTEGRATION.md): "Person 3 API" (`GameRepository` state, whitelist, `updateConfig`, reset).
 - [../features-by-person.md](../features-by-person.md): core features (onboarding, whitelist, home tree/pet, lockout, stats) and priority feature (catch feedback).
 
-Status: only `ui/theme/` exists on `main`; `MainActivity` still shows the debug screen. Remote branch `person3/ui-stats` has no commits beyond `main`.
+Status: `MainActivity` shows bottom tabs (`ui/TaptationApp.kt`). Home, Stats and Settings in `ui/` are placeholders built by Person 1 on the existing `GameRepository` API, to be replaced or restyled: Home needs the tree visual, onboarding and lockout are still missing.
 
 Before building the settings page: Section B proposes a new `SettingsRepository` + DataStore, but settings already live in `GameConfig` inside `GameRepository` (SharedPreferences). A second store would split the source of truth. Agree with Person 2 whether the screen writes through `GameRepository.updateConfig` / `setWhitelisted` instead.
 

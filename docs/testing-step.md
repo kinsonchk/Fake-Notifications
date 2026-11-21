@@ -40,7 +40,7 @@ The work in this project gives you a debug screen, a test notification, and chec
 
 ### 1. A panel for setting up a demo
 
-The debug screen now has a **Demo controls** panel. It is designed to set catch chance to 0% or 100%, set health, force a catch, fast-forward one clean hour, and reset demo data.
+The **Debug** tab has a **Demo controls** panel. It sets catch chance to 0% or 100%, sets health, forces a catch, fast-forwards one clean hour, and resets demo data.
 
 The buttons call a shared Kotlin interface named `DemoControls`. This is like a set of agreed buttons that Person 2's real health and catch code can connect to. The screen does not change the database by itself.
 
@@ -52,14 +52,14 @@ The app already had a **Post test notification** button. Person 4's changes keep
 
 A real tap and a swipe are different:
 
-- Tapping should add one row to **Last 20 taps**.
+- Tapping should add one row to **Last 20 taps** on the **Notifications** tab, with its classification and the reason.
 - Swiping it away should not add a row.
 
-The **Simulate tap** button only tests the app's internal handoff. It does not test tapping a notification in Android's notification shade.
+The **Simulate tap (no notification)** button on the custom notification form only tests the app's internal handoff. It does not test tapping a notification in Android's notification shade.
 
 ### 3. A check so debug tools are hidden in the release build
 
-The app now shows the debug screen only in the debug build. The release build currently shows the app name because the normal app screen/navigation is still a separate task.
+The app shows bottom tabs: Home, Stats, Notifications, Settings, Debug. The Notifications and Debug tabs exist only in the debug build; the release build shows Home, Stats and Settings.
 
 ### 4. A test for the new panel
 
@@ -147,7 +147,7 @@ With either the phone or emulator listed as `device`, run:
 .\gradlew.bat connectedDebugAndroidTest --console=plain
 ```
 
-**What this checks:** the instrumentation test opens the Demo controls panel, presses its buttons, and confirms a fake implementation received requests for 0%, 100%, health 1, force catch, one-hour fast-forward, and reset. This tests button wiring only; use the Consequence logic panel for real whitelist and game behavior.
+**What this checks:** the instrumentation test opens the Demo controls panel, presses its buttons, and confirms a fake implementation received requests for 0%, 100%, health 1, force catch, one-hour fast-forward, and reset. This tests button wiring only; use the app itself for real whitelist and game behavior.
 
 **What success looks like:** Gradle ends with `BUILD SUCCESSFUL`, and the report lists `DemoControlsPanelTest` as passing. These tests do not cover the whitelist picker.
 
@@ -181,7 +181,7 @@ Move the mouse to the very top of the emulator screen.
 Hold the mouse button and drag down.
 Find the Taptation test notification and tap it.
 7. and tap the Taptation test notification.
-8. Return to Taptation. There should be one new row in **Last 20 taps**.
+8. Return to Taptation's **Notifications** tab. There should be one new row in **Last 20 taps**.
 9.  Post another test notification, open the shade, and swipe it away.
 10. Return to Taptation. The swipe should not add a row.
 
@@ -210,18 +210,18 @@ This feature is implemented in the debug build. Use a notification posted by the
 
 #### Prove the whitelist bypasses a catch
 
-1. In Taptation's debug logic controls, set **Catch chance** to 100% by moving its slider all the way right.
-2. Enter the selected app's package name in **Bait app package name (demo control)** and tap **Mark bait**. The initial bait list is empty, so this step is needed for a clear comparison.
+1. In Taptation's **Settings** tab, set **Catch chance** to 100% by moving its slider all the way right.
+2. In **Per-app rules**, enter the selected app's package name and tap **Mark as bait app**. The initial bait list is empty, so this step is needed for a clear comparison.
 3. In **Whitelisted apps**, search for that app and turn its switch on. Wait for the switch to reflect the saved setting.
 4. Note the current **Health** and **Catches** values.
 5. Cause that app to post a notification (for example, send yourself a test message or trigger an app alert). Open Android's notification shade by dragging down from the top of the phone screen, then tap the app's notification. Do not swipe it away.
-6. Return to Taptation. **Last tap** should show `Bypass (whitelisted)`. Health and catch count should be unchanged. The notification should still have opened its own app normally.
+6. Return to Taptation. Home's **Last tap** should show `Important: App is whitelisted`. Health and catch count should be unchanged. The notification should still have opened its own app normally.
 
 #### Prove turning the whitelist off restores the bait rule
 
 1. Return to Taptation. Turn off the same app's whitelist switch. Keep it marked as bait and keep catch chance at 100%.
 2. Cause the same app to post another auto-cancel notification, then tap it in the notification shade.
-3. Return to Taptation. The tap should be caught and health should decrease. The catch count should increase. If the app is already in lockout or the tree is dead, use the debug **Health 100** control to reset it before repeating.
+3. Return to Taptation. The tap should be caught and health should decrease. The catch count should increase. If the app is already in lockout or the tree is dead, set health to 100 in **Debug** > Demo controls before repeating.
 4. Turn the whitelist switch back on, close and reopen Taptation, and confirm that it remains selected. This checks saved settings.
 5. Finally, swipe away one more notification from that app. It should not create a new tap row or cause a catch.
 
@@ -236,7 +236,7 @@ Run:
 .\gradlew.bat assembleRelease --console=plain
 ```
 
-**What this checks:** the release version builds with the debug screen hidden. The current release screen is only a placeholder until normal app navigation is added.
+**What this checks:** the release version builds with the Notifications and Debug tabs hidden.
 
 ## Results already obtained in this project
 
@@ -250,7 +250,7 @@ The instrumentation tests have now run successfully on the API 37 emulator. The 
 
 ## Demo controls are now connected
 
-`RepositoryDemoControls` implements `DemoControls` with Person 2's `GameRepository`, and the debug screen uses it. The buttons now change real game state through the same engine and store as normal taps:
+`RepositoryDemoControls` implements `DemoControls` with Person 2's `GameRepository`, and the Debug tab uses it. The buttons now change real game state through the same engine and store as normal taps:
 
 - **Set 0% / Set 100%**: catch chance (`updateConfig`).
 - **Set health**: `setHealthForDebug` (values outside 0-100 are clamped).
@@ -262,10 +262,12 @@ All of these refuse to run in a release build.
 
 ## Custom notifications (stand in for another app)
 
-The debug screen has a **Custom notification** card. Fill in package, title, text, category, channel name, app category, conversation flag and action buttons, then:
+The **Notifications** tab has a **Custom notification** form. Fill in package, title, text, category, channel name, app category, conversation flag and action buttons, optionally choose an image (shown as the notification's picture), then:
 
 - **Post custom notification** posts a real notification from Taptation on the debug test channel. Tap it in the shade to run the full pipeline. In debug builds the listener replaces the package, channel name, conversation flag and app category with the values you typed, so the logic sees, for example, `com.instagram.android`. Title, text, category and action buttons are set on the notification itself.
-- **Simulate tap with these values** skips the shade and sends the same context straight to the logic.
+- **Simulate tap (no notification)** skips the shade and sends the same context straight to the logic.
+- **Save as** keeps the form as a named preset under **Saved notifications** (kept across restarts) with Post / Edit / Delete.
+- **Would be** shows the classification and reason the current settings would give, before posting.
 
 This makes the whitelist test in C.1 possible without the real app: whitelist a package, post a custom notification with that package, tap it, and check there is no catch. Use a real app's notification for the final demo check, because only the package override is simulated, not the app.
 
