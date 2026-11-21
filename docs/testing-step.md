@@ -178,6 +178,21 @@ To see diagnostic messages, open another PowerShell window and run:
 
 A tapped notification should log `reason=CLICK`. A swipe should log a cancel reason and should not be dispatched as a tap.
 
+### C.1 Test the whitelist (after Persons 2 and 3 connect their features)
+
+**This test cannot pass in the current project yet.** The code currently has no whitelist screen or saved whitelist from Person 3, and no consequence logic from Person 2 to bypass. The `DemoControls` panel also says it is not connected. Finish those pieces and connect them before expecting health/catches to change.
+
+When they are ready, test with a notification from a real installed app, because Android identifies a notification by the package that posted it:
+
+1. In Taptation, use Person 3's whitelist screen to add one installed app, for example a social app used for the demo.
+2. Use the connected debug controls to set catch chance to **100%**.
+3. Make that app post a notification. Tap it in the Android notification shade.
+4. Return to Taptation. The tap may still appear in tap history, but because the app is whitelisted there should be **no catch and no health loss**.
+5. Turn that same app off in the whitelist.
+6. Make the same app post another notification and tap it. With probability set to 100%, this time it should be caught and health should decrease according to Person 2's rule.
+7. Swipe away another notification from the app. A swipe should not count as a tap or cause a catch, whether or not the app is whitelisted.
+
+Use notifications that disappear when tapped; some apps keep their notifications visible, so the listener may not receive a `REASON_CLICK` removal for those. Do not use Taptation's own test notification to pretend to test another app's whitelist entry: its package name remains `com.codejam.taptation`.
 ### D. Check the release build
 
 Run:
@@ -203,6 +218,7 @@ The instrumentation tests have now run successfully on the API 37 emulator. The 
 Person 2 needs to implement the real health, probability, catch, time, and reset logic, then provide a `DemoControls` implementation and connect it to the debug screen. Until that happens, the panel's controls are only tested as button-to-interface requests. They do not change real health or trigger real catches.
 
 A whitelist check also needs a notification posted by the actual whitelisted app. The notification's title cannot make it count as another app.
+
 
 
 
