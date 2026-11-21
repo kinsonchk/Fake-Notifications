@@ -2,6 +2,7 @@ package com.codejam.taptation.service
 
 import android.content.ComponentName
 import android.app.Notification
+import android.os.Build
 import android.content.pm.ApplicationInfo
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
@@ -36,6 +37,8 @@ class TapListenerService : NotificationListenerService() {
     override fun onListenerDisconnected() {
         super.onListenerDisconnected()
         contexts.clear()
+        TapDispatcher.handler.onListenerReset()
+        _observations.value = emptyList()
         Log.d(TAG, "onListenerDisconnected")
         _connected.value = false
         // If access was revoked, there is nothing to rebind to: just stop quietly.
@@ -53,17 +56,38 @@ class TapListenerService : NotificationListenerService() {
 
     override fun onDestroy() {
         contexts.clear()
+        TapDispatcher.handler.onListenerReset()
+        _observations.value = emptyList()
         _connected.value = false
         super.onDestroy()
     }
 
-    override fun onNotificationPosted(sbn: StatusBarNotification) {
+    override fun onNotificationPosted(sbn: StatusBarNotification, rankingMap: RankingMap) {
         // update=true: same key already active, so the app replaced it (e.g. a new chat message).
         val update = contexts.containsKey(sbn.key)
-        contexts[sbn.key] = contextFor(sbn)
-        val signals = NotificationSignals.from(sbn, currentRankingOrNull())
+        val context = contextFor(sbn, rankingMap)
+        contexts[sbn.key] = context
+        TapDispatcher.handler.onNotificationPosted(context)
+        if (isDebugBuild()) {
+            _observations.value = (listOf(context) + _observations.value.filter { it.key != context.key }).take(10)
+        }
+        val signals = NotificationSignals.from(sbn, rankingMap)
         Log.d(TAG, "posted pkg=${sbn.packageName} update=$update " +
             "${signals.describe(System.currentTimeMillis())} key=${sbn.key}")
+    }
+
+    override fun onNotificationRankingUpdate(rankingMap: RankingMap) {
+        // Conversation/channel information can arrive after the original posted callback.
+        contexts.entries.forEach { entry ->
+            val updated = withRanking(entry.value, rankingMap)
+            if (updated != entry.value) {
+                entry.setValue(updated)
+                TapDispatcher.handler.onNotificationPosted(updated)
+            }
+        }
+        if (isDebugBuild()) {
+            _observations.value = _observations.value.map { contexts[it.key] ?: it }
+        }
     }
 
     // Only the three-argument overload is overridden. The base class's three-argument version
@@ -74,7 +98,8 @@ class TapListenerService : NotificationListenerService() {
         reason: Int,
     ) {
         val pkg = sbn.packageName
-        val context = contexts.remove(sbn.key) ?: contextFor(sbn)
+        val context = withRanking(contexts.remove(sbn.key) ?: contextFor(sbn, rankingMap), rankingMap)
+            .copy(ageMillis = System.currentTimeMillis() - sbn.postTime)
         val flags = sbn.notification?.flags ?: 0
         val signals = NotificationSignals.from(sbn, rankingMap)
         Log.d(TAG, "removed pkg=$pkg reason=${TapDetection.reasonName(reason)}($reason) " +
@@ -88,7 +113,10 @@ class TapListenerService : NotificationListenerService() {
             ownPackageName = packageName,
             includeOwnPackage = isDebugBuild(),
         )
-        if (!isTap) return
+        if (!isTap) {
+            TapDispatcher.handler.onNotificationRemoved(sbn.key)
+            return
+        }
 
         TapLog.record(pkg)
         try {
@@ -96,13 +124,15 @@ class TapListenerService : NotificationListenerService() {
         } catch (e: Exception) {
             // A bug in the handler must not take down the listener.
             Log.e(TAG, "TapHandler threw for $pkg", e)
+        } finally {
+            TapDispatcher.handler.onNotificationRemoved(sbn.key)
         }
     }
 
-    private fun contextFor(sbn: StatusBarNotification): NotificationContext {
+    private fun contextFor(sbn: StatusBarNotification, rankingMap: RankingMap): NotificationContext {
         val notification = sbn.notification
         val extras = notification.extras
-        return NotificationContext(
+        return withRanking(NotificationContext(
             packageName = sbn.packageName,
             key = sbn.key,
             title = extras?.getCharSequence(Notification.EXTRA_TITLE)?.toString(),
@@ -111,15 +141,20 @@ class TapListenerService : NotificationListenerService() {
             category = notification.category,
             actions = notification.actions.orEmpty()
                 .mapNotNull { it?.title?.toString()?.takeIf(String::isNotBlank) },
-        )
+            ageMillis = System.currentTimeMillis() - sbn.postTime,
+        ), rankingMap)
     }
 
-    private fun currentRankingOrNull(): RankingMap? =
-        try {
-            currentRanking
-        } catch (e: RuntimeException) {
-            null
-        }
+    private fun withRanking(context: NotificationContext, rankingMap: RankingMap): NotificationContext {
+        val ranking = Ranking()
+        val key = context.key ?: return context
+        if (!rankingMap.getRanking(key, ranking)) return context
+        return context.copy(
+            channelName = ranking.channel?.name?.toString(),
+            isConversation = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S)
+                ranking.isConversation else null,
+        )
+    }
 
     private fun isDebugBuild(): Boolean =
         applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0
@@ -131,5 +166,8 @@ class TapListenerService : NotificationListenerService() {
 
         /** True while the system has this listener bound. For the debug screen. */
         val connected: StateFlow<Boolean> = _connected.asStateFlow()
+        private val _observations = MutableStateFlow<List<NotificationContext>>(emptyList())
+        /** Debug-only, in-memory samples. Never persist or send these outside the app. */
+        val observations: StateFlow<List<NotificationContext>> = _observations.asStateFlow()
     }
 }

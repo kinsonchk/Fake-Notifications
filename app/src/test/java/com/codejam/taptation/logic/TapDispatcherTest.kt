@@ -2,8 +2,22 @@ package com.codejam.taptation.logic
 
 import org.junit.Assert.assertEquals
 import org.junit.Test
+import java.util.concurrent.CompletableFuture
 
 class TapDispatcherTest {
+    @Test fun ageEntryPointReturnsHandlerResult() {
+        val result = TapResult(TapOutcome.NoPenalty, GameState(), "missing_content")
+        withHandler(object : ResultTapHandler {
+            override fun onTap(packageName: String) { error("Legacy overload called") }
+            override fun onTap(packageName: String, ageMillis: Long): CompletableFuture<TapResult> {
+                assertEquals("example.app", packageName)
+                assertEquals(1234L, ageMillis)
+                return CompletableFuture.completedFuture(result)
+            }
+        }) {
+            assertEquals(result, TapDispatcher.dispatch("example.app", 1234).get())
+        }
+    }
     @Test fun metadataDispatchFallsBackToLegacyHandler() {
         withHandler(object : TapHandler {
             override fun onTap(packageName: String) { received = packageName }

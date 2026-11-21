@@ -3,8 +3,8 @@ package com.codejam.taptation.logic
 /**
  * What the listener knows about a tapped notification.
  *
- * Metadata is transient: notification text, action titles and contact identities are never
- * persisted or logged.
+ * Notification contents are transient: title, text, action titles and contact identities are
+ * never persisted or logged. Only user-entered VIP names belong in saved settings.
  *
  * @property actions titles of the notification's action buttons (e.g. "Reply", "Mark as read"),
  *   in display order. Empty when the notification has none.
@@ -16,5 +16,8 @@ data class NotificationContext(
     val text: String? = null,
     val category: String? = null,
     val appCategory: Int? = null,
+    val isConversation: Boolean? = null,
+    val channelName: String? = null,
+    val ageMillis: Long? = null,
     val actions: List<String> = emptyList(),
 )

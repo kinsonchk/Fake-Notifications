@@ -9,14 +9,17 @@ an integration/debug screen. Person 3's final product UI is still to be connecte
 
 ## Consequence logic (Person 2)
 
-Implemented: app whitelist, package/keyword/app-category bait classification, configurable
+Implemented: ordered whitelist/category/VIP/urgency bypass rules, notification classification,
+observed app/channel rules, configurable
 catch chance, Mild/Medium/Savage damage, recovery, death/reset, persistent lockout deadlines,
 tap counts per app, catch totals, and bounded tap/health history. Raw notification text
 is used transiently for classification and is never written to the game store.
 
 Defaults: 7.5% catch probability, 100 maximum health, damage of 10/20/35, +5 health per
-completed clean hour, and a 30-second lockout deadline. Bait rules and the whitelist start
-empty: **configure a bait package or keyword before expecting normal taps to cause catches**.
+completed clean hour, and a 30-second lockout deadline. Complete, recognized social/promo
+and ordinary email/message notifications default to bait after all importance checks.
+Incomplete or uncertain signals never receive penalties. App profiles and channel overrides
+start empty: configure them using observed data rather than guessed package/channel names.
 
 See [Person 2 integration and demo guide](docs/person-2/PERSON_2_INTEGRATION.md) for the exact rules,
 Person 3 APIs, storage behavior, testing commands, and remaining UI work.
@@ -31,6 +34,7 @@ The original `dispatch(packageName)` / `onTap(packageName)` entry points remain 
 |---|---|
 | `logic/TapHandler.kt` | Backward-compatible `TapHandler` interface and `TapDispatcher` |
 | `logic/GameEngine.kt` | Pure classification, catch, health and recovery rules |
+| `logic/NotificationClassifier.kt` | Ordered importance/bait rules and conservative fallback |
 | `logic/GameRepository.kt` | Serialized background operations and observable state |
 | `logic/PreferencesGameStore.kt`, `logic/GameStateCodec.kt` | Versioned, atomic local snapshots |
 | `TaptationApplication.kt` | Installs the real handler even when the activity is not open |
@@ -63,7 +67,7 @@ adb shell cmd notification allow_listener com.codejam.taptation/com.codejam.tapt
 
 ### Verify
 
-1. **Post test notification**, then tap the notification: a new row shows up in *Last 20 taps* and Logcat shows `tap pkg=com.codejam.taptation outcome=NoPenalty reason=unknown health=100` on a fresh install.
+1. **Post test notification**, then tap the notification: a new row shows up in *Last 20 taps* and Logcat shows `outcome=NoPenalty reason=unrecognized_signals` on a fresh install (the test notification has no category). Mark its package as bait to enable catch rolls for it.
 2. Post another one and **swipe it away**: no new row (Logcat shows `reason=CANCEL`).
 3. Tap a notification from a real app (Messages, Gmail): a row shows up with that app's package name.
 4. **Simulate tap**: a `com.test.fake` row shows up and the stub handler logs it.
