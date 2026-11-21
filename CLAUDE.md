@@ -86,7 +86,7 @@ Brief C2 asks Person 1 to "log" titles: show them on the debug screen from memor
 
 - Count a removal as a tap **only** when `reason == REASON_CLICK`. Swipe (`REASON_CANCEL`), clear-all, app-cancel, group-summary-cancel and every other reason are ignored.
 - Skip notifications with `FLAG_GROUP_SUMMARY` or `FLAG_ONGOING_EVENT`.
-- Own package counts only in debuggable builds (so the in-app test notification works); ignored in release.
+- Own package counts only in debuggable builds **and only on the test channel** (`TapDetection.OWN_TEST_CHANNEL_ID`, used by the in-app test notification); ignored in release. Any other notification we post (e.g. a "you got caught" alert) must never count, or tapping it would trigger another catch in a loop.
 - Override only the **three-argument** `onNotificationRemoved`. The base three-arg version forwards to the one-arg one, so overriding both double-handles.
 - Listener callbacks run on the main thread: keep them to filter + log + dispatch. `TapHandler` implementations must move disk/network work off-thread (`GameRepository` does this with its worker).
 

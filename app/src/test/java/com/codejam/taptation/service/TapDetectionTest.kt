@@ -41,7 +41,7 @@ class TapDetectionTest {
     fun swipe_isNotDispatched() {
         assertFalse(
             TapDetection.shouldDispatch(
-                NotificationListenerService.REASON_CANCEL, 0, other, own, includeOwnPackage = true,
+                NotificationListenerService.REASON_CANCEL, 0, null, other, own, includeOwnPackage = true,
             )
         )
     }
@@ -57,9 +57,24 @@ class TapDetectionTest {
     }
 
     @Test
-    fun ownPackage_onlyCountsInDebug() {
-        assertFalse(dispatch(flags = 0, pkg = own, debug = false))
-        assertTrue(dispatch(flags = 0, pkg = own, debug = true))
+    fun ownTestNotification_onlyCountsInDebug() {
+        assertFalse(dispatch(flags = 0, pkg = own, debug = false, channel = TapDetection.OWN_TEST_CHANNEL_ID))
+        assertTrue(dispatch(flags = 0, pkg = own, debug = true, channel = TapDetection.OWN_TEST_CHANNEL_ID))
+    }
+
+    @Test
+    fun ownNonTestNotification_neverCounts() {
+        // Loop guard: tapping our own "you got caught" alert must not cause another catch.
+        listOf("catches", "default", null).forEach { channel ->
+            assertFalse("channel $channel", dispatch(flags = 0, pkg = own, debug = true, channel = channel))
+            assertFalse("channel $channel", dispatch(flags = 0, pkg = own, debug = false, channel = channel))
+        }
+    }
+
+    @Test
+    fun otherApp_countsOnAnyChannel() {
+        assertTrue(dispatch(flags = 0, pkg = other, debug = false, channel = TapDetection.OWN_TEST_CHANNEL_ID))
+        assertTrue(dispatch(flags = 0, pkg = other, debug = false, channel = null))
     }
 
     @Test
@@ -70,10 +85,11 @@ class TapDetectionTest {
         assertEquals("pkg${TapLog.CAPACITY + 4}", entries.first().packageName)
     }
 
-    private fun dispatch(flags: Int, pkg: String, debug: Boolean) =
+    private fun dispatch(flags: Int, pkg: String, debug: Boolean, channel: String? = "any") =
         TapDetection.shouldDispatch(
             reason = NotificationListenerService.REASON_CLICK,
             flags = flags,
+            channelId = channel,
             packageName = pkg,
             ownPackageName = own,
             includeOwnPackage = debug,

@@ -90,5 +90,5 @@ removed pkg=com.discord reason=CLICK(1) cat=msg channelId=... ... age=8123ms key
 - **Access can't be granted from code.** The user has to turn it on in system settings (or use the adb shortcut above).
 - **Android 13+ restricted settings.** If the APK was sideloaded rather than installed from Android Studio, the toggle may be greyed out. Fix: App info > ⋮ menu > **Allow restricted settings**, then try again.
 - **Battery optimization** can kill the listener, mostly on non-Pixel phones. Set the app to Unrestricted.
-- Our own notifications count as taps in **debug builds only**, so the test notification works. Release builds ignore them.
+- Our own notifications count as taps in **debug builds only, and only the test notification** (channel `debug_test`). Release builds ignore them. Other notifications we post never count, so a future "you got caught" alert can't cause another catch.
 - The tap list lives in memory and is cleared when the app process dies.

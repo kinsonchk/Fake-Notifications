@@ -83,6 +83,7 @@ class TapListenerService : NotificationListenerService() {
         val isTap = TapDetection.shouldDispatch(
             reason = reason,
             flags = flags,
+            channelId = sbn.notification?.channelId,
             packageName = pkg,
             ownPackageName = packageName,
             includeOwnPackage = isDebugBuild(),
