@@ -103,6 +103,16 @@ class GameRepository(context: Context) : ResultTapHandler {
         setHealthForDebug(health)
     }
 
+    fun advanceTimeForDebug(minutes: Long): CompletableFuture<GameState> = submit {
+        check(debug) { "Debug controls are disabled in release builds" }
+        advanceTimeForDebug(minutes * 60_000)
+    }
+
+    fun resetDemoDataForDebug(): CompletableFuture<GameState> = submit {
+        check(debug) { "Debug controls are disabled in release builds" }
+        resetDemoDataForDebug()
+    }
+
     private fun <T> submit(action: GameEngine.() -> T): CompletableFuture<T> {
         val future = CompletableFuture<T>()
         worker.execute {

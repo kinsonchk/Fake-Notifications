@@ -106,6 +106,26 @@ class GameEngine(
             recoveryAnchorMillis = now, lastObservedMillis = now, lockoutUntilMillis = 0))
     }
 
+    /**
+     * Debug only: acts as if [millis] of clean time passed. Recovery and the lockout deadline move
+     * forward; taps, catches and settings are untouched.
+     */
+    fun advanceTimeForDebug(millis: Long): GameState {
+        require(millis >= 0)
+        val now = now()
+        val shifted = state.copy(
+            recoveryAnchorMillis = state.recoveryAnchorMillis - millis,
+            lockoutUntilMillis = (state.lockoutUntilMillis - millis).coerceAtLeast(0),
+        )
+        return commit(recovered(shifted, now))
+    }
+
+    /** Debug only: full health, no lockout, empty history and stats. Settings are kept. */
+    fun resetDemoDataForDebug(): GameState {
+        val now = now()
+        return commit(GameState(config = state.config, recoveryAnchorMillis = now, lastObservedMillis = now))
+    }
+
     private fun caught(source: GameState, level: CatchLevel, now: Long): GameState =
         withHealth(source, (source.health - source.config.damage(level)).coerceAtLeast(0),
             now, "catch", level).copy(

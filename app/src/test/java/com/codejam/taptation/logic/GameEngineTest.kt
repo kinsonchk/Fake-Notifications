@@ -279,4 +279,29 @@ class GameEngineTest {
             GameStateCodec.decode(java.util.Base64.getEncoder().encodeToString(bytes))
         }
     }
+
+    @Test fun debugFastForwardRecoversAndEndsLockout() {
+        val f = Fixture()
+        f.configure { it.copy(catchProbability = 1.0) }
+        f.tap("bait")
+        assertEquals(90, f.game.state.health)
+        assertTrue(f.game.state.isLockedOut(f.now))
+        val state = f.game.advanceTimeForDebug(GameEngine.HOUR_MILLIS)
+        assertEquals(95, state.health)
+        assertFalse(state.isLockedOut(f.now))
+        assertEquals(1L, state.totalCatches)
+    }
+
+    @Test fun debugResetClearsStatsButKeepsSettings() {
+        val f = Fixture()
+        f.configure { it.copy(catchProbability = 1.0, whitelistedPackages = setOf("work")) }
+        f.tap("bait")
+        val state = f.game.resetDemoDataForDebug()
+        assertEquals(100, state.health)
+        assertEquals(0L, state.totalCatches)
+        assertTrue(state.taps.isEmpty())
+        assertTrue(state.tapsPerApp.isEmpty())
+        assertFalse(state.isLockedOut(f.now))
+        assertEquals(setOf("work"), state.config.whitelistedPackages)
+    }
 }
