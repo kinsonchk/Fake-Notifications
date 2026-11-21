@@ -28,6 +28,10 @@ class TapListenerService : NotificationListenerService() {
             size > 500
     }
 
+    // Debug-only overrides for our own test notifications, by key. Re-applied after every ranking
+    // update so ranking data can't overwrite the simulated channel/conversation values.
+    private val simulations = HashMap<String, DebugSimulation>()
+
     override fun onListenerConnected() {
         super.onListenerConnected()
         Log.d(TAG, "onListenerConnected")
@@ -37,6 +41,7 @@ class TapListenerService : NotificationListenerService() {
     override fun onListenerDisconnected() {
         super.onListenerDisconnected()
         contexts.clear()
+        simulations.clear()
         TapDispatcher.handler.onListenerReset()
         _observations.value = emptyList()
         Log.d(TAG, "onListenerDisconnected")
@@ -56,6 +61,7 @@ class TapListenerService : NotificationListenerService() {
 
     override fun onDestroy() {
         contexts.clear()
+        simulations.clear()
         TapDispatcher.handler.onListenerReset()
         _observations.value = emptyList()
         _connected.value = false
@@ -72,7 +78,8 @@ class TapListenerService : NotificationListenerService() {
             _observations.value = (listOf(context) + _observations.value.filter { it.key != context.key }).take(10)
         }
         val signals = NotificationSignals.from(sbn, rankingMap)
-        Log.d(TAG, "posted pkg=${sbn.packageName} update=$update " +
+        val simulated = if (context.packageName != sbn.packageName) " simulatedPkg=${context.packageName}" else ""
+        Log.d(TAG, "posted pkg=${sbn.packageName}$simulated update=$update " +
             "${signals.describe(System.currentTimeMillis())} key=${sbn.key}")
     }
 
@@ -97,9 +104,11 @@ class TapListenerService : NotificationListenerService() {
         rankingMap: RankingMap,
         reason: Int,
     ) {
-        val pkg = sbn.packageName
         val context = withRanking(contexts.remove(sbn.key) ?: contextFor(sbn, rankingMap), rankingMap)
             .copy(ageMillis = System.currentTimeMillis() - sbn.postTime)
+        simulations.remove(sbn.key)
+        // Simulated package for our debug notifications, the real one otherwise.
+        val pkg = context.packageName
         val flags = sbn.notification?.flags ?: 0
         val signals = NotificationSignals.from(sbn, rankingMap)
         Log.d(TAG, "removed pkg=$pkg reason=${TapDetection.reasonName(reason)}($reason) " +
@@ -109,7 +118,7 @@ class TapListenerService : NotificationListenerService() {
             reason = reason,
             flags = flags,
             channelId = sbn.notification?.channelId,
-            packageName = pkg,
+            packageName = sbn.packageName,
             ownPackageName = packageName,
             includeOwnPackage = isDebugBuild(),
         )
@@ -130,6 +139,7 @@ class TapListenerService : NotificationListenerService() {
     }
 
     private fun contextFor(sbn: StatusBarNotification, rankingMap: RankingMap): NotificationContext {
+        debugSimulationFor(sbn)?.let { simulations[sbn.key] = it }
         val notification = sbn.notification
         val extras = notification.extras
         return withRanking(NotificationContext(
@@ -148,12 +158,20 @@ class TapListenerService : NotificationListenerService() {
     private fun withRanking(context: NotificationContext, rankingMap: RankingMap): NotificationContext {
         val ranking = Ranking()
         val key = context.key ?: return context
-        if (!rankingMap.getRanking(key, ranking)) return context
-        return context.copy(
+        val ranked = if (!rankingMap.getRanking(key, ranking)) context else context.copy(
             channelName = ranking.channel?.name?.toString(),
             isConversation = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S)
                 ranking.isConversation else null,
         )
+        return simulations[key]?.applyTo(ranked) ?: ranked
+    }
+
+    /** Overrides from our own test notification; null for everything else and in release builds. */
+    private fun debugSimulationFor(sbn: StatusBarNotification): DebugSimulation? {
+        if (sbn.packageName != packageName || !isDebugBuild()) return null
+        if (sbn.notification?.channelId != TapDetection.OWN_TEST_CHANNEL_ID) return null
+        val extras = sbn.notification?.extras ?: return null
+        return DebugSimulation.from(extras::getString)
     }
 
     private fun isDebugBuild(): Boolean =
