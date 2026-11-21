@@ -4,6 +4,12 @@ enum class CatchLevel { Mild, Medium, Savage }
 enum class Classification { Important, Bait, Unknown }
 enum class TapOutcome { Bypass, NoPenalty, Caught }
 enum class AppProfile { Outlook, Instagram, Discord }
+
+/** The user's choice for one app on the Notification rules page. Apps not in [GameConfig.appRules] are LetUsDecide. */
+enum class AppRule { AlwaysBait, AlwaysImportant, LetUsDecide }
+
+/** How readily "Let us decide" marks an unclear notification as bait. Saved, not used yet. */
+enum class Strictness { Relaxed, Balanced, Strict }
 enum class Difficulty(val probability: Double) { Easy(0.20), Medium(0.40), Hard(0.70) }
 data class PendingCatch(val id: String, val packageName: String?, val continueExtraDamage: Int = 0) {
     init { require(continueExtraDamage in 0..100) }
@@ -31,7 +37,15 @@ data class GameConfig(
     val disabledUntilMillis: Long? = null,
     val freshnessSeconds: Int = 600,
     val freshnessFromFirstSeen: Boolean = false,
+    /** Only the apps the user changed; a missing package means [AppRule.LetUsDecide]. */
+    val appRules: Map<String, AppRule> = emptyMap(),
+    /** User-typed answers for "Let us decide" (like VIP names, typed by the user, so they may be saved). */
+    val essentialCriteria: String = "",
+    val nonEssentialCriteria: String = "",
+    val strictness: Strictness = Strictness.Balanced,
 ) {
+    fun ruleFor(packageName: String): AppRule = appRules[packageName] ?: AppRule.LetUsDecide
+
     val catchProbability: Double get() = debugCatchProbability ?: difficulty.probability
     val freshnessWindowMillis: Long get() = freshnessSeconds * 1000L
     fun isActive(nowMillis: Long): Boolean = active || disabledUntilMillis?.let { nowMillis >= it } == true
@@ -41,8 +55,9 @@ data class GameConfig(
         require(recoveryPerHour in 0..100)
         require(lockoutSeconds in 1..3600)
         require(freshnessSeconds in 0..MAX_FRESHNESS_SECONDS)
+        require(essentialCriteria.length <= MAX_CRITERIA_LENGTH && nonEssentialCriteria.length <= MAX_CRITERIA_LENGTH)
         require((whitelistedPackages + baitPackages + baitKeywords + vipNames + importantKeywords +
-            appProfiles.keys + importantChannels.keys + baitChannels.keys +
+            appProfiles.keys + appRules.keys + importantChannels.keys + baitChannels.keys +
             importantChannels.values.flatten() + baitChannels.values.flatten()).none { it.isBlank() })
     }
 
@@ -55,6 +70,7 @@ data class GameConfig(
 
     companion object {
         const val MAX_FRESHNESS_SECONDS = 24 * 60 * 60
+        const val MAX_CRITERIA_LENGTH = 1000
     }
 
     fun damage(level: CatchLevel): Int = when (level) {

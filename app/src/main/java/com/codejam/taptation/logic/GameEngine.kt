@@ -12,7 +12,7 @@ class GameEngine(
     }
         private set
 
-    fun isWhitelisted(packageName: String): Boolean = packageName in state.config.whitelistedPackages
+    fun isWhitelisted(packageName: String): Boolean = state.config.ruleFor(packageName) == AppRule.AlwaysImportant
     fun getHealth(): Int = refresh().health
 
     fun classify(context: NotificationContext): Classification =

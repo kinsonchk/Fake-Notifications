@@ -2,6 +2,14 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## UI design contract
+
+Before creating or changing any UI, read [docs/UI_DESIGN_GUIDE.md](docs/UI_DESIGN_GUIDE.md)
+and the nearest existing screen. Follow its visual tokens, component recipes and definition
+of done unless the user explicitly requests a different design. Reuse the shared theme and
+layout components; inspect actual Android renders before claiming visual verification.
+The guide includes portable reference screenshots and a ready-to-use prompt for future agents.
+
 ## Project
 
 Latest agreed revision: read [docs/revised-catch-flow.md](docs/revised-catch-flow.md) before
@@ -56,7 +64,8 @@ system -> TapListenerService.onNotificationPosted   (cache NotificationContext b
 
 - `logic/TapHandler.kt`: the **shared contract**. `TapHandler.onTap(packageName)` plus `onTap(context: NotificationContext)` (defaults to the package-only one); `TapDispatcher` holds a `@Volatile` handler with both `dispatch` overloads. Package-only calls stay supported.
 - `logic/NotificationContext.kt`: `NotificationContext` (packageName, key, title, text, notification category, appCategory, isConversation, channelName, ageMillis, firstSeenAgeMillis, action button titles). Transient: never persisted or logged.
-- `logic/GameModels.kt`: `GameConfig`, `GameState`, `TapOutcome` (`Bypass` / `NoPenalty` / `Caught`), `CatchLevel`.
+- `logic/GameModels.kt`: `GameConfig`, `GameState`, `TapOutcome` (`Bypass` / `NoPenalty` / `Caught`), `CatchLevel`, `AppRule`, `Strictness`.
+- Per-app rules (`feature-per-app-rules.md`, mockup `notification-settings.html`): `GameConfig.appRules` stores only changed apps; `ruleFor(pkg)` defaults to `LetUsDecide`. `NotificationClassifier.assess` is the tap path: `AlwaysImportant` -> Important (`app_always_important`), `AlwaysBait` -> Bait (`app_always_bait`), `LetUsDecide` -> placeholder judge that **always returns Bait** (`let_us_decide`) until Person 2 builds it from `essentialCriteria` / `nonEssentialCriteria` / `strictness`. The old ordered rules (whitelist, category, VIP, keywords, channels, profiles) are kept as `assessByRules`, off the tap path. Codec v6 migrates old `whitelistedPackages` / `baitPackages` into `appRules`. UI: Settings > Notification rules (`ui/settings/NotificationRulesScreen.kt`, installed apps from `ui/common/InstalledApps.kt`; on Android 13+ only apps whose POST_NOTIFICATIONS permission is granted, i.e. notifications on in system settings; apps with notifications off are hidden even if they have a rule).
 - `logic/GameEngine.kt`: pure, single-thread-confined rules (classification, roll, damage, recovery, lockout, death/reset). Clock and random are injected, so it's JVM unit-testable.
 - `logic/GameRepository.kt`: the real `TapHandler`. Serializes every operation on one worker thread (no disk I/O on listener callbacks), resolves `ApplicationInfo.category`, exposes `state` / `error` / `lastResult` StateFlows and `CompletableFuture` mutations. Never `.get()`/`.join()` on the UI thread.
 - `logic/PreferencesGameStore.kt`, `logic/GameStateCodec.kt`: versioned, atomic local snapshots.
@@ -70,7 +79,7 @@ system -> TapListenerService.onNotificationPosted   (cache NotificationContext b
 - `TapRecord.rule` / `TapResult.rule`: the classifier rule behind the classification (`vip_title`, `bait_category`…); `reason` is the final decision (`caught`, `roll_passed`…). Taps stored before codec v3 have an empty rule for bait.
 - `service/DebugSimulation.kt`: package/channel name/conversation/app category overrides carried in the extras of our test-channel notification. The listener applies them only in debuggable builds and only on `OWN_TEST_CHANNEL_ID`, so a debug notification can stand in for another app.
 
-Full rules, defaults and the Person 3 API are in `docs/person-2/PERSON_2_INTEGRATION.md`. Key gotchas from it: bait rules and whitelist start **empty**, so nothing is penalized until a bait package/keyword is configured; `Caught` already applied damage, so UI must not call `applyCatch` again; notification title/text are transient and must never be persisted or logged.
+Full rules, defaults and the Person 3 API are in `docs/person-2/PERSON_2_INTEGRATION.md`. Key gotchas from it (some superseded by per-app rules: every app now starts on "Let us decide", which is bait for now); `Caught` already applied damage, so UI must not call `applyCatch` again; notification title/text are transient and must never be persisted or logged.
 
 ## Shared interfaces (agreed between teammates)
 
@@ -87,14 +96,14 @@ Full rules, defaults and the Person 3 API are in `docs/person-2/PERSON_2_INTEGRA
 | Catch probability default | 10% | Easy 20%; Medium 40%; Hard 70% |
 | Damage Mild/Medium/Savage | 5 / 10 / 20 | 10 / 20 / 35 |
 | Default level | Medium | Mild |
-| Bypass rules | whitelist, call/alarm/reminder/event, VIP title, urgent keyword | same, plus important channels and Discord DMs/@mentions (`NotificationClassifier`) |
+| Bypass rules | whitelist, call/alarm/reminder/event, VIP title, urgent keyword | only apps set to Always important (`appRules`); the old rules live in `assessByRules`, off the tap path |
 | Urgent keywords default | urgent, emergency, code, verification | urgent, code, meeting invite, meeting invitation |
-| Unmatched notification | bait (A3 rule 6) | bait only for promo/social, msg/email, configured bait, or a configured app profile; anything else `Unknown` -> `NoPenalty`, no roll |
-| Missing title or text | not covered | `Unknown` -> `NoPenalty` (can't rule out VIP/urgent) |
+| Unmatched notification | bait (A3 rule 6) | bait: every app on "Let us decide" (the default) is bait until the judge exists |
+| Missing title or text | not covered | no special case on the tap path (Let us decide = bait); `assessByRules` still returns `Unknown` |
 | Freshness window | 10 min, no roll if older | `freshnessSeconds` default 600 (0 = off); stale ages skip classification/roll. Optional `freshnessFromFirstSeen` uses the original observation instead of latest update |
 | Health at 0 | patch resets | stays dead until UI calls `reset()` |
 | Tap interface | `onTap(packageName, ageMillis)` | `onTap(NotificationContext)` with `ageMillis` set by the service; `ResultTapHandler.onTap(packageName, ageMillis)` also exists |
-| Settings storage | new `SettingsRepository` + DataStore | `GameConfig` in `GameRepository` (SharedPreferences), incl. `vipNames`, `importantKeywords`, channels, app profiles |
+| Settings storage | new `SettingsRepository` + DataStore | `GameConfig` in `GameRepository` (SharedPreferences), incl. `appRules`, the two answers, `strictness`; `setAppRule` / `setWhitelisted` write `appRules` |
 | compile/target SDK | 36 | 37 |
 
 Brief C2 asks Person 1 to "log" titles: show them on the debug screen from memory only; the never-log/never-persist rule for title/text still applies.

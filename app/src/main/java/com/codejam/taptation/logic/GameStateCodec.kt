@@ -84,6 +84,13 @@ object GameStateCodec {
                 it.packageName?.let(out::writeUTF)
                 out.writeInt(it.continueExtraDamage)
             }
+            with(state.config) {
+                out.writeInt(appRules.size)
+                appRules.toSortedMap().forEach { (pkg, rule) -> out.writeUTF(pkg); out.writeUTF(rule.name) }
+                out.writeUTF(essentialCriteria)
+                out.writeUTF(nonEssentialCriteria)
+                out.writeUTF(strictness.name)
+            }
         }
         return Base64.getEncoder().encodeToString(buffer.toByteArray())
     }
@@ -159,11 +166,27 @@ object GameStateCodec {
                 disabledUntilMillis = if (input.readBoolean()) input.readLong() else null,
             )
             val pending = if (version >= 5 && input.readBoolean()) PendingCatch(input.readUTF(),
-                if (input.readBoolean()) input.readUTF() else null,
-                if (version >= 6) input.readInt() else 0) else null
+                if (input.readBoolean()) input.readUTF() else null) else null
+            config = if (version >= 6) config.copy(
+                appRules = buildMap { repeat(input.count()) { put(input.readUTF(), AppRule.valueOf(input.readUTF())) } },
+                essentialCriteria = input.readUTF(),
+                nonEssentialCriteria = input.readUTF(),
+                strictness = Strictness.valueOf(input.readUTF()),
+            ) else config.withLegacyAppLists()
             require(input.available() == 0) { "Trailing game store data" }
             GameState(health, config, anchor, observed, lockout, lastCatch, catches, counts, taps, history, pending)
         }
+
+    /**
+     * Before v6, whitelisted and bait apps were separate lists. They become per-app rules, and the
+     * lists are cleared so the rules are the only place an app's choice lives.
+     */
+    private fun GameConfig.withLegacyAppLists(): GameConfig = copy(
+        appRules = baitPackages.associateWith { AppRule.AlwaysBait } +
+            whitelistedPackages.associateWith { AppRule.AlwaysImportant },
+        whitelistedPackages = emptySet(),
+        baitPackages = emptySet(),
+    )
 
     private fun DataOutputStream.strings(values: Set<String>) {
         writeInt(values.size)
