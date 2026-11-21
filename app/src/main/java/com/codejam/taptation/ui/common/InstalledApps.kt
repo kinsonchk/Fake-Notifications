@@ -1,5 +1,6 @@
 package com.codejam.taptation.ui.common
 
+import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.pm.ResolveInfo
@@ -15,7 +16,8 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
-data class InstalledApp(val packageName: String, val label: String)
+/** [notificationsEnabled]: allowed to post notifications (always true before Android 13, where there is no public check). */
+data class InstalledApp(val packageName: String, val label: String, val notificationsEnabled: Boolean)
 
 /** Loading, loaded, or failed; [reload] queries the package manager again. */
 data class InstalledAppsState(val apps: List<InstalledApp>?, val error: String?, val reload: () -> Unit)
@@ -40,7 +42,8 @@ fun rememberInstalledApps(): InstalledAppsState {
                     .mapNotNull { info ->
                         val app = info.activityInfo?.applicationInfo ?: return@mapNotNull null
                         if (app.packageName == context.packageName) return@mapNotNull null
-                        InstalledApp(app.packageName, app.loadLabel(context.packageManager).toString())
+                        InstalledApp(app.packageName, app.loadLabel(context.packageManager).toString(),
+                            notificationsAllowed(context.packageManager, app.packageName))
                     }
                     .distinctBy { it.packageName }
                     .sortedBy { it.label.lowercase() }
@@ -53,6 +56,17 @@ fun rememberInstalledApps(): InstalledAppsState {
         }
     }
     return InstalledAppsState(apps, error) { version++ }
+}
+
+/**
+ * Android 13+ backs the per-app notification switch in system settings with the POST_NOTIFICATIONS
+ * runtime permission (older apps get it implicitly), so its grant state says whether the app can notify.
+ * Before 13 another app's setting can't be read, so every app counts.
+ */
+private fun notificationsAllowed(packageManager: PackageManager, packageName: String): Boolean {
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return true
+    return packageManager.checkPermission(Manifest.permission.POST_NOTIFICATIONS, packageName) ==
+        PackageManager.PERMISSION_GRANTED
 }
 
 @Suppress("DEPRECATION")
