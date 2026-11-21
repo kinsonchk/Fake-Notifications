@@ -29,6 +29,45 @@ object TapDetection {
      */
     fun isTap(reason: Int): Boolean = reason == NotificationListenerService.REASON_CLICK
 
+    /** What a removal means for stats: a tap, a dismissal, or neither. */
+    enum class RemovalKind { Tap, Dismiss, Ignored }
+
+    /**
+     * True for removals the user caused without opening the notification: a swipe
+     * (REASON_CANCEL) or "Clear all" (REASON_CANCEL_ALL). Everything else (app cancel, timeout,
+     * snooze, group summary...) is neither a tap nor a dismissal.
+     */
+    fun isDismiss(reason: Int): Boolean =
+        reason == NotificationListenerService.REASON_CANCEL ||
+            reason == NotificationListenerService.REASON_CANCEL_ALL
+
+    /**
+     * Classifies a removal with the same filters for taps and dismissals: group summaries,
+     * ongoing notifications and our own non-test notifications are always [RemovalKind.Ignored].
+     */
+    fun removalKind(
+        reason: Int,
+        flags: Int,
+        channelId: String?,
+        packageName: String,
+        ownPackageName: String,
+        includeOwnPackage: Boolean,
+    ): RemovalKind {
+        val kind = when {
+            isTap(reason) -> RemovalKind.Tap
+            isDismiss(reason) -> RemovalKind.Dismiss
+            else -> return RemovalKind.Ignored
+        }
+        // Summaries are containers, not something the user meant to open or dismiss.
+        if (flags and Notification.FLAG_GROUP_SUMMARY != 0) return RemovalKind.Ignored
+        // Ongoing notifications (music, navigation, downloads) aren't tapped or swiped away meaningfully.
+        if (flags and Notification.FLAG_ONGOING_EVENT != 0) return RemovalKind.Ignored
+        if (packageName == ownPackageName &&
+            (!includeOwnPackage || channelId != OWN_TEST_CHANNEL_ID)
+        ) return RemovalKind.Ignored
+        return kind
+    }
+
     /**
      * Full filter applied before a removal is handed to [com.codejam.taptation.logic.TapDispatcher].
      *
@@ -43,17 +82,8 @@ object TapDetection {
         packageName: String,
         ownPackageName: String,
         includeOwnPackage: Boolean,
-    ): Boolean {
-        if (!isTap(reason)) return false
-        // Summaries are containers, not something the user meant to open.
-        if (flags and Notification.FLAG_GROUP_SUMMARY != 0) return false
-        // Ongoing notifications (music, navigation, downloads) can't be tap-dismissed meaningfully.
-        if (flags and Notification.FLAG_ONGOING_EVENT != 0) return false
-        if (packageName == ownPackageName &&
-            (!includeOwnPackage || channelId != OWN_TEST_CHANNEL_ID)
-        ) return false
-        return true
-    }
+    ): Boolean = removalKind(reason, flags, channelId, packageName, ownPackageName, includeOwnPackage) ==
+        RemovalKind.Tap
 
     /** Readable name for logs. */
     fun reasonName(reason: Int): String = when (reason) {

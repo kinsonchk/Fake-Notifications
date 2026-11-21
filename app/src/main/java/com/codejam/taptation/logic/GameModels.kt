@@ -22,15 +22,37 @@ data class GameConfig(
     val appProfiles: Map<String, AppProfile> = emptyMap(),
     val importantChannels: Map<String, Set<String>> = emptyMap(),
     val baitChannels: Map<String, Set<String>> = emptyMap(),
+    /**
+     * A bait tap later than this after the notification counts as no penalty: no roll, no damage,
+     * no clean-timer reset. 0 turns the window off. Taps with an unknown age are always checked.
+     */
+    val freshnessSeconds: Int = 600,
+    /**
+     * false: age since the newest update (Android's postTime restarts on every update, e.g. each new
+     * chat message). true: age since the listener first saw the notification.
+     */
+    val freshnessFromFirstSeen: Boolean = false,
 ) {
     init {
         require(catchProbability.isFinite() && catchProbability in 0.0..1.0)
         require(listOf(mildDamage, mediumDamage, savageDamage).all { it in 1..100 })
         require(recoveryPerHour in 0..100)
         require(lockoutSeconds in 1..3600)
+        require(freshnessSeconds in 0..MAX_FRESHNESS_SECONDS)
         require((whitelistedPackages + baitPackages + baitKeywords + vipNames + importantKeywords +
             appProfiles.keys + importantChannels.keys + baitChannels.keys +
             importantChannels.values.flatten() + baitChannels.values.flatten()).none { it.isBlank() })
+    }
+
+    /** True when [context] is older than the freshness window; unknown ages are never stale. */
+    fun isStale(context: NotificationContext): Boolean {
+        if (freshnessSeconds == 0) return false
+        val age = (if (freshnessFromFirstSeen) context.firstSeenAgeMillis else null) ?: context.ageMillis
+        return age != null && age > freshnessSeconds * 1000L
+    }
+
+    companion object {
+        const val MAX_FRESHNESS_SECONDS = 24 * 60 * 60
     }
 
     fun damage(level: CatchLevel): Int = when (level) {
@@ -40,6 +62,11 @@ data class GameConfig(
     }
 }
 
+/**
+ * One processed tap. [reason] is the final decision (for bait: `caught`, `roll_passed`, `lockout`,
+ * `dead`); [rule] is the classifier rule that produced [classification] (e.g. `vip_title`,
+ * `bait_category`), so the UI can explain why a notification counted as important or bait.
+ */
 data class TapRecord(
     val timestampMillis: Long,
     val packageName: String,
@@ -50,6 +77,7 @@ data class TapRecord(
     val damage: Int,
     val reason: String,
     val ageMillis: Long? = null,
+    val rule: String = reason,
 )
 
 data class HealthRecord(
@@ -78,7 +106,14 @@ data class GameState(
         lastCatchMillis?.let { (nowMillis - it).coerceAtLeast(0) }
 }
 
-data class TapResult(val outcome: TapOutcome, val state: GameState, val reason: String)
+data class TapResult(
+    val outcome: TapOutcome,
+    val state: GameState,
+    val reason: String,
+    val classification: Classification = Classification.Unknown,
+    /** Classifier rule behind [classification]; see [TapRecord.rule]. */
+    val rule: String = reason,
+)
 
 interface GameStore {
     fun load(): GameState?

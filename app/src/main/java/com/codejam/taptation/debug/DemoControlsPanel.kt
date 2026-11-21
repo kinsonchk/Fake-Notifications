@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -28,7 +29,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 fun DemoControlsPanel(controls: DemoControls?) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(
-            modifier = Modifier.fillMaxWidth().widthIn(max = 560.dp),
+            modifier = Modifier.fillMaxWidth().widthIn(max = 560.dp).padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             Text("Demo controls", style = MaterialTheme.typography.titleMedium)

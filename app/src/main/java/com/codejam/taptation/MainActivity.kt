@@ -4,11 +4,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.ui.Modifier
-import com.codejam.taptation.debug.DebugScreen
+import com.codejam.taptation.ui.TaptationApp
 import com.codejam.taptation.ui.theme.TaptationTheme
 
 class MainActivity : ComponentActivity() {
@@ -17,16 +13,9 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             TaptationTheme {
-                Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    if (BuildConfig.DEBUG) {
-                        // TODO(Person 3): replace with real app navigation; keep DebugScreen reachable.
-                        DebugScreen(contentPadding = innerPadding)
-                    } else {
-                        Text("Taptation")
-                    }
-                }
+                // Debug and Notifications tabs only exist in debug builds.
+                TaptationApp(debug = BuildConfig.DEBUG)
             }
         }
     }
 }
-

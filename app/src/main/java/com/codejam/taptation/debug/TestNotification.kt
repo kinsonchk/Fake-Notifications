@@ -8,6 +8,7 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.graphics.Bitmap
 import android.os.Build
 import android.os.Bundle
 import android.util.Log
@@ -55,9 +56,10 @@ object TestNotification {
      * channel name, conversation flag and app category go in [DebugSimulation] extras, which the
      * listener applies only to this channel of our own package. Blank fields are left unset.
      * [NotificationContext.key] and [NotificationContext.ageMillis] are ignored: the system
-     * assigns the key and the age is measured at tap time.
+     * assigns the key and the age is measured at tap time. [largeIcon] is the picture shown next to
+     * the text (the status-bar icon stays the debug icon).
      */
-    fun post(context: Context, spec: NotificationContext) {
+    fun post(context: Context, spec: NotificationContext, largeIcon: Bitmap? = null) {
         val id = nextId.getAndIncrement()
         val simulation = DebugSimulation(
             packageName = spec.packageName.trim().takeIf(String::isNotEmpty),
@@ -70,6 +72,7 @@ object TestNotification {
             .setContentText(spec.text?.takeIf(String::isNotBlank))
             .setCategory(spec.category?.trim()?.takeIf(String::isNotEmpty))
             .addExtras(Bundle().apply { simulation.toExtras().forEach(::putString) })
+            .setLargeIcon(largeIcon)
         spec.text?.takeIf(String::isNotBlank)?.let {
             builder.setStyle(NotificationCompat.BigTextStyle().bigText(it))
         }

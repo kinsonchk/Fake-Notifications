@@ -28,6 +28,12 @@ class TapListenerService : NotificationListenerService() {
             size > 500
     }
 
+    // When each key was first posted. Updates re-post the same key with a new postTime, so this keeps
+    // the original time. Same bound as contexts.
+    private val firstSeen = object : LinkedHashMap<String, Long>() {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, Long>?): Boolean = size > 500
+    }
+
     // Debug-only overrides for our own test notifications, by key. Re-applied after every ranking
     // update so ranking data can't overwrite the simulated channel/conversation values.
     private val simulations = HashMap<String, DebugSimulation>()
@@ -41,6 +47,7 @@ class TapListenerService : NotificationListenerService() {
     override fun onListenerDisconnected() {
         super.onListenerDisconnected()
         contexts.clear()
+        firstSeen.clear()
         simulations.clear()
         TapDispatcher.handler.onListenerReset()
         _observations.value = emptyList()
@@ -61,6 +68,7 @@ class TapListenerService : NotificationListenerService() {
 
     override fun onDestroy() {
         contexts.clear()
+        firstSeen.clear()
         simulations.clear()
         TapDispatcher.handler.onListenerReset()
         _observations.value = emptyList()
@@ -71,6 +79,7 @@ class TapListenerService : NotificationListenerService() {
     override fun onNotificationPosted(sbn: StatusBarNotification, rankingMap: RankingMap) {
         // update=true: same key already active, so the app replaced it (e.g. a new chat message).
         val update = contexts.containsKey(sbn.key)
+        firstSeen.putIfAbsent(sbn.key, sbn.postTime)
         val context = contextFor(sbn, rankingMap)
         contexts[sbn.key] = context
         TapDispatcher.handler.onNotificationPosted(context)
@@ -104,17 +113,20 @@ class TapListenerService : NotificationListenerService() {
         rankingMap: RankingMap,
         reason: Int,
     ) {
+        val now = System.currentTimeMillis()
+        val firstSeenAt = firstSeen.remove(sbn.key) ?: sbn.postTime
         val context = withRanking(contexts.remove(sbn.key) ?: contextFor(sbn, rankingMap), rankingMap)
-            .copy(ageMillis = System.currentTimeMillis() - sbn.postTime)
+            .copy(ageMillis = now - sbn.postTime, firstSeenAgeMillis = now - minOf(firstSeenAt, sbn.postTime))
         simulations.remove(sbn.key)
         // Simulated package for our debug notifications, the real one otherwise.
         val pkg = context.packageName
         val flags = sbn.notification?.flags ?: 0
         val signals = NotificationSignals.from(sbn, rankingMap)
         Log.d(TAG, "removed pkg=$pkg reason=${TapDetection.reasonName(reason)}($reason) " +
+            "firstSeenAge=${context.firstSeenAgeMillis}ms " +
             "${signals.describe(System.currentTimeMillis())} key=${sbn.key}")
 
-        val isTap = TapDetection.shouldDispatch(
+        val kind = TapDetection.removalKind(
             reason = reason,
             flags = flags,
             channelId = sbn.notification?.channelId,
@@ -122,17 +134,19 @@ class TapListenerService : NotificationListenerService() {
             ownPackageName = packageName,
             includeOwnPackage = isDebugBuild(),
         )
-        if (!isTap) {
-            TapDispatcher.handler.onNotificationRemoved(sbn.key)
-            return
-        }
-
-        TapLog.record(pkg)
         try {
-            TapDispatcher.dispatch(context)
+            when (kind) {
+                TapDetection.RemovalKind.Tap -> {
+                    TapLog.record(pkg)
+                    TapDispatcher.dispatch(context)
+                }
+                // Swipe or clear-all: no game effect, only recorded for stats.
+                TapDetection.RemovalKind.Dismiss -> TapDispatcher.dispatchDismiss(context)
+                TapDetection.RemovalKind.Ignored -> Unit
+            }
         } catch (e: Exception) {
             // A bug in the handler must not take down the listener.
-            Log.e(TAG, "TapHandler threw for $pkg", e)
+            Log.e(TAG, "TapHandler threw for $pkg ($kind)", e)
         } finally {
             TapDispatcher.handler.onNotificationRemoved(sbn.key)
         }

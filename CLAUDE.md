@@ -41,12 +41,14 @@ system -> TapListenerService.onNotificationPosted   (cache NotificationContext b
        -> TapDetection.shouldDispatch(...)          (pure filter)
        -> TapLog.record(pkg)                        (in-memory last 20, StateFlow, debug screen)
        -> TapDispatcher.dispatch(NotificationContext) -> TapDispatcher.handler.onTap(context)
+          (swipe / clear-all: TapDispatcher.dispatchDismiss -> handler.onDismiss, stats only)
        -> GameRepository (installed by TaptationApplication.onCreate)
        -> single-thread worker -> GameEngine.onTap -> PreferencesGameStore
+       -> StatsRepository.submit(StatsEvent) -> SqliteStatsStore (stats.db, one row per tap/dismissal)
 ```
 
 - `logic/TapHandler.kt`: the **shared contract**. `TapHandler.onTap(packageName)` plus `onTap(context: NotificationContext)` (defaults to the package-only one); `TapDispatcher` holds a `@Volatile` handler with both `dispatch` overloads. Package-only calls stay supported.
-- `logic/NotificationContext.kt`: `NotificationContext` (packageName, key, title, text, notification category, appCategory, isConversation, channelName, ageMillis, action button titles). Transient: never persisted or logged.
+- `logic/NotificationContext.kt`: `NotificationContext` (packageName, key, title, text, notification category, appCategory, isConversation, channelName, ageMillis, firstSeenAgeMillis, action button titles). Transient: never persisted or logged.
 - `logic/GameModels.kt`: `GameConfig`, `GameState`, `TapOutcome` (`Bypass` / `NoPenalty` / `Caught`), `CatchLevel`.
 - `logic/GameEngine.kt`: pure, single-thread-confined rules (classification, roll, damage, recovery, lockout, death/reset). Clock and random are injected, so it's JVM unit-testable.
 - `logic/GameRepository.kt`: the real `TapHandler`. Serializes every operation on one worker thread (no disk I/O on listener callbacks), resolves `ApplicationInfo.category`, exposes `state` / `error` / `lastResult` StateFlows and `CompletableFuture` mutations. Never `.get()`/`.join()` on the UI thread.
@@ -55,7 +57,10 @@ system -> TapListenerService.onNotificationPosted   (cache NotificationContext b
 - `service/TapDetection.kt`: pure filter logic, framework constants only, so it runs in plain JVM tests. Keep new decision logic here, not in the service.
 - `service/NotificationSignals.kt`: builds the metadata in the `posted`/`removed` Logcat lines (category, channel, importance, conversation flags, auto-cancel, postTime/age). Logging only; never title/text.
 - `service/PermissionHelper.kt`: notification-access check/settings intents and battery-optimization helpers; reuse for onboarding UI.
-- `debug/`: `DebugScreen` + `LogicDebugPanel` (what `MainActivity` shows now), `TestNotification` posts an auto-cancel notification with a contentIntent so tapping it yields `REASON_CLICK`. `CustomNotificationPanel` posts one from a typed `NotificationContext`; `RepositoryDemoControls` backs `DemoControlsPanel` with `GameRepository`.
+- `ui/TaptationApp.kt`: bottom tabs Home · Stats · Notifications · Settings · Debug (Notifications and Debug only in debug builds); `rememberSaveableStateHolder` keeps each tab's state. `ui/home`, `ui/stats`, `ui/settings` read/write `GameRepository`; `ui/common` holds layout helpers, `rememberNow` (lockout ticker + periodic `refresh`) and `TapExplanations` (rule/outcome codes → text).
+- `debug/`: `DebugScreen` (system status, `DemoControlsPanel` backed by `RepositoryDemoControls`), `NotificationsScreen` (composer, saved `NotificationPreset`s with an image in `NotificationIcons`, last 20 taps with reasons, observed notifications with a live classifier preview), `TestNotification` posts an auto-cancel notification with a contentIntent so tapping it yields `REASON_CLICK`. Presets hold only user-typed values; observed notifications stay memory-only.
+- `stats/`: `StatsRepository` (built in `TaptationApplication`, `app.stats`) records taps and dismissals with classification, caught and age in `SqliteStatsStore`; `weekly()` / `monthly()` return a precomputed `StatsSummary` (`StatsCalculator`: tap rate %, medians, averages capped at 1 h, bait only by default). See `docs/decision-stats-handler.md`. Debug tab > Stats harness generates fake history.
+- `TapRecord.rule` / `TapResult.rule`: the classifier rule behind the classification (`vip_title`, `bait_category`…); `reason` is the final decision (`caught`, `roll_passed`…). Taps stored before codec v3 have an empty rule for bait.
 - `service/DebugSimulation.kt`: package/channel name/conversation/app category overrides carried in the extras of our test-channel notification. The listener applies them only in debuggable builds and only on `OWN_TEST_CHANNEL_ID`, so a debug notification can stand in for another app.
 
 Full rules, defaults and the Person 3 API are in `docs/person-2/PERSON_2_INTEGRATION.md`. Key gotchas from it: bait rules and whitelist start **empty**, so nothing is penalized until a bait package/keyword is configured; `Caught` already applied damage, so UI must not call `applyCatch` again; notification title/text are transient and must never be persisted or logged.
@@ -79,7 +84,7 @@ Full rules, defaults and the Person 3 API are in `docs/person-2/PERSON_2_INTEGRA
 | Urgent keywords default | urgent, emergency, code, verification | urgent, code, meeting invite, meeting invitation |
 | Unmatched notification | bait (A3 rule 6) | bait only for promo/social, msg/email, configured bait, or a configured app profile; anything else `Unknown` -> `NoPenalty`, no roll |
 | Missing title or text | not covered | `Unknown` -> `NoPenalty` (can't rule out VIP/urgent) |
-| Freshness window | 10 min, no roll if older | not implemented: `ageMillis` is only recorded in `TapRecord` (negative age -> `Unknown`) |
+| Freshness window | 10 min, no roll if older | `GameConfig.freshnessSeconds` (default 600, 0 = off, Settings tab): an older bait tap is `NoPenalty` (`stale`), no roll, no clean-timer reset. Optional `freshnessFromFirstSeen` measures from the first post instead of the newest update |
 | Health at 0 | patch resets | stays dead until UI calls `reset()` |
 | Tap interface | `onTap(packageName, ageMillis)` | `onTap(NotificationContext)` with `ageMillis` set by the service; `ResultTapHandler.onTap(packageName, ageMillis)` also exists |
 | Settings storage | new `SettingsRepository` + DataStore | `GameConfig` in `GameRepository` (SharedPreferences), incl. `vipNames`, `importantKeywords`, channels, app profiles |
@@ -89,7 +94,7 @@ Brief C2 asks Person 1 to "log" titles: show them on the debug screen from memor
 
 ## Tap detection rules (don't regress)
 
-- Count a removal as a tap **only** when `reason == REASON_CLICK`. Swipe (`REASON_CANCEL`), clear-all, app-cancel, group-summary-cancel and every other reason are ignored.
+- Count a removal as a tap **only** when `reason == REASON_CLICK`. Swipe (`REASON_CANCEL`) and clear-all (`REASON_CANCEL_ALL`) are dismissals: stats only, never a game effect. App-cancel, group-summary-cancel and every other reason are ignored.
 - Skip notifications with `FLAG_GROUP_SUMMARY` or `FLAG_ONGOING_EVENT`.
 - Own package counts only in debuggable builds **and only on the test channel** (`TapDetection.OWN_TEST_CHANNEL_ID`, used by the in-app test notification); ignored in release. Any other notification we post (e.g. a "you got caught" alert) must never count, or tapping it would trigger another catch in a loop.
 - Override only the **three-argument** `onNotificationRemoved`. The base three-arg version forwards to the one-arg one, so overriding both double-handles.
@@ -98,6 +103,7 @@ Brief C2 asks Person 1 to "log" titles: show them on the debug screen from memor
 ## Platform gotchas
 
 - `REASON_CLICK` fires only for notifications that auto-cancel on tap; ones that stay after tapping produce no event.
+- `sbn.postTime` restarts on every update (same key re-posted, e.g. a new chat message): AOSP builds a new `StatusBarNotification` with `System.currentTimeMillis()`; the first post time stays inside the system and isn't given to listeners. `ageMillis` is therefore time since the newest update; `firstSeenAgeMillis` is our own first-seen time per key (lost if the listener restarts).
 - `adb shell cmd notification post` notifications have no contentIntent, so they can't test taps (`docs/person-4/testing-plan.txt` suggests them; fine for testing posting/logic, not tap detection). Use the in-app test notification, a real app, or a helper app with real contentIntents.
 - Notification access can't be granted from code (settings toggle or the adb command above).
 - Android 13+ sideloaded APKs: access toggle may be greyed out until App info > ⋮ > Allow restricted settings.
@@ -109,8 +115,8 @@ Each person works on their own branch and merges into `main` via PR.
 
 | Area | Owner |
 |---|---|
-| `service/`, `debug/DebugScreen.kt`, `debug/TestNotification.kt` | Person 1 (notification service) |
-| `logic/`, `TaptationApplication.kt`, `debug/LogicDebugPanel.kt`: whitelist, classification, roll, health, storage | Person 2 |
+| `service/`, `debug/DebugScreen.kt`, `debug/NotificationsScreen.kt`, `debug/TestNotification.kt` | Person 1 (notification service) |
+| `logic/`, `TaptationApplication.kt`: whitelist, classification, roll, health, storage | Person 2 |
 | `ui/`: onboarding, tree/pet visuals, lockout, stats, real navigation in `MainActivity` | Person 3 |
 | `debug/` extensions, adb scripts, demo | Person 4 |
 

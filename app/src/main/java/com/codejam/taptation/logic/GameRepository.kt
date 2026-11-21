@@ -3,6 +3,9 @@ package com.codejam.taptation.logic
 import android.content.Context
 import android.content.pm.ApplicationInfo
 import android.util.Log
+import com.codejam.taptation.stats.StatsEvent
+import com.codejam.taptation.stats.StatsEventType
+import com.codejam.taptation.stats.StatsRepository
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Executors
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -10,7 +13,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 /** Process-wide queue: no disk I/O on notification callbacks and no competing state writes. */
-class GameRepository(context: Context) : ResultTapHandler {
+class GameRepository(context: Context, private val stats: StatsRepository? = null) : ResultTapHandler {
     private val packageManager = context.applicationContext.packageManager
     private val appCategories = mutableMapOf<String, Int?>()
     private val notificationContexts = linkedMapOf<String, NotificationContext>()
@@ -54,10 +57,29 @@ class GameRepository(context: Context) : ResultTapHandler {
         val candidates = notificationContexts.values.filter { it.packageName == packageName }
         val context = candidates.singleOrNull()?.also { it.key?.let(notificationContexts::remove) }
             ?: NotificationContext(packageName)
-        recordResult(onTap(context.copy(ageMillis = ageMillis)), packageName)
+        recordResult(onTap(context.copy(ageMillis = ageMillis)), packageName, ageMillis)
     }
 
     fun processTap(context: NotificationContext): CompletableFuture<TapResult> = submit {
+        context.key?.let(notificationContexts::remove)
+        recordResult(onTap(withAppCategory(context)), context.packageName, context.ageMillis)
+    }
+
+    /**
+     * Swipe or clear-all: no game effect. Classified with the same rules (no roll) and recorded
+     * for stats, so dismissals can be split into bait / important like taps.
+     */
+    override fun onDismiss(context: NotificationContext) {
+        if (stats == null) return
+        submit {
+            val assessment = NotificationClassifier.assess(withAppCategory(context), state.config)
+            stats.submit(StatsEvent(System.currentTimeMillis(), context.packageName, StatsEventType.DISMISS,
+                context.ageMillis, assessment.classification))
+        }
+    }
+
+    /** Runs on the worker: resolves ApplicationInfo.category once per package. */
+    private fun withAppCategory(context: NotificationContext): NotificationContext {
         val category = context.appCategory ?: appCategories.getOrPut(context.packageName) {
             try {
                 @Suppress("DEPRECATION")
@@ -69,14 +91,15 @@ class GameRepository(context: Context) : ResultTapHandler {
                 null
             }
         }
-        context.key?.let(notificationContexts::remove)
-        recordResult(onTap(context.copy(appCategory = category)), context.packageName)
+        return context.copy(appCategory = category)
     }
 
-    private fun recordResult(result: TapResult, packageName: String): TapResult = result.also {
+    private fun recordResult(result: TapResult, packageName: String, ageMillis: Long?): TapResult = result.also {
         _lastResult.value = it
+        stats?.submit(StatsEvent(System.currentTimeMillis(), packageName, StatsEventType.TAP, ageMillis,
+            it.classification, caught = it.outcome == TapOutcome.Caught))
         Log.d("FakeNotifs", "tap pkg=$packageName outcome=${it.outcome} " +
-            "reason=${it.reason} health=${it.state.health}")
+            "reason=${it.reason} rule=${it.rule} health=${it.state.health}")
     }
 
     /** Snapshot read; observe state and call refresh() when the UI becomes active. */
