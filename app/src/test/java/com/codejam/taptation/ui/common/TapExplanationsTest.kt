@@ -16,6 +16,18 @@ class TapExplanationsTest {
         codes.forEach { assertNotEquals("missing explanation for $it", it, TapExplanations.rule(it)) }
     }
 
+    @Test fun durationsUnderAnHourKeepSeconds() {
+        assertEquals("45 s", formatDuration(45_000))
+        assertEquals("11 min 23 s", formatDuration((11 * 60 + 23) * 1000L))
+        assertEquals("2 min", formatDuration(120_000))
+        assertEquals("3 h 5 min", formatDuration((3 * 3600 + 5 * 60 + 9) * 1000L))
+    }
+
+    @Test fun staleTapsAreExplained() {
+        assertEquals("Too old: tapped after the freshness window, bait rules don't apply",
+            TapExplanations.outcome(TapOutcome.NoPenalty, "stale"))
+    }
+
     @Test fun olderTapsWithoutRuleSayNotRecorded() {
         assertEquals("Not recorded (tap saved by an older version)", TapExplanations.rule(""))
     }

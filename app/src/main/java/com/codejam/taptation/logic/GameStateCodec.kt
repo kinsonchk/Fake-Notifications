@@ -11,7 +11,7 @@ object GameStateCodec {
     fun encode(state: GameState): String {
         val buffer = ByteArrayOutputStream()
         DataOutputStream(buffer).use { out ->
-            out.writeInt(3)
+            out.writeInt(4)
             out.writeInt(state.health)
             out.writeLong(state.recoveryAnchorMillis)
             out.writeLong(state.lastObservedMillis)
@@ -68,6 +68,9 @@ object GameStateCodec {
                 out.writeUTF(it.reason)
                 out.writeUTF(it.level?.name.orEmpty())
             }
+            // v4: appended at the end so earlier layouts stay a prefix.
+            out.writeInt(state.config.freshnessSeconds)
+            out.writeBoolean(state.config.freshnessFromFirstSeen)
         }
         return Base64.getEncoder().encodeToString(buffer.toByteArray())
     }
@@ -75,7 +78,7 @@ object GameStateCodec {
     fun decode(encoded: String): GameState =
         DataInputStream(ByteArrayInputStream(Base64.getDecoder().decode(encoded))).use { input ->
             val version = input.readInt()
-            require(version in 1..3) { "Unsupported game store version" }
+            require(version in 1..4) { "Unsupported game store version" }
             val health = input.readInt().also { require(it in 0..100) }
             val anchor = input.readLong()
             val observed = input.readLong()
@@ -131,6 +134,9 @@ object GameStateCodec {
                 val reason = input.readUTF()
                 val level = input.readUTF().takeIf(String::isNotEmpty)?.let(CatchLevel::valueOf)
                 HealthRecord(timestamp, before, after, reason, level)
+            }
+            if (version >= 4) {
+                config = config.copy(freshnessSeconds = input.readInt(), freshnessFromFirstSeen = input.readBoolean())
             }
             require(input.available() == 0) { "Trailing game store data" }
             GameState(health, config, anchor, observed, lockout, lastCatch, catches, counts, taps, history)
