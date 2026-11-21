@@ -1,5 +1,7 @@
 # Fake Notifications
 
+Team docs, one folder per person: [docs/](docs/README.md).
+
 Android hackathon app (launcher name **Taptation**) that tracks notification taps and
 applies configurable, probabilistic consequences to notifications classified as bait.
 The notification listener and Person 2's logic are connected; the current activity is
@@ -16,7 +18,7 @@ Defaults: 7.5% catch probability, 100 maximum health, damage of 10/20/35, +5 hea
 completed clean hour, and a 30-second lockout deadline. Bait rules and the whitelist start
 empty: **configure a bait package or keyword before expecting normal taps to cause catches**.
 
-See [Person 2 integration and demo guide](docs/PERSON_2_INTEGRATION.md) for the exact rules,
+See [Person 2 integration and demo guide](docs/person-2/PERSON_2_INTEGRATION.md) for the exact rules,
 Person 3 APIs, storage behavior, testing commands, and remaining UI work.
 
 ## Notification service

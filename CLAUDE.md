@@ -6,10 +6,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Fake Notifications** (Gradle project `Taptation`, package `com.codejam.taptation`): 1-day hackathon Android app, team of 4. App watches other apps' notifications; tapping a "bait" notification (social, games) has a small random chance (5-10%) to "catch" the user, lowering a health state (tree/pet) and showing a short lockout. Urgent apps (family, work, rides, banking) are whitelisted and never penalized.
 
-Planning docs (read before working on a teammate's area):
-- `fake-notifications-features-by-person.md`: core vs priority features per person, shared interfaces, go/no-go checkpoint (tap detection on a real phone by hour 4), cut list.
-- `person4_testing.txt`: layered test plan, debug-menu wishlist, end-to-end demo checklist, edge cases.
-- `docs/PERSON_2_INTEGRATION.md`: exact game rules, defaults, Person 1 contract, Person 3 API.
+Planning docs live in `docs/`, one folder per person (`docs/person-1` … `docs/person-4`), each with a `README.md` listing that person's docs, status and remaining work. Read the relevant one before working on a teammate's area:
+- `docs/features-by-person.md`: core vs priority features per person, shared interfaces, go/no-go checkpoint (tap detection on a real phone by hour 4), cut list.
+- `docs/classification-and-settings-brief.md`: classification rules (Section A, Person 2), settings page (Section B, Person 3), open questions (Section C). Conflicts with the current code: see "Brief vs current code" below.
+- `docs/person-1/notification-service-brief.md`: Person 1 brief and acceptance criteria.
+- `docs/person-2/PERSON_2_INTEGRATION.md`: exact game rules, defaults, Person 1 contract, Person 3 API.
+- `docs/person-4/testing-plan.txt`: layered test plan, debug-menu wishlist, end-to-end demo checklist, edge cases.
 
 Kotlin + Jetpack Compose, single `:app` module, version catalog in `gradle/libs.versions.toml`, minSdk 26, compile/target SDK 37, AGP 9.x.
 
@@ -53,13 +55,31 @@ system -> TapListenerService.onNotificationPosted   (cache NotificationContext b
 - `service/PermissionHelper.kt`: notification-access check/settings intents and battery-optimization helpers; reuse for onboarding UI.
 - `debug/`: `DebugScreen` + `LogicDebugPanel` (what `MainActivity` shows now), `TestNotification` posts an auto-cancel notification with a contentIntent so tapping it yields `REASON_CLICK`.
 
-Full rules, defaults and the Person 3 API are in `docs/PERSON_2_INTEGRATION.md`. Key gotchas from it: bait rules and whitelist start **empty**, so nothing is penalized until a bait package/keyword is configured; `Caught` already applied damage, so UI must not call `applyCatch` again; notification title/text are transient and must never be persisted or logged.
+Full rules, defaults and the Person 3 API are in `docs/person-2/PERSON_2_INTEGRATION.md`. Key gotchas from it: bait rules and whitelist start **empty**, so nothing is penalized until a bait package/keyword is configured; `Caught` already applied damage, so UI must not call `applyCatch` again; notification title/text are transient and must never be persisted or logged.
 
 ## Shared interfaces (agreed between teammates)
 
 - `onTap(context: NotificationContext)` (and legacy `onTap(packageName)`): Person 1 -> Person 2.
 - `GameRepository` (`state`, `getHealth()`, `isWhitelisted`, `setWhitelisted`, `updateConfig`, `applyCatch`, `reset`, `refresh`): Person 2 -> Person 3.
 - Storage owned by Person 2, read by Person 3 through `GameRepository.state`. Person 3's settings screen writes probability/level via `updateConfig`.
+
+## Brief vs current code
+
+`docs/classification-and-settings-brief.md` was written after the first logic version and disagrees with it. Until the team decides, the code and `PERSON_2_INTEGRATION.md` are the source of truth; don't silently change one to match the other.
+
+| Topic | Brief | Code on `main` |
+|---|---|---|
+| Catch probability default | 10% | 7.5% |
+| Damage Mild/Medium/Savage | 5 / 10 / 20 | 10 / 20 / 35 |
+| Default level | Medium | Mild |
+| Unmatched notification | bait (A3 rule 6) | `Unknown` -> `NoPenalty`, no roll |
+| Freshness window | 10 min, no roll if older | not implemented |
+| VIP names, urgent keywords, call/alarm/reminder/event bypass | yes | not on `main` (on `codex/person-2-logic`) |
+| Tap interface | `onTap(packageName, ageMillis)` | `onTap(NotificationContext)`; `ageMillis` only on `codex/person-2-logic` |
+| Settings storage | new `SettingsRepository` + DataStore | `GameConfig` in `GameRepository` (SharedPreferences) |
+| compile/target SDK | 36 | 37 |
+
+Brief C2 asks Person 1 to "log" titles: show them on the debug screen from memory only; the never-log/never-persist rule for title/text still applies.
 
 ## Tap detection rules (don't regress)
 
@@ -72,7 +92,7 @@ Full rules, defaults and the Person 3 API are in `docs/PERSON_2_INTEGRATION.md`.
 ## Platform gotchas
 
 - `REASON_CLICK` fires only for notifications that auto-cancel on tap; ones that stay after tapping produce no event.
-- `adb shell cmd notification post` notifications have no contentIntent, so they can't test taps (`person4_testing.txt` suggests them; fine for testing posting/logic, not tap detection). Use the in-app test notification, a real app, or a helper app with real contentIntents.
+- `adb shell cmd notification post` notifications have no contentIntent, so they can't test taps (`docs/person-4/testing-plan.txt` suggests them; fine for testing posting/logic, not tap detection). Use the in-app test notification, a real app, or a helper app with real contentIntents.
 - Notification access can't be granted from code (settings toggle or the adb command above).
 - Android 13+ sideloaded APKs: access toggle may be greyed out until App info > ⋮ > Allow restricted settings.
 - Battery optimization can kill the listener (non-Pixel especially): app should be set to Unrestricted.
