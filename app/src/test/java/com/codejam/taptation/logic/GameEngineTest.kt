@@ -47,7 +47,7 @@ class GameEngineTest {
             whitelistedPackages = setOf("bait", "important"),
         ) }
 
-        val safe = f.game.onTap("bait")
+        val safe = f.tap("bait")
         assertEquals(TapOutcome.Bypass, safe.outcome)
         assertEquals(0, f.rolls)
         assertEquals(100, safe.state.health)
@@ -57,7 +57,8 @@ class GameEngineTest {
         ))
         assertEquals(setOf("important"), f.game.state.config.whitelistedPackages)
 
-        val caught = f.game.onTap("bait")
+        // Full context: a package-only tap has no title/text, so it's Unknown and never rolls.
+        val caught = f.tap("bait")
         assertEquals(TapOutcome.Caught, caught.outcome)
         assertEquals(1, f.rolls)
         assertEquals(90, caught.state.health)
@@ -274,10 +275,38 @@ class GameEngineTest {
         assertThrows(Exception::class.java) { GameStateCodec.decode("broken") }
         val encoded = GameStateCodec.encode(GameState())
         val bytes = java.util.Base64.getDecoder().decode(encoded)
-        bytes[3] = 3
+        bytes[3] = 4
         assertThrows(IllegalArgumentException::class.java) {
             GameStateCodec.decode(java.util.Base64.getEncoder().encodeToString(bytes))
         }
+    }
+
+    @Test fun baitTapKeepsClassifierRuleNextToRollResult() {
+        val f = Fixture()
+        f.configure { it.copy(catchProbability = 1.0) }
+        val result = f.tap("bait")
+        assertEquals("caught", result.reason)
+        assertEquals(Classification.Bait, result.classification)
+        assertEquals("configured_bait", result.rule)
+        val record = f.game.state.taps.last()
+        assertEquals("caught", record.reason)
+        assertEquals("configured_bait", record.rule)
+        assertEquals(record, GameStateCodec.decode(GameStateCodec.encode(f.game.state)).taps.last())
+    }
+
+    @Test fun versionTwoBaitTapsDecodeWithUnknownRule() {
+        val f = Fixture()
+        f.configure { it.copy(catchProbability = 1.0) }
+        f.tap("bait")
+        val bytes = java.util.Base64.getDecoder().decode(GameStateCodec.encode(f.game.state)).toMutableList()
+        // Rebuild as v2: version 2, and drop the trailing rule string of the only tap record.
+        val rule = "configured_bait".toByteArray()
+        val ruleStart = java.util.Collections.indexOfSubList(bytes, rule.toList()) - 2
+        repeat(rule.size + 2) { bytes.removeAt(ruleStart) }
+        bytes[3] = 2
+        val decoded = GameStateCodec.decode(java.util.Base64.getEncoder().encodeToString(bytes.toByteArray()))
+        assertEquals("caught", decoded.taps.single().reason)
+        assertEquals("", decoded.taps.single().rule)
     }
 
     @Test fun debugFastForwardRecoversAndEndsLockout() {

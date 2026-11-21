@@ -76,7 +76,7 @@ class GameRepository(context: Context) : ResultTapHandler {
     private fun recordResult(result: TapResult, packageName: String): TapResult = result.also {
         _lastResult.value = it
         Log.d("FakeNotifs", "tap pkg=$packageName outcome=${it.outcome} " +
-            "reason=${it.reason} health=${it.state.health}")
+            "reason=${it.reason} rule=${it.rule} health=${it.state.health}")
     }
 
     /** Snapshot read; observe state and call refresh() when the UI becomes active. */

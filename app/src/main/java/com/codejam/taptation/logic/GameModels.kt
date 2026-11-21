@@ -40,6 +40,11 @@ data class GameConfig(
     }
 }
 
+/**
+ * One processed tap. [reason] is the final decision (for bait: `caught`, `roll_passed`, `lockout`,
+ * `dead`); [rule] is the classifier rule that produced [classification] (e.g. `vip_title`,
+ * `bait_category`), so the UI can explain why a notification counted as important or bait.
+ */
 data class TapRecord(
     val timestampMillis: Long,
     val packageName: String,
@@ -50,6 +55,7 @@ data class TapRecord(
     val damage: Int,
     val reason: String,
     val ageMillis: Long? = null,
+    val rule: String = reason,
 )
 
 data class HealthRecord(
@@ -78,7 +84,14 @@ data class GameState(
         lastCatchMillis?.let { (nowMillis - it).coerceAtLeast(0) }
 }
 
-data class TapResult(val outcome: TapOutcome, val state: GameState, val reason: String)
+data class TapResult(
+    val outcome: TapOutcome,
+    val state: GameState,
+    val reason: String,
+    val classification: Classification = Classification.Unknown,
+    /** Classifier rule behind [classification]; see [TapRecord.rule]. */
+    val rule: String = reason,
+)
 
 interface GameStore {
     fun load(): GameState?

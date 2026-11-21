@@ -11,7 +11,7 @@ object GameStateCodec {
     fun encode(state: GameState): String {
         val buffer = ByteArrayOutputStream()
         DataOutputStream(buffer).use { out ->
-            out.writeInt(2)
+            out.writeInt(3)
             out.writeInt(state.health)
             out.writeLong(state.recoveryAnchorMillis)
             out.writeLong(state.lastObservedMillis)
@@ -58,6 +58,7 @@ object GameStateCodec {
                 out.writeUTF(it.reason)
                 out.writeBoolean(it.ageMillis != null)
                 it.ageMillis?.let(out::writeLong)
+                out.writeUTF(it.rule)
             }
             out.writeInt(state.healthHistory.size)
             state.healthHistory.forEach {
@@ -74,7 +75,7 @@ object GameStateCodec {
     fun decode(encoded: String): GameState =
         DataInputStream(ByteArrayInputStream(Base64.getDecoder().decode(encoded))).use { input ->
             val version = input.readInt()
-            require(version in 1..2) { "Unsupported game store version" }
+            require(version in 1..3) { "Unsupported game store version" }
             val health = input.readInt().also { require(it in 0..100) }
             val anchor = input.readLong()
             val observed = input.readLong()
@@ -111,10 +112,17 @@ object GameStateCodec {
                 }
             }
             val taps = List(input.count(GameEngine.HISTORY_LIMIT)) {
-                TapRecord(input.readLong(), input.readUTF(), Classification.valueOf(input.readUTF()),
+                val record = TapRecord(input.readLong(), input.readUTF(), Classification.valueOf(input.readUTF()),
                     TapOutcome.valueOf(input.readUTF()), input.readInt(), input.readInt(),
                     input.readInt(), input.readUTF(),
                     if (version >= 2 && input.readBoolean()) input.readLong() else null)
+                // Before v3 the classifier rule wasn't stored. For bait, reason is the roll result,
+                // not the rule, so mark it as unknown rather than show a misleading rule.
+                when {
+                    version >= 3 -> record.copy(rule = input.readUTF())
+                    record.classification == Classification.Bait -> record.copy(rule = "")
+                    else -> record
+                }
             }
             val history = List(input.count(GameEngine.HISTORY_LIMIT)) {
                 val timestamp = input.readLong()

@@ -80,9 +80,9 @@ For configured app profiles:
   channel can identify server chatter when the app's conversation flag is unavailable.
 
 No package IDs, channel names or localized app-specific title formats are guessed or
-preinstalled. Use **Observed notifications (memory only)** on the debug screen to inspect
+preinstalled. Use **Observed notifications** on the Notifications tab (debug builds) to inspect
 real category/channel/title/conversation data, enter the observed package, select its app
-profile and add exact channel overrides. Channel matches are case-insensitive and scoped
+profile and add exact channel overrides (Settings tab > Per-app rules). Channel matches are case-insensitive and scoped
 to one package. Important channel rules win conflicting bait-channel rules. A conversation
 from an app without a configured profile is uncertain and is not penalized.
 
@@ -223,18 +223,18 @@ Build/test (Windows, with Java and Android SDK configured):
 Debug APK: `app/build/outputs/apk/debug/app-debug.apk`.
 
 1. Install/open the debug app. Grant notification access using the existing button.
-2. In **Consequence logic**, set the catch chance to 100% and select a level.
-3. Enter `com.codejam.taptation`, tap **Mark bait**, and ensure it is not whitelisted.
-4. Post a test notification with the existing button; grant posting permission if asked.
+2. In **Settings**, set the catch chance to 100% and select a level.
+3. In *Per-app rules*, enter `com.codejam.taptation`, tap **Mark as bait app**, and ensure it is not whitelisted.
+4. Post a test notification from the **Notifications** tab; grant posting permission if asked.
 5. Tap it. Health drops by the selected amount, catches increments, and the deadline appears.
 6. During the deadline, repeat: the tap is logged but there is no additional catch/damage.
 7. After the countdown ends, whitelist that package and repeat: the outcome is `Bypass`.
 8. Remove the whitelist/bait package, add the keyword `test notification`, and repeat after
    lockout expiry: matching comes from the captured title.
 9. Swipe a posted notification away: no tap/catch is recorded.
-10. Use **Health 10**, then **Force catch** with Medium/Savage: health reaches zero.
-    Use **Reset tree**: health returns to 100 and historical totals remain.
-11. **Health 100** also clears lockout for demo preparation. These direct health controls
+10. In **Debug** > Demo controls, set health to 10, then **Force catch** with Medium/Savage: health reaches zero.
+    Use **Reset tree** on Home: health returns to 100 and historical totals remain.
+11. Setting health to 100 also clears lockout for demo preparation. These direct health controls
     are hidden in release builds, and the repository rejects release debug-health calls.
 12. Reopen the app during a lockout and confirm remaining time/state. Close/restart later
     to confirm settings, health and history persist. Release builds ignore own notifications,
