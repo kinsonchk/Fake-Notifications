@@ -10,9 +10,10 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 /** Process-wide queue: no disk I/O on notification callbacks and no competing state writes. */
-class GameRepository(context: Context) : TapHandler {
+class GameRepository(context: Context) : ResultTapHandler {
     private val packageManager = context.applicationContext.packageManager
     private val appCategories = mutableMapOf<String, Int?>()
+    private val notificationContexts = linkedMapOf<String, NotificationContext>()
     private val worker = Executors.newSingleThreadExecutor()
     private val store = PreferencesGameStore(context.applicationContext)
     private val debug = context.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0
@@ -38,6 +39,24 @@ class GameRepository(context: Context) : TapHandler {
     override fun onTap(packageName: String) { processTap(NotificationContext(packageName)) }
     override fun onTap(context: NotificationContext) { processTap(context) }
 
+    override fun onNotificationPosted(context: NotificationContext) {
+        worker.execute {
+            context.key?.let { notificationContexts[it] = context }
+            if (notificationContexts.size > 500) notificationContexts.remove(notificationContexts.keys.first())
+        }
+    }
+
+    override fun onNotificationRemoved(key: String) { worker.execute { notificationContexts.remove(key) } }
+    override fun onListenerReset() { worker.execute { notificationContexts.clear() } }
+
+    /** Async Android adapter. Multiple candidates are ambiguous and deliberately fail safe. */
+    override fun onTap(packageName: String, ageMillis: Long): CompletableFuture<TapResult> = submit {
+        val candidates = notificationContexts.values.filter { it.packageName == packageName }
+        val context = candidates.singleOrNull()?.also { it.key?.let(notificationContexts::remove) }
+            ?: NotificationContext(packageName)
+        recordResult(onTap(context.copy(ageMillis = ageMillis)), packageName)
+    }
+
     fun processTap(context: NotificationContext): CompletableFuture<TapResult> = submit {
         val category = context.appCategory ?: appCategories.getOrPut(context.packageName) {
             try {
@@ -50,11 +69,14 @@ class GameRepository(context: Context) : TapHandler {
                 null
             }
         }
-        onTap(context.copy(appCategory = category)).also {
-            _lastResult.value = it
-            Log.d("FakeNotifs", "tap pkg=${context.packageName} outcome=${it.outcome} " +
-                "reason=${it.reason} health=${it.state.health}")
-        }
+        context.key?.let(notificationContexts::remove)
+        recordResult(onTap(context.copy(appCategory = category)), context.packageName)
+    }
+
+    private fun recordResult(result: TapResult, packageName: String): TapResult = result.also {
+        _lastResult.value = it
+        Log.d("FakeNotifs", "tap pkg=$packageName outcome=${it.outcome} " +
+            "reason=${it.reason} health=${it.state.health}")
     }
 
     /** Snapshot read; observe state and call refresh() when the UI becomes active. */

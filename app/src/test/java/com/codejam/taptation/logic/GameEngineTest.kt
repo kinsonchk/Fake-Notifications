@@ -21,6 +21,9 @@ class GameEngineTest {
         var rolls = 0
         fun engine() = GameEngine(store, { now }, { rolls++; roll })
         val game = engine()
+        fun context(packageName: String) = NotificationContext(packageName, title = "Demo",
+            text = "Routine update", category = "email", isConversation = false, ageMillis = 5000)
+        fun tap(packageName: String) = game.onTap(context(packageName))
         fun configure(change: (GameConfig) -> GameConfig = { it }) {
             game.updateConfig(change(GameConfig(baitPackages = setOf("bait"))))
         }
@@ -39,14 +42,14 @@ class GameEngineTest {
 
     @Test fun unknownNeverRolls() {
         val f = Fixture()
-        assertEquals("unknown", f.game.onTap("unknown").reason)
+        assertEquals("missing_content", f.game.onTap("unknown").reason)
         assertEquals(0, f.rolls)
     }
 
     @Test fun keywordMatchingIsCaseInsensitiveAndDoesNotPersistContent() {
         val f = Fixture()
         f.configure { it.copy(baitKeywords = setOf("SALE")) }
-        assertEquals(TapOutcome.Caught, f.game.onTap(NotificationContext("shop", text = "private sale message")).outcome)
+        assertEquals(TapOutcome.Caught, f.game.onTap(NotificationContext("shop", title = "Shop", text = "private sale message")).outcome)
         val bytes = java.util.Base64.getDecoder().decode(f.store.encoded)
         assertFalse(String(bytes, Charsets.ISO_8859_1).contains("private sale message"))
     }
@@ -54,35 +57,35 @@ class GameEngineTest {
     @Test fun categoriesClassifyButMissingMetadataStaysUnknown() {
         val f = Fixture()
         f.configure { it.copy(baitAppCategories = setOf(2)) }
-        assertEquals(Classification.Bait, f.game.classify(NotificationContext("music", appCategory = 2)))
+        assertEquals(Classification.Bait, f.game.classify(NotificationContext("music", title = "Music", text = "New release", appCategory = 2)))
         assertEquals(Classification.Unknown, f.game.classify(NotificationContext("music")))
     }
 
     @Test fun probabilityZeroNeverCatches() {
         val f = Fixture()
         f.configure { it.copy(catchProbability = 0.0) }
-        assertEquals(TapOutcome.NoPenalty, f.game.onTap("bait").outcome)
+        assertEquals(TapOutcome.NoPenalty, f.tap("bait").outcome)
     }
 
     @Test fun probabilityOneAlwaysCatches() {
         val f = Fixture()
         f.roll = 0.999999
         f.configure { it.copy(catchProbability = 1.0) }
-        assertEquals(TapOutcome.Caught, f.game.onTap("bait").outcome)
+        assertEquals(TapOutcome.Caught, f.tap("bait").outcome)
     }
 
     @Test fun rollAtThresholdIsNotCaught() {
         val f = Fixture()
         f.configure()
         f.roll = 0.075
-        assertEquals(TapOutcome.NoPenalty, f.game.onTap("bait").outcome)
+        assertEquals(TapOutcome.NoPenalty, f.tap("bait").outcome)
     }
 
     @Test fun eachLevelAppliesExactlyOneDamageAndCatch() {
         listOf(CatchLevel.Mild to 90, CatchLevel.Medium to 80, CatchLevel.Savage to 65).forEach { (level, health) ->
             val f = Fixture()
             f.configure { it.copy(level = level) }
-            val result = f.game.onTap("bait")
+            val result = f.tap("bait")
             assertEquals(health, result.state.health)
             assertEquals(1L, result.state.totalCatches)
             assertEquals(100 - health, result.state.taps.single().damage)
@@ -93,10 +96,10 @@ class GameEngineTest {
     @Test fun activeLockoutLogsWithoutRollingDamagingOrExtending() {
         val f = Fixture()
         f.configure()
-        f.game.onTap("bait")
+        f.tap("bait")
         val until = f.game.state.lockoutUntilMillis
         f.now += 1000
-        val result = f.game.onTap("bait")
+        val result = f.tap("bait")
         assertEquals("lockout", result.reason)
         assertEquals(90, result.state.health)
         assertEquals(until, result.state.lockoutUntilMillis)
@@ -107,11 +110,11 @@ class GameEngineTest {
     @Test fun expiryAllowsAnotherCatchAndSurvivesRestart() {
         val f = Fixture()
         f.configure()
-        f.game.onTap("bait")
+        f.tap("bait")
         val restored = f.engine()
-        assertEquals("lockout", restored.onTap("bait").reason)
+        assertEquals("lockout", restored.onTap(f.context("bait")).reason)
         f.now += 30_000
-        assertEquals(TapOutcome.Caught, restored.onTap("bait").outcome)
+        assertEquals(TapOutcome.Caught, restored.onTap(f.context("bait")).outcome)
         assertEquals(80, restored.state.health)
     }
 
@@ -139,7 +142,7 @@ class GameEngineTest {
         f.configure { it.copy(catchProbability = 0.0, whitelistedPackages = setOf("urgent")) }
         f.game.setHealthForDebug(50)
         f.hours(0.75)
-        f.game.onTap("bait")
+        f.tap("bait")
         f.hours(0.75)
         f.game.onTap("urgent")
         f.game.onTap("unknown")
@@ -153,7 +156,7 @@ class GameEngineTest {
         f.configure()
         f.game.setHealthForDebug(50)
         f.hours(1.0)
-        val tap = f.game.onTap("bait").state.taps.last()
+        val tap = f.tap("bait").state.taps.last()
         assertEquals(55, tap.healthBefore)
         assertEquals(45, tap.healthAfter)
     }
@@ -162,12 +165,12 @@ class GameEngineTest {
         val f = Fixture()
         f.configure { it.copy(level = CatchLevel.Savage) }
         f.game.setHealthForDebug(10)
-        f.game.onTap("bait")
+        f.tap("bait")
         assertTrue(f.game.state.isDead)
         assertEquals(10, f.game.state.taps.last().damage)
         f.hours(24.0)
         assertEquals(0, f.game.getHealth())
-        assertEquals("dead", f.game.onTap("bait").reason)
+        assertEquals("dead", f.tap("bait").reason)
         assertEquals(1, f.rolls)
         val reset = f.game.reset()
         assertEquals(100, reset.health)
@@ -197,7 +200,7 @@ class GameEngineTest {
             whitelistedPackages = setOf("urgent"), baitKeywords = setOf("sale"),
             baitAppCategories = setOf(0, 2), mildDamage = 12, recoveryPerHour = 7) }
         f.game.onTap("urgent")
-        f.game.onTap("bait")
+        f.tap("bait")
         assertEquals(f.game.state, f.store.load())
         assertEquals(f.game.state, f.engine().state)
     }
@@ -214,7 +217,7 @@ class GameEngineTest {
         f.configure()
         val before = f.game.state
         f.store.failSave = true
-        assertThrows(IllegalStateException::class.java) { f.game.onTap("bait") }
+        assertThrows(IllegalStateException::class.java) { f.tap("bait") }
         assertEquals(before, f.game.state)
         assertEquals(before, f.store.load())
     }
@@ -222,12 +225,12 @@ class GameEngineTest {
     @Test fun backwardClockDoesNotRegrowOrShortenSavedLockout() {
         val f = Fixture()
         f.configure()
-        f.game.onTap("bait")
+        f.tap("bait")
         val before = f.game.state
         f.now -= GameEngine.HOUR_MILLIS
         f.game.refresh()
         assertEquals(before, f.game.state)
-        assertEquals("lockout", f.game.onTap("bait").reason)
+        assertEquals("lockout", f.tap("bait").reason)
     }
 
     @Test fun recoveryRateChangeDoesNotRetroactivelyMultiplyPartialHour() {
@@ -249,7 +252,7 @@ class GameEngineTest {
         assertThrows(Exception::class.java) { GameStateCodec.decode("broken") }
         val encoded = GameStateCodec.encode(GameState())
         val bytes = java.util.Base64.getDecoder().decode(encoded)
-        bytes[3] = 2
+        bytes[3] = 3
         assertThrows(IllegalArgumentException::class.java) {
             GameStateCodec.decode(java.util.Base64.getEncoder().encodeToString(bytes))
         }
