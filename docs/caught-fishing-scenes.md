@@ -29,7 +29,7 @@ card contains only the app label and generic bait text, never notification title
   same view/catch does not restart an already-running intro. Native animator preferences are
   respected; frame callbacks stop when hidden, detached, or out of the visible scroll area.
 - Dark/Light follows the saved app appearance on both surfaces.
-- Long content and enlarged text remain scrollable. Correction and Not now share the footer.
+- Long content and enlarged text remain scrollable. Only the two destinations are offered; the correction and Not now buttons were removed.
 
 ## Debug and verification
 

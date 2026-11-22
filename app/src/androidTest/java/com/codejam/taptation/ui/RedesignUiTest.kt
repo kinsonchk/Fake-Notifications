@@ -25,22 +25,22 @@ import org.junit.Test
 class RedesignUiTest {
     @get:Rule val compose = createComposeRule()
 
-    @Test fun caughtPopupStatesWhyAndCostAndOffersCorrection() {
-        var corrected = 0
+    @Test fun caughtPopupStatesWhyAndCostWithOnlyTheTwoDestinations() {
         var original = 0
         compose.setContent { MaterialTheme {
             CatchChoiceDialog(CatchDetails("com.insta", 90, 80, 10, "bait_channel", "Suggested for you"), "Instagram",
-                onTaptation = {}, onOriginal = { original++ }, onCorrect = { corrected++ })
+                onTaptation = {}, onOriginal = { original++ })
         } }
         compose.onNodeWithText(InstrumentationRegistry.getInstrumentation().targetContext.getString(com.codejam.taptation.R.string.caught_title)).assertIsDisplayed()
         compose.onNodeWithText("Instagram · Suggested for you is set as distracting").assertIsDisplayed()
         compose.onNodeWithContentDescription("Health 80 out of 100, down 10").assertIsDisplayed()
-        compose.onNodeWithText("This should be important").performClick()
+        compose.onNodeWithText("This should be important").assertDoesNotExist()
+        compose.onNodeWithText("Not now").assertDoesNotExist()
         compose.onNodeWithText("Continue to Instagram").performClick()
-        compose.runOnIdle { assertEquals(1, corrected); assertEquals(1, original) }
+        compose.runOnIdle { assertEquals(1, original) }
     }
 
-    @Test fun caughtPopupWithoutDetailsHidesCorrectionAndKeepsTheTwoDestinations() {
+    @Test fun caughtPopupWithoutDetailsKeepsTheTwoDestinations() {
         compose.setContent { MaterialTheme { CatchChoiceDialog(null, null, onTaptation = {}, onOriginal = {}) } }
         compose.onNodeWithText("Go to Taptation").assertIsDisplayed()
         compose.onNodeWithText("Continue to the original app").assertIsDisplayed()

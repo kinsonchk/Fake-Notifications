@@ -143,8 +143,7 @@ internal fun AppTabs(debug: Boolean, onShowTutorial: () -> Unit = {}) {
             cameo = app.meadow.sceneFor(current.catchId), sceneKey = current.catchId,
             animateDamage = current.animate, onLater = actions::postpone,
             onTaptation = { actions.choose(ourApp = true) },
-            onOriginal = { actions.choose(ourApp = false) },
-            onCorrect = if (current.canCorrect) actions::correct else null)
+            onOriginal = { actions.choose(ourApp = false) })
         }
     }
     correction?.let { request -> CorrectionSheet(request, onDone = { app.feedback.clearCorrection() }) }

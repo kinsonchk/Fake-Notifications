@@ -29,7 +29,7 @@ All objects below come from `(context.applicationContext as TaptationApplication
 
 | User intent | API |
 |---|---|
-| Catch choice | `feedback.actionsFor(catchId)`: `choose(ourApp)`, `postpone()` ("Not now"), `correct()`; `feedback.resume(catchId)` ("Choose now") |
+| Catch choice | `feedback.actionsFor(catchId)`: `choose(ourApp)`, `postpone()` (in-app dialog dismissed; no "Not now" button), `correct()` (no caught button any more); `feedback.resume(catchId)` ("Choose now") |
 | Correction confirmed | `game.markAppImportant(pkg)` |
 | Difficulty | `game.setDifficulty(d)` (also drops the debug catch chance) |
 | Ignore older notifications | `game.setFreshnessEnabled(b)` (restores the default), `setFreshnessMinutes(m)` (checked against the choices), `setFreshnessFromFirstSeen(b)` |

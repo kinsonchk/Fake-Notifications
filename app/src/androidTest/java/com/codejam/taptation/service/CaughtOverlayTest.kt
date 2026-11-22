@@ -68,7 +68,8 @@ class CaughtOverlayTest {
             assertNotNull("Native caught overlay was not shown", originalButton)
             assertNotNull(node("Go to Taptation"))
             assertNotNull("Caught heading missing", node(original.getString(com.codejam.taptation.R.string.caught_title)))
-            assertNotNull("Correction action missing", node("This should be important"))
+            assertNull("Correction action was removed", node("This should be important"))
+            assertNull("Not now was removed", node("Not now"))
             assertNotNull("Cost should be stated in text", node("−10"))
             automation.takeScreenshot()?.let { bitmap ->
                 val directory = java.io.File(original.getExternalFilesDir(null), "ui-previews").apply { mkdirs() }

@@ -99,16 +99,14 @@ class MockupScreensTest {
         compose.onNodeWithText("Stats").performClick()
         compose.onNodeWithTag("screen-title").assertTextEquals("Stats")
         capture("stats-dark")
-        var postponed = false
         compose.activity.setContent { TaptationTheme(darkTheme = false) {
             CatchChoiceDialog(CatchDetails("com.instagram.android", 90, 80, 10, "app_always_bait", null), "Instagram",
-                onTaptation = {}, onOriginal = {}, onCorrect = {}, continueExtraDamage = 5, onLater = { postponed = true })
+                onTaptation = {}, onOriginal = {}, continueExtraDamage = 5)
         } }
         compose.onNodeWithText("Go to Taptation").assertIsDisplayed()
         compose.onNodeWithContentDescription("Continue to Instagram · −5 health").assertIsDisplayed()
         capture("caught-light")
-        compose.onNodeWithText("Not now").performClick()
-        compose.runOnIdle { assertEquals(true, postponed) }
+        compose.onNodeWithText("Not now").assertDoesNotExist()
     }
 
     @Test fun meadowRepresentsHealthWithoutChangingIt() {

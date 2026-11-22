@@ -114,8 +114,9 @@ the attached feature brief's older judge fallback does not replace the backend.
 The Home meadow uses stable blade positions, gentle sway and non-consuming brush gestures.
 Height and density transition with health; animation pauses offscreen/in background and respects
 Android's animation setting. Caught health uses a shared 1.15-second green/red/green event flash,
-settling at recorded reduced health. Both Compose and native overlays retain the continuing penalty,
-correction action and Not now. Deferred choices remain available without blocking navigation.
+settling at recorded reduced health. Both Compose and native overlays retain the continuing penalty. They offer only the two destinations:
+the "This should be important" and "Not now" buttons were removed. The in-app dialog still postpones
+when dismissed (Back or tapping outside); deferred choices remain available without blocking navigation.
 Statistics add a two-color opened/swiped split and inspectable daily counts, including zero days.
 
 No engine, classifier, AI judge, persistence or statistics-calculation changes are part of this
