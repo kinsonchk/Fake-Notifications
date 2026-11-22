@@ -3,6 +3,7 @@ package com.codejam.taptation.service
 import android.Manifest
 import android.content.Context
 import android.content.Intent
+import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
 import android.content.pm.ResolveInfo
 import android.graphics.Bitmap
@@ -75,7 +76,8 @@ class AppDirectory(context: Context) {
                 val app = info.activityInfo?.applicationInfo ?: return@mapNotNull null
                 if (app.packageName == appContext.packageName) return@mapNotNull null
                 val label = app.loadLabel(packageManager).toString().also { labels[app.packageName] = it }
-                InstalledApp(app.packageName, label, notificationsAllowed(app.packageName))
+                InstalledApp(app.packageName, label, notificationsAllowed(app.packageName),
+                    app.category.takeIf { it != ApplicationInfo.CATEGORY_UNDEFINED })
             }
             .distinctBy { it.packageName }
             .sortedBy { it.label.lowercase(Locale.ROOT) }

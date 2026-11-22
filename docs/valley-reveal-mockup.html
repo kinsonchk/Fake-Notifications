@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Taptation — Valley reveal mockup</title>
+<style>
+  :root { --bg:#FAFAF5; --card:#FFFFFF; --ink:#203B2C; --muted:#637467; --primary:#2E6447; --on-primary:#FFFFFF;
+          --sage:#EAF0DF; --border:#E1E7DB; --page:#EEF0E8; }
+  .dark { --bg:#19221D; --card:#253129; --ink:#E5ECE2; --muted:#A6B4A7; --primary:#A8CDA6; --on-primary:#173422;
+          --sage:#303F2E; --border:#39473B; --page:#111813; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--page); color:var(--ink); font:14px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+         transition: background .3s; }
+  .wrap { max-width:1080px; margin:0 auto; padding:20px; }
+  header h1 { font:600 18px/1.3 system-ui,sans-serif; margin:0; }
+  header p { margin:2px 0 0; color:var(--muted); font-size:13px; }
+  .controls { display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin:16px 0 20px; padding-bottom:16px; border-bottom:1px solid var(--border); }
+  .chip { display:flex; align-items:center; gap:8px; background:var(--card); border:1px solid var(--border); border-radius:12px;
+          padding:6px 12px; font-size:12px; color:var(--muted); }
+  .chip strong { color:var(--ink); font-variant-numeric:tabular-nums; min-width:68px; display:inline-block; }
+  input[type=range] { accent-color:var(--primary); width:150px; }
+  button, select { font:500 13px system-ui,sans-serif; color:var(--primary); background:var(--card); border:1px solid var(--border);
+          border-radius:12px; padding:8px 14px; cursor:pointer; min-height:36px; }
+  button.primary { background:var(--primary); color:var(--on-primary); border-color:var(--primary); }
+  select { color:var(--ink); }
+  .grid { display:grid; grid-template-columns: 380px 1fr; gap:28px; align-items:start; }
+  @media (max-width: 820px) { .grid { grid-template-columns: 1fr; justify-items:center; } }
+
+  /* Phone */
+  .phone { width:360px; background:var(--bg); border:1px solid var(--border); border-radius:28px; overflow:hidden;
+           box-shadow:0 10px 30px rgba(0,0,0,.12); }
+  .phone-inner { padding:14px 20px 20px; }
+  .status { display:flex; justify-content:space-between; font-size:11px; color:var(--muted); }
+  .title { font:400 32px/40px Georgia,"Noto Serif","Times New Roman",serif; margin:14px 0 10px; }
+  .row { display:flex; justify-content:space-between; align-items:center; }
+  .pill { background:var(--sage); color:var(--primary); border-radius:999px; padding:5px 12px; font-size:12px; font-weight:500; }
+  .text-btn { color:var(--primary); font-weight:500; font-size:13px; }
+  .scene { position:relative; margin:10px -20px 0; aspect-ratio: 360 / 300; touch-action:none; user-select:none; }
+  .scene canvas { width:100%; height:100%; display:block; cursor:pointer; }
+  .note { min-height:21px; color:var(--muted); font-size:12px; margin:4px 0 12px; text-align:center; transition:opacity .4s; }
+  .card { background:var(--card); border:1px solid var(--border); border-radius:20px; padding:18px; margin-top:12px; }
+  .card h3 { margin:0 0 4px; font:500 18px/25px system-ui,sans-serif; }
+  .card p { margin:0; }
+  .small { font-size:12px; color:var(--muted); }
+  .bar { height:6px; border-radius:99px; background:var(--sage); overflow:hidden; margin:10px 0 8px; }
+  .bar > div { height:100%; background:var(--primary); border-radius:99px; transition: width .25s; }
+  .health-num { font:400 26px/32px Georgia,"Noto Serif",serif; font-variant-numeric:tabular-nums; }
+
+  /* Side panel */
+  .panel { background:var(--card); border:1px solid var(--border); border-radius:20px; padding:20px; }
+  .panel h2 { margin:0 0 4px; font:500 18px/25px system-ui,sans-serif; }
+  ol.stages { list-style:none; padding:0; margin:14px 0 0; }
+  ol.stages li { display:grid; grid-template-columns: 64px 22px 1fr; gap:10px; align-items:start; padding:9px 10px; border-radius:14px; cursor:pointer; }
+  ol.stages li:hover { background:var(--sage); }
+  ol.stages li.current { background:var(--sage); }
+  ol.stages .t { font-variant-numeric:tabular-nums; color:var(--muted); font-size:12px; padding-top:2px; }
+  ol.stages .dot { width:18px; height:18px; border-radius:50%; border:2px solid var(--border); margin-top:2px; display:grid; place-items:center;
+                   font-size:11px; color:var(--on-primary); }
+  ol.stages li.reached .dot { background:var(--primary); border-color:var(--primary); }
+  ol.stages .name { font-weight:500; }
+  ol.stages .desc { color:var(--muted); font-size:12px; }
+  .rules { margin-top:18px; padding-top:14px; border-top:1px solid var(--border); font-size:13px; color:var(--muted); }
+  .rules li { margin:4px 0; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Taptation — Valley reveal mockup</h1>
+    <p>The longer you stay clean, the further the camera pulls back and the mist lifts. Health still drives the grass; a catch brings the mist back.</p>
+  </header>
+
+  <div class="controls">
+    <label class="chip">Clean time <input id="clean" type="range" min="0" max="540" step="1" value="0" /> <strong id="cleanOut">0 min</strong></label>
+    <button id="play" class="primary">▶ Time-lapse</button>
+    <button id="catch">Get caught</button>
+    <label class="chip">On catch
+      <select id="rule"><option value="stage">Back one stage</option><option value="start">Back to the start</option></select></label>
+    <label class="chip">Health <input id="health" type="range" min="0" max="100" value="100" /> <strong id="healthOut">100</strong></label>
+    <button id="theme">Theme: Light</button>
+  </div>
+
+  <div class="grid">
+    <div class="phone" id="phone">
+      <div class="phone-inner">
+        <div class="status"><span>9:41</span><span>●●● 100%</span></div>
+        <div class="title">Home</div>
+        <div class="row"><span class="pill">● Monitoring notifications</span><span class="text-btn">Pause</span></div>
+        <div class="scene"><canvas id="valley" role="img" aria-label="Valley"></canvas></div>
+        <div class="note" id="note" aria-live="polite">Brush the grass. Stay clean to see further.</div>
+
+        <div class="card">
+          <h3 id="stageName">Your patch of grass</h3>
+          <p id="cleanLine">Clean for 0 min</p>
+          <div class="bar"><div id="stageBar" style="width:0%"></div></div>
+          <p class="small" id="nextLine">The near field in 15 min</p>
+        </div>
+
+        <div class="card">
+          <div class="row"><span style="font-weight:500">💚 Health</span><span class="health-num"><span id="hNum">100</span> / 100</span></div>
+          <div class="bar"><div id="hBar" style="width:100%"></div></div>
+          <div class="row small"><span>Catch: −20</span><span>Recovery: +5 / 60 clean min</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>How the valley unfolds</h2>
+      <p class="small">Tap a stage to jump there. Thresholds are mockup values.</p>
+      <ol class="stages" id="stages"></ol>
+      <ul class="rules">
+        <li><b>Clean time</b> counts minutes without a catch while monitoring is on (paused time doesn't count).</li>
+        <li><b>Reveal</b> is the camera and mist only: health still controls grass height, hill colour (dry when low) and river level.</li>
+        <li><b>Landmarks</b> (path, bridge, cottage, windmill) grow in when their stage is reached.</li>
+        <li><b>A catch</b> rolls the mist back: one stage, or to the start, depending on the rule picked above.</li>
+        <li>Touch is play only: brushing bends grass, never changes clean time or health.</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+  // ---------- Stages: clean minutes -> camera zoom and mist line ----------
+  const STAGES = [
+    // zoom: camera scale about the grass line; fog: screen fraction where the mist clears.
+    { min: 0,   name: "Your patch of grass", text: "Mist hides everything past the grass.",       zoom: 2.6,  fog: .6  },
+    { min: 15,  name: "The near field",      text: "Bushes and daisies at the edge of the meadow.", zoom: 2.0, fog: .45 },
+    { min: 30,  name: "A river",             text: "Water glints beyond the grass.",               zoom: 1.45, fog: .27 },
+    { min: 60,  name: "Rolling hills",       text: "A path winds down towards the water.",         zoom: 1.2,  fog: .18 },
+    { min: 120, name: "A bridge",            text: "Someone built a crossing over the river.",     zoom: 1.13, fog: .13 },
+    { min: 240, name: "Far ridges",          text: "Pines, open sky and the sun.",                 zoom: 1.04, fog: .03 },
+    { min: 360, name: "A cottage",           text: "Smoke curls from a chimney on the hill.",      zoom: 1.0,  fog: -.12 },
+    { min: 480, name: "The whole valley",    text: "A windmill turns on the far ridge.",           zoom: 1.0,  fog: -.3 },
+  ];
+  const LANDMARKS = { path: 3, bridge: 4, cottage: 6, windmill: 7 };
+
+  const W = 360, H = 300, G = 252;        // world units; G = grass line
+  const TAU = Math.PI * 2;
+  const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  const params = new URLSearchParams(location.search);
+  let clean = +(params.get("clean") ?? 0);
+  let health = +(params.get("health") ?? 100);
+  let dark = params.get("dark") === "1";
+  let playing = false, gust = 0, storm = 0, cleanTween = null;
+  let lastStage = stageIndex(clean);
+
+  const $ = id => document.getElementById(id);
+  const canvas = $("valley"), ctx = canvas.getContext("2d");
+
+  // ---------- Palettes ----------
+  const PAL = {
+    light: { bg:"#FAFAF5", skyTop:"#BEDBE2", skyLow:"#EEF3E6", far:"#B8D3A2", mid:"#97C17B", near:"#78AC5F", field:"#64A04F",
+      conifer:"#4E8365", bushDark:"#5D9350", bushLight:"#86B86A", water:"#6EAEC7", waterLight:"#AAD6E2", dry:"#CDB880",
+      cloud:"#FFFFFF", sun:"#F5DF9C", path:"#E3CF9B", wood:"#A87A4F", woodDark:"#7E5A39", wall:"#F1E6D0", roof:"#B9674A",
+      blade:"#2E6447", highlight:"#4A7C59", tip:"#9CC873", bladeDry:"#A18357", petal:"#FFFAF0", gold:"#D1A25B", window:"#8FB7C4" },
+    dark: { bg:"#19221D", skyTop:"#16252F", skyLow:"#1E2D28", far:"#2A4033", mid:"#304D3A", near:"#375F42", field:"#2D573A",
+      conifer:"#26453A", bushDark:"#2E5137", bushLight:"#477954", water:"#2D5B6B", waterLight:"#4F8696", dry:"#5A5038",
+      cloud:"#34443F", sun:"#E9E3C4", path:"#6D6346", wood:"#7A5B3E", woodDark:"#5A422D", wall:"#5E584A", roof:"#7A4A38",
+      blade:"#4D9468", highlight:"#78B88C", tip:"#B2E0AE", bladeDry:"#B89566", petal:"#F0DEAA", gold:"#D1A25B", window:"#F2CF7A" },
+  };
+  const P = () => dark ? PAL.dark : PAL.light;
+
+  // ---------- Colour helpers ----------
+  const hex = h => { if (h.startsWith("rgb")) return h.match(/\d+/g).slice(0, 3).map(Number);
+    const n = parseInt(h.slice(1), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; };
+  const mix = (a, b, u) => { const x = hex(a), y = hex(b); u = Math.max(0, Math.min(1, u));
+    return "rgb(" + x.map((v, i) => Math.round(v + (y[i] - v) * u)).join(",") + ")"; };
+  const lerp = (a, b, u) => a + (b - a) * u;
+  const ease = u => u < .5 ? 2 * u * u : 1 - Math.pow(-2 * u + 2, 2) / 2;
+  const clamp01 = u => Math.max(0, Math.min(1, u));
+
+  // ---------- Stage maths ----------
+  function stageIndex(m) { let i = 0; STAGES.forEach((s, k) => { if (m >= s.min) i = k; }); return i; }
+  function cameraFor(m) {
+    const i = stageIndex(m);
+    if (i === STAGES.length - 1) return { zoom: STAGES[i].zoom, fog: STAGES[i].fog };
+    const a = STAGES[i], b = STAGES[i + 1], u = ease((m - a.min) / (b.min - a.min));
+    return { zoom: lerp(a.zoom, b.zoom, u), fog: lerp(a.fog, b.fog, u) };
+  }
+  const cam = cameraFor(clean);
+  const appear = {}; for (const k in LANDMARKS) appear[k] = stageIndex(clean) >= LANDMARKS[k] ? 1 : 0;
+
+  // ---------- Terrain ----------
+  const hill = (rise, amp, f1, p1, f2, p2) => x => { const u = x / W * TAU; return G - rise + amp * (.6 * Math.sin(u * f1 + p1) + .4 * Math.sin(u * f2 + p2)); };
+  const farY = hill(172, 9, 1.3, .7, 2.7, 2.1), midY = hill(142, 11, .9, 2.4, 2.1, .3),
+        nearY = hill(114, 8, 1.1, 4, 2.9, 1.2), fieldY = hill(22, 3, .7, 1, 1.9, 2);
+  const riverY = t => G - 104 + 22 * t + 6 * Math.sin(t * TAU * 1.15 + .6);
+  const riverHalf = (t, water) => (1.6 + 5.4 * t) * water;
+  const riverT = x => (x + 12) / (W + 24);
+
+  function fillHill(fn, color, bottom = H + 4) {
+    ctx.beginPath(); ctx.moveTo(-4, bottom);
+    for (let x = -4; x <= W + 4; x += 3) ctx.lineTo(x, fn(x));
+    ctx.lineTo(W + 4, bottom); ctx.closePath(); ctx.fillStyle = color; ctx.fill();
+  }
+  function circle(x, y, r, color, alpha = 1) { ctx.globalAlpha = alpha; ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); ctx.fillStyle = color; ctx.fill(); ctx.globalAlpha = 1; }
+  function bush(x, y, r, d, l) { circle(x - r * .7, y - r * .5, r * .8, d); circle(x + r * .75, y - r * .45, r * .8, d); circle(x, y - r * .9, r, d); circle(x + r * .3, y - r * 1.3, r * .55, l); }
+  function conifer(x, y, s, c) {
+    ctx.strokeStyle = c; ctx.lineWidth = 1.2 * s; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x, y - 4 * s); ctx.stroke();
+    for (let k = 0; k < 3; k++) { const top = y - 17 * s + k * 4.2 * s, half = (2.6 + k * 1.7) * s;
+      ctx.beginPath(); ctx.moveTo(x, top); ctx.lineTo(x + half, top + 7.5 * s); ctx.lineTo(x - half, top + 7.5 * s); ctx.closePath(); ctx.fillStyle = c; ctx.fill(); }
+  }
+  function cloud(x, y, s, c, a) {
+    circle(x - 9 * s, y, 6 * s, c, a); circle(x, y - 3.5 * s, 8.5 * s, c, a); circle(x + 9 * s, y - .5 * s, 6.5 * s, c, a);
+    ctx.globalAlpha = a; ctx.fillStyle = c; ctx.beginPath(); ctx.roundRect(x - 15 * s, y - s, 30 * s, 7 * s, 3.5 * s); ctx.fill(); ctx.globalAlpha = 1;
+  }
+
+  // ---------- Landmarks (drawn grown-in by appear[k] 0..1) ----------
+  function drawPath(p, land, t) {
+    if (appear.path <= 0) return;
+    // Sandy path from the foreground up to the river; tapers with distance. Grows from the viewer outwards.
+    const bx = W * .6, bt = riverT(bx), top = riverY(bt) + riverHalf(bt, 1) + 1;
+    const pts = []; const n = 24;
+    for (let k = 0; k <= n; k++) { const u = k / n; pts.push([lerp(W * .44, bx, u) + Math.sin(u * 5) * 14 * (1 - u), lerp(G + 8, top, u), lerp(9, 2.2, u)]); }
+    const shown = Math.max(2, Math.round(n * p));
+    ctx.beginPath();
+    for (let k = 0; k <= shown; k++) { const [x, y, w] = pts[k]; k ? ctx.lineTo(x - w, y) : ctx.moveTo(x - w, y); }
+    for (let k = shown; k >= 0; k--) { const [x, y, w] = pts[k]; ctx.lineTo(x + w, y); }
+    ctx.closePath(); ctx.fillStyle = land(P().path); ctx.fill();
+    // Beyond the bridge it climbs towards the cottage.
+    if (appear.bridge > .9 && appear.cottage > 0) {
+      ctx.globalAlpha = appear.cottage;
+      const tt = riverY(bt) - riverHalf(bt, 1) - 1;
+      ctx.beginPath(); ctx.moveTo(bx - 1.6, tt);
+      ctx.quadraticCurveTo(W * .5, tt - 10, W * .26, midY(W * .26) + 8); ctx.lineTo(W * .26 + 2, midY(W * .26) + 8);
+      ctx.quadraticCurveTo(W * .52, tt - 9, bx + 1.6, tt); ctx.closePath(); ctx.fill(); ctx.globalAlpha = 1;
+    }
+  }
+  function drawBridge(p, water) {
+    if (p <= 0) return;
+    const c = P(), x = W * .6, tt = riverT(x), y = riverY(tt), half = riverHalf(tt, water) + 2.5;
+    ctx.save(); ctx.translate(x, y); ctx.scale(1, p);
+    ctx.fillStyle = c.woodDark; ctx.fillRect(-6, -half, 12, half * 2);
+    ctx.fillStyle = c.wood; for (let k = -half; k < half; k += 2.2) ctx.fillRect(-5.2, k, 10.4, 1.5);
+    ctx.strokeStyle = c.woodDark; ctx.lineWidth = .9;
+    for (const s of [-6.2, 6.2]) { ctx.beginPath(); ctx.moveTo(s, -half - 2); ctx.quadraticCurveTo(s + Math.sign(s) * 1.5, 0, s, half + 2); ctx.stroke(); }
+    ctx.restore();
+  }
+  function drawCottage(p, t) {
+    if (p <= 0) return;
+    const c = P(), x = W * .24, y = midY(x) + 7, s = .4 + .6 * p;
+    ctx.save(); ctx.translate(x, y); ctx.scale(s, s); ctx.globalAlpha = p;
+    ctx.fillStyle = c.wall; ctx.fillRect(-9, -11, 18, 11);
+    ctx.fillStyle = c.roof; ctx.beginPath(); ctx.moveTo(-11, -10); ctx.lineTo(0, -19); ctx.lineTo(11, -10); ctx.closePath(); ctx.fill();
+    ctx.fillRect(4, -19, 3, 6);                                  // chimney
+    ctx.fillStyle = c.woodDark; ctx.fillRect(-2, -6, 4, 6);       // door
+    ctx.fillStyle = c.window; ctx.fillRect(-7, -8, 3.5, 3); ctx.fillRect(3.5, -8, 3.5, 3);
+    if (dark) circle(0, -6, 14, c.window, .08);
+    for (let k = 0; k < 4; k++) { const age = ((t * .25 + k / 4) % 1); circle(5.5 + Math.sin(age * 5 + k) * 2 + age * 4, -21 - age * 16, 1.5 + age * 2.6, c.cloud, (1 - age) * .7); }
+    ctx.restore(); ctx.globalAlpha = 1;
+  }
+  function drawWindmill(p, t) {
+    if (p <= 0) return;
+    const c = P(), x = W * .78, y = farY(x) + 4, s = .7 * (.4 + .6 * p);
+    ctx.save(); ctx.translate(x, y); ctx.scale(s, s); ctx.globalAlpha = p;
+    ctx.fillStyle = c.wall; ctx.beginPath(); ctx.moveTo(-5, 0); ctx.lineTo(-3, -20); ctx.lineTo(3, -20); ctx.lineTo(5, 0); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = c.roof; ctx.beginPath(); ctx.moveTo(-4, -20); ctx.lineTo(0, -25); ctx.lineTo(4, -20); ctx.closePath(); ctx.fill();
+    ctx.translate(0, -21); ctx.rotate(reduceMotion ? .4 : t * .8);
+    ctx.fillStyle = c.woodDark;
+    for (let k = 0; k < 4; k++) { ctx.rotate(TAU / 4); ctx.fillRect(-.6, 0, 1.2, 14); ctx.fillStyle = c.wall; ctx.fillRect(.6, 3, 3, 10); ctx.fillStyle = c.woodDark; }
+    ctx.restore(); ctx.globalAlpha = 1;
+  }
+
+  // ---------- Backdrop (world space, under the camera) ----------
+  function drawWorld(t, f) {
+    const c = P(), drought = (1 - f) * .6, land = col => mix(col, c.dry, drought), water = .45 + .55 * f;
+    const sky = ctx.createLinearGradient(0, 0, 0, G - 150);
+    sky.addColorStop(0, c.skyTop); sky.addColorStop(1, c.skyLow);
+    ctx.fillStyle = sky; ctx.fillRect(-W, -H, W * 3, G - 100 + H);
+    const sx = W * .8;
+    if (!dark) { circle(sx, 32, 21, c.sun, .28 + storm * -.2); circle(sx, 32, 12, c.sun); }
+    else { for (let i = 0; i < 16; i++) circle(((i * 73 + 19) % 100) / 100 * W, 6 + (i * 37) % 62, .9 + (i % 3) * .3, "#E5ECE2", .3 + .3 * Math.sin(t * 1.3 + i));
+      circle(sx, 28, 9, c.sun); ctx.fillStyle = sky; ctx.beginPath(); ctx.arc(sx + 4.5, 25, 8, 0, TAU); ctx.fill(); }
+    const CX = [.12, .5, .86], CY = [22, 40, 16], CS = [.9, .7, 1];
+    for (let i = 0; i < 3; i++) { const span = W + 70; const x = (((CX[i] * W + t * (2.2 + i * .8)) % span) + span) % span - 35;
+      cloud(x, CY[i], CS[i] * (1 + storm * .5), storm > .05 ? mix(c.cloud, dark ? "#1A2420" : "#8E9A94", storm) : c.cloud, dark ? .55 : .92); }
+
+    fillHill(farY, land(c.far));
+    for (const u of [.06, .1, .14, .6, .64, .69, .93]) conifer(u * W, farY(u * W) + 3, .75, land(c.conifer));
+    drawWindmill(appear.windmill, t);
+    fillHill(midY, land(c.mid));
+    for (const u of [.36, .43, .78, .84]) bush(u * W, midY(u * W) + 3, 5.5, land(c.bushDark), land(c.bushLight));
+    drawCottage(appear.cottage, t);
+    fillHill(nearY, land(c.near));
+
+    // River ribbon, then ripples drifting downstream.
+    ctx.beginPath(); const n = 40;
+    for (let k = 0; k <= n; k++) { const tt = k / n, x = -12 + (W + 24) * tt; k ? ctx.lineTo(x, riverY(tt) - riverHalf(tt, water)) : ctx.moveTo(x, riverY(tt) - riverHalf(tt, water)); }
+    for (let k = n; k >= 0; k--) { const tt = k / n; ctx.lineTo(-12 + (W + 24) * tt, riverY(tt) + riverHalf(tt, water)); }
+    ctx.closePath(); ctx.fillStyle = c.water; ctx.fill();
+    ctx.strokeStyle = c.waterLight; ctx.lineCap = "round"; ctx.lineWidth = .9;
+    for (let i = 0; i < 9; i++) { const tt = ((i / 9) + t * .012) % 1, x = -12 + (W + 24) * tt, y = riverY(tt) - riverHalf(tt, water) * .3, len = 2 + 4 * tt;
+      ctx.beginPath(); ctx.moveTo(x - len, y); ctx.lineTo(x + len, y); ctx.stroke(); }
+    drawPath(appear.path, land, t);
+    drawBridge(appear.bridge, water);
+    for (const u of [.05, .95, .2]) bush(u * W, nearY(u * W) + 4, u === .2 ? 6 : 8, land(c.bushDark), land(c.bushLight));
+
+    const fg = ctx.createLinearGradient(0, G - 26, 0, H);
+    fg.addColorStop(0, land(c.field)); fg.addColorStop(.55, land(c.field)); fg.addColorStop(1, c.bg);
+    ctx.beginPath(); ctx.moveTo(-4, H + 4); for (let x = -4; x <= W + 4; x += 3) ctx.lineTo(x, fieldY(x)); ctx.lineTo(W + 4, H + 4); ctx.closePath();
+    ctx.fillStyle = fg; ctx.fill();
+    const daisies = Math.floor(clamp01((f - .7) / .3) * 26);
+    for (let i = 0; i < daisies; i++) { const x = ((i * 47 + 11) % 100) / 100 * W, y = nearY(x) + 5 + ((i * 29) % 100) / 100 * 20;
+      circle(x, y, 1.3, c.petal); circle(x, y, .5, c.gold); }
+  }
+
+  // ---------- Grass (screen space: same size at any zoom) ----------
+  const COUNT = 78;
+  const blades = Array.from({ length: COUNT }, (_, i) => ({
+    u: (i + .3 + ((i * 37) % 10) * .05) / COUNT, hf: .55 + ((i * 53) % 100) / 210, lean: (((i * 29) % 100) / 100 - .5) * .24,
+    phase: i * .42, layer: i % 3, rank: (i * 31) % COUNT, bend: 0, vel: 0 }));
+  const order = [...blades].sort((a, b) => b.layer - a.layer);
+  const pointer = { x: 0, y: 0, active: false, vx: 0 };
+  let windPhase = 0;
+
+  function stepGrass(f) {
+    windPhase = (windPhase + 1.35 / 60) % (20 * Math.PI);
+    for (const b of blades) {
+      const breeze = (4 + f * 10) * (.55 + Math.sin(windPhase - b.u * 4)), flutter = Math.sin(windPhase * 1.7 + b.phase) * (1 + f * 2);
+      let target = breeze + flutter + b.lean * 18 + gust * 25;
+      if (pointer.active) { const dx = b.u * W - pointer.x, dy = baseY(b) - height(b, f) * .5 - pointer.y, d = Math.hypot(dx, dy);
+        if (d < 58) target += ((dx >= 0 ? 1 : -1) * 34 + pointer.vx) * (1 - d / 58); }
+      b.vel = (b.vel + (target - b.bend) * .085) * .86; b.bend += b.vel;
+    }
+  }
+  const baseY = b => G - 4 + 4 - Math.sin(b.u * Math.PI) * 8 + b.layer * 2;
+  const height = (b, f) => (16 + f * 90) * b.hf;
+
+  function drawGrass(f) {
+    const c = P(), green = clamp01((f - .15) / .1), g = col => mix(c.bladeDry, col, green);
+    // Turf band, so blades grow out of ground.
+    const turf = ctx.createLinearGradient(0, G - 8, 0, G + 12);
+    turf.addColorStop(0, g(c.blade)); turf.addColorStop(1, "rgba(0,0,0,0)");
+    ctx.globalAlpha = .85; ctx.fillStyle = turf; ctx.beginPath(); ctx.moveTo(0, G + 2); ctx.quadraticCurveTo(W / 2, G - 14, W, G + 2);
+    ctx.lineTo(W, G + 12); ctx.quadraticCurveTo(W / 2, G, 0, G + 12); ctx.closePath(); ctx.fill(); ctx.globalAlpha = 1;
+    const brush = (root, tip) => { const gr = ctx.createLinearGradient(0, G, 0, G - 100); gr.addColorStop(0, root); gr.addColorStop(1, tip); return gr; };
+    const fills = [brush(g(c.blade), g(mix(c.highlight, c.tip, .55))), brush(g(c.blade), g(c.highlight)), brush(g(mix(c.blade, "#000000", .22)), g(c.blade))];
+    const alphaOf = [.97, .92, .8];
+    const active = 8 + f * (COUNT - 8);
+    for (const b of order) {
+      const a = clamp01(active - b.rank); if (!a) continue;
+      const x = b.u * W, y = baseY(b), len = height(b, f), bend = reduceMotion ? b.lean * 18 + 6 : b.bend;
+      const rcx = x - bend * .12, tcx = x + bend * .48, tipY = y - len + Math.min(bend * bend / Math.max(len, 1), 18) * .45, bw = 2.4 + (1 - b.layer * .25) * 2;
+      ctx.beginPath(); ctx.moveTo(x - bw * .5, y);
+      ctx.bezierCurveTo(rcx - bw * .3, y - len * .38, tcx - bw * .15, y - len * 1.08, x + bend, tipY);
+      ctx.bezierCurveTo(tcx + bw * .15, y - len * 1.08, rcx + bw * .3, y - len * .38, x + bw * .5, y);
+      ctx.closePath(); ctx.globalAlpha = a * alphaOf[b.layer]; ctx.fillStyle = fills[b.layer]; ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  // ---------- Frame ----------
+  let f = health / 100, last = performance.now(), time = 0;
+  function frame(now) {
+    const dt = Math.min(.1, (now - last) / 1000); last = now; time += reduceMotion ? 0 : dt;
+    if (playing) { setClean(Math.min(540, clean + dt * 24), true); if (clean >= 540) setPlaying(false); }
+    if (cleanTween) { const u = clamp01((now - cleanTween.start) / 1200); setClean(lerp(cleanTween.from, cleanTween.to, ease(u)), false); if (u >= 1) cleanTween = null; }
+    const target = cameraFor(clean), k = reduceMotion ? 1 : 1 - Math.pow(.02, dt);
+    cam.zoom += (target.zoom - cam.zoom) * k; cam.fog += (target.fog - cam.fog) * k;
+    const si = stageIndex(clean);
+    for (const key in LANDMARKS) appear[key] = reduceMotion ? (si >= LANDMARKS[key] ? 1 : 0) : clamp01(appear[key] + (si >= LANDMARKS[key] ? dt * .7 : -dt * 2));
+    f += (health / 100 - f) * k; gust *= Math.pow(.15, dt); storm *= Math.pow(.35, dt);
+    if (!reduceMotion) stepGrass(f);
+    render();
+    requestAnimationFrame(frame);
+  }
+
+  function render() {
+    const dpr = devicePixelRatio || 1, cw = canvas.clientWidth, ch = canvas.clientHeight;
+    if (canvas.width !== Math.round(cw * dpr)) { canvas.width = Math.round(cw * dpr); canvas.height = Math.round(ch * dpr); }
+    const k = canvas.width / W;
+    ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalCompositeOperation = "source-over"; ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.setTransform(k, 0, 0, k, 0, 0);
+    const c = P();
+    // Camera: zoom about the grass line, so the foreground stays put while the valley opens up above it.
+    ctx.save(); ctx.translate(W / 2, G); ctx.scale(cam.zoom, cam.zoom); ctx.translate(-W / 2, -G);
+    drawWorld(time, f);
+    ctx.restore();
+    // Mist in the page colour: opaque above the line, clearing just below it.
+    if (cam.fog > -.25) { const edge = cam.fog * H, m = ctx.createLinearGradient(0, edge - 55, 0, edge + 25);
+      m.addColorStop(0, c.bg); m.addColorStop(1, c.bg + "00"); ctx.fillStyle = m; ctx.fillRect(0, -10, W, Math.max(0, edge + 35));
+      ctx.fillStyle = c.bg; if (edge - 55 > 0) ctx.fillRect(0, -10, W, edge - 45);
+      // Drifting puffs along the mist line so it reads as fog, not as empty page.
+      const puff = dark ? "#2C3833" : "#FFFFFF";
+      for (let i = 0; i < 9; i++) { const span = W + 80, x = (((i / 9) * span + time * (3 + (i % 3))) % span) - 40;
+        const y = edge - 18 + Math.sin(time * .4 + i * 1.7) * 5 + (i % 2) * 8, r = 22 + (i * 7) % 14;
+        const g2 = ctx.createRadialGradient(x, y, 0, x, y, r); g2.addColorStop(0, puff + (dark ? "AA" : "CC")); g2.addColorStop(1, puff + "00");
+        ctx.fillStyle = g2; ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); ctx.fill(); } }
+    if (storm > .05) { ctx.fillStyle = dark ? "rgba(10,16,13," + storm * .35 + ")" : "rgba(80,96,90," + storm * .18 + ")"; ctx.fillRect(0, 0, W, G); }
+    drawGrass(f);
+    // Soft left/right and top edges so the scene melts into the page.
+    ctx.globalCompositeOperation = "destination-in";
+    const hz = ctx.createLinearGradient(0, 0, W, 0); hz.addColorStop(0, "rgba(0,0,0,0)"); hz.addColorStop(.06, "#000"); hz.addColorStop(.94, "#000"); hz.addColorStop(1, "rgba(0,0,0,0)");
+    ctx.fillStyle = hz; ctx.fillRect(0, 0, W, H);
+    const vt = ctx.createLinearGradient(0, 0, 0, H); vt.addColorStop(0, "rgba(0,0,0,0)"); vt.addColorStop(.1, "#000"); vt.addColorStop(.9, "#000"); vt.addColorStop(1, "rgba(0,0,0,0)");
+    ctx.fillStyle = vt; ctx.fillRect(0, 0, W, H);
+    ctx.globalCompositeOperation = "source-over";
+  }
+
+  // ---------- State + UI ----------
+  function fmt(m) { m = Math.floor(m); const h = Math.floor(m / 60), r = m % 60; return h ? h + " h" + (r ? " " + r + " min" : "") : r + " min"; }
+  function setClean(m, earnHealth) {
+    const before = clean; clean = Math.max(0, Math.min(540, m));
+    if (earnHealth && clean > before) { const gained = Math.floor(clean / 60) - Math.floor(before / 60); if (gained > 0) setHealth(health + gained * 5); }
+    const si = stageIndex(clean);
+    if (si > lastStage) say("The mist lifts. " + STAGES[si].text);
+    lastStage = si; syncUi();
+  }
+  function setHealth(v) { health = Math.max(0, Math.min(100, Math.round(v))); syncUi(); }
+  function setPlaying(p) { playing = p; $("play").textContent = p ? "❚❚ Pause" : "▶ Time-lapse"; }
+  let noteTimer;
+  function say(text) { const n = $("note"); n.textContent = text; clearTimeout(noteTimer); noteTimer = setTimeout(() => n.textContent = "Brush the grass. Stay clean to see further.", 4200); }
+
+  function syncUi() {
+    const si = stageIndex(clean), s = STAGES[si], next = STAGES[si + 1];
+    $("clean").value = Math.floor(clean); $("cleanOut").textContent = fmt(clean);
+    $("health").value = health; $("healthOut").textContent = health; $("hNum").textContent = health; $("hBar").style.width = health + "%";
+    $("stageName").textContent = s.name;
+    $("cleanLine").textContent = "Clean for " + fmt(clean);
+    $("stageBar").style.width = (next ? (clean - s.min) / (next.min - s.min) * 100 : 100) + "%";
+    $("nextLine").textContent = next ? next.name + " in " + fmt(Math.ceil(next.min - clean)) : "Your whole valley is visible. Keep it that way.";
+    canvas.setAttribute("aria-label", "Valley: " + s.name + ". " + s.text + " Health " + health + " out of 100.");
+    [...$("stages").children].forEach((li, i) => { li.classList.toggle("reached", i <= si); li.classList.toggle("current", i === si);
+      li.querySelector(".dot").textContent = i <= si ? "✓" : ""; });
+  }
+
+  $("stages").innerHTML = STAGES.map(s => '<li><span class="t">' + (s.min ? fmt(s.min) : "Start") + '</span><span class="dot"></span><span><div class="name">' + s.name + '</div><div class="desc">' + s.text + '</div></span></li>').join("");
+  [...$("stages").children].forEach((li, i) => li.addEventListener("click", () => { setPlaying(false); cleanTween = { from: clean, to: STAGES[i].min + .01, start: performance.now() }; }));
+
+  $("clean").addEventListener("input", e => { setPlaying(false); cleanTween = null; setClean(+e.target.value, false); });
+  $("health").addEventListener("input", e => setHealth(+e.target.value));
+  $("play").addEventListener("click", () => { if (clean >= 540) setClean(0, false); setPlaying(!playing); });
+  $("catch").addEventListener("click", () => {
+    setPlaying(false); gust = 1; storm = 1; setHealth(health - 20);
+    const si = stageIndex(clean), to = $("rule").value === "start" ? 0 : (si > 0 ? STAGES[si - 1].min : 0);
+    cleanTween = { from: Math.min(clean, to === 0 ? clean : STAGES[si].min), to, start: performance.now() };
+    lastStage = stageIndex(to); say("Caught. The mist rolls back in.");
+  });
+  function applyTheme() { document.body.classList.toggle("dark", dark); $("theme").textContent = "Theme: " + (dark ? "Dark" : "Light"); }
+  $("theme").addEventListener("click", () => { dark = !dark; applyTheme(); });
+
+  function toLocal(e) { const r = canvas.getBoundingClientRect(); return [(e.clientX - r.left) / r.width * W, (e.clientY - r.top) / r.height * H]; }
+  canvas.addEventListener("pointerdown", e => { canvas.setPointerCapture(e.pointerId); [pointer.x, pointer.y] = toLocal(e); pointer.active = true; pointer.vx = 0; });
+  canvas.addEventListener("pointermove", e => { if (!pointer.active && e.pointerType !== "mouse") return; const [x, y] = toLocal(e);
+    pointer.vx = Math.max(-45, Math.min(45, (x - pointer.x) * 2)); pointer.x = x; pointer.y = y; pointer.active = true; });
+  for (const ev of ["pointerup", "pointercancel", "pointerleave"]) canvas.addEventListener(ev, () => { pointer.active = false; });
+
+  applyTheme(); syncUi(); requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>

@@ -85,13 +85,14 @@ fun HomeScreen(contentPadding: PaddingValues, onOpenSettings: (String) -> Unit =
                 GrassMeadow(health = state.health)
                 if (meadowError == null) Text("Loading your meadow…",style=MaterialTheme.typography.bodySmall)
             }
-            else LivingMeadow(state.health,world,meadow::discover)
+            else LivingMeadow(state.health,world,onDiscover=meadow::discover)
             meadowError?.let {
                 Text(it,color=MaterialTheme.colorScheme.error)
                 TextButton(onClick=meadow::retry) { Text("Try again") }
             }
         }
         item { HealthCard(state, now, repository.recoveryIntervalMinutes(state.config)) }
+        meadowState?.let { world -> item { MeadowValleyCard(world) } }
         meadowState?.let { world -> item { MeadowGrowthCard(world) } }
         if (state.taps.isEmpty()) item { FirstUseCard(state.config.difficulty, onOpenSettings) }
         if (state.taps.isNotEmpty()) item { RecentActivity(state, labels) }
@@ -147,8 +148,8 @@ private fun NoticeCard(title: String, body: String, actions: @Composable android
 
 @Composable
 private fun FirstUseCard(difficulty: com.codejam.taptation.logic.Difficulty, onOpenSettings: (String) -> Unit) {
-    SectionCard("Notification rules", "Choose Always important, Always bait, or Let us decide for each app.") {
-        Text("${difficulty.name}: ${(difficulty.probability * 100).toInt()}% catch chance for distracting notifications in Let us decide. Always bait catches eligible taps automatically.",
+    SectionCard("Notification rules", "Choose Always important, Always distracting, or Let us decide for each app.") {
+        Text("${difficulty.name}: ${(difficulty.probability * 100).toInt()}% catch chance for distracting notifications in Let us decide. Always distracting catches eligible taps automatically.",
             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         TextButton(onClick = { onOpenSettings(SettingsPages.Rules) }) { Text("Choose apps and preferences") }
     }

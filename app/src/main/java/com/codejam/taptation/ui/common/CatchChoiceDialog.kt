@@ -26,11 +26,12 @@ import com.codejam.taptation.ui.caught.FishingCatchScene
 /**
  * Choosing a destination acknowledges an already-applied catch; it never applies damage.
  * [details] and [appLabel] explain why it counted and what it cost; both are optional because a
- * manual force-catch has no notification behind it. [onCorrect] adds "This should be important".
+ * manual force-catch has no notification behind it. The only actions are the two destinations;
+ * dismissing (Back or tapping outside) calls [onLater], which postpones the choice.
  */
 @Composable
 fun CatchChoiceDialog(details: CatchDetails?, appLabel: String?, onTaptation: () -> Unit, onOriginal: () -> Unit,
-    onCorrect: (() -> Unit)? = null, continueExtraDamage: Int = 0, animateDamage: Boolean = true,
+    continueExtraDamage: Int = 0, animateDamage: Boolean = true,
     onLater: () -> Unit = {},
     cameo: MeadowCameo = MeadowCameo.Fish,
     sceneKey: String = "preview",
@@ -65,14 +66,6 @@ fun CatchChoiceDialog(details: CatchDetails?, appLabel: String?, onTaptation: ()
                         Text(stringResource(R.string.caught_original_app,destination))
                         if(continueExtraDamage>0)Text(stringResource(R.string.caught_continue_cost,continueExtraDamage),
                             style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                }
-                Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(8.dp)) {
-                    if (onCorrect != null) TextButton(onClick = onCorrect, modifier = Modifier.weight(1f).heightIn(min = 48.dp)) {
-                        Text(stringResource(R.string.caught_correct),style=MaterialTheme.typography.labelMedium)
-                    }
-                    TextButton(onClick = onLater, modifier = Modifier.weight(1f).heightIn(min = 48.dp)) {
-                        Text(stringResource(R.string.caught_later),style=MaterialTheme.typography.labelMedium)
                     }
                 }
             }

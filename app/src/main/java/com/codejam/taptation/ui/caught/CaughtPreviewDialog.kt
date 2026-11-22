@@ -43,7 +43,7 @@ fun CaughtPreviewDialog(onClose:()->Unit) {
             fun finish(label:String){result="Preview: $label";showing=false}
             CatchChoiceDialog(CatchDetails("com.instagram.android",90,80,10,"app_always_bait",null),"Instagram",
                 onTaptation={finish("Go to Taptation")},onOriginal={finish("Continue to Instagram")},
-                onCorrect={finish("This should be important")},onLater={finish("Not now")},
+                onLater={finish("Dismissed")},
                 continueExtraDamage=5,cameo=cameo,sceneKey="debug-$replay")
         }
     }

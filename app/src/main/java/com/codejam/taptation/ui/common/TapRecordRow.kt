@@ -17,7 +17,7 @@ import androidx.compose.ui.unit.dp
 import com.codejam.taptation.logic.Classification
 import com.codejam.taptation.logic.TapRecord
 
-/** Small coloured label: Important / Bait / Unsure. */
+/** Small coloured label: Important / Distracting / Unsure. */
 @Composable
 fun ClassificationBadge(classification: Classification) {
     val colors = MaterialTheme.colorScheme

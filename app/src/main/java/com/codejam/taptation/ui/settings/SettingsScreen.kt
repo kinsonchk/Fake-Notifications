@@ -89,9 +89,9 @@ fun SettingsScreen(contentPadding: PaddingValues, openPage: String? = null, onPa
         item { FreshnessCard(config, repository) }
         item { AppearanceCard() }
         item {
-            val bait = config.countOf(AppRule.AlwaysBait)
+            val distracting = config.countOf(AppRule.AlwaysBait)
             val important = config.countOf(AppRule.AlwaysImportant)
-            SettingsLink("Notification rules", "$bait always bait · $important always important", R.drawable.ic_tab_notifications) { page = "rules" }
+            SettingsLink("Notification rules", "$distracting always distracting · $important always important", R.drawable.ic_tab_notifications) { page = "rules" }
         }
         item { SettingsLink("Catch reminders", "Permissions and delivery", R.drawable.ic_tab_notifications) { page = "feedback" } }
         item { SettingsLink("Learn Taptation again", "Review the main features and setup steps", R.drawable.ic_tab_home, onShowTutorial) }
@@ -119,7 +119,7 @@ private fun AppearanceCard() {
 
 @Composable
 private fun GameRulesCard(config: GameConfig, repository: GameRepository) {
-    SectionCard("Difficulty", "For apps on Let us decide, this is the catch chance after AI marks a notification as distracting. Always bait apps catch eligible taps without a chance roll.") {
+    SectionCard("Difficulty", "For apps on Let us decide, this is the catch chance after AI marks a notification as distracting. Always distracting apps catch eligible taps without a chance roll.") {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Difficulty.entries.forEach { difficulty ->
                 val select = { repository.setDifficulty(difficulty); Unit }

@@ -24,9 +24,12 @@ fun MeadowPreviewDialog(onClose:()->Unit) {
     var minutes by remember{mutableFloatStateOf(360f)}
     val initialDark = MaterialTheme.colorScheme.background.luminance() < .5f
     var dark by remember{mutableStateOf(initialDark)}
+    var classic by remember{mutableStateOf(false)}
+    var clean by remember{mutableFloatStateOf(480f)}
     var discoveries by remember{mutableStateOf(MeadowDiscovery.entries.toSet())}
     val world=MeadowState(healthyMillis=minutes.roundToInt()*MeadowState.MINUTE,
-        checkpointFull=health.roundToInt()==100,checkpointMonitoring=true,discoveries=discoveries)
+        checkpointFull=health.roundToInt()==100,checkpointMonitoring=true,discoveries=discoveries,
+        cleanMillis=clean.roundToInt()*MeadowState.MINUTE)
     Dialog(onDismissRequest=onClose,properties=DialogProperties(usePlatformDefaultWidth=false)) {
         val view=LocalView.current
         SideEffect {
@@ -45,7 +48,10 @@ fun MeadowPreviewDialog(onClose:()->Unit) {
                 item{Text("Preview health: ${health.roundToInt()}");Slider(value=health,onValueChange={health=it},valueRange=0f..100f,modifier=Modifier.testTag("preview-health"))}
                 item{Text("Preview growth: ${minutes.roundToInt()} min");Slider(value=minutes,onValueChange={minutes=it},valueRange=0f..360f,steps=11,modifier=Modifier.testTag("preview-growth"))}
                 item{Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween){Text("Dark preview");Switch(checked=dark,onCheckedChange={dark=it})}}
-                item{LivingMeadow(health.roundToInt(),world){discoveries=discoveries+it}}
+                item{Text("Preview clean time: ${clean.roundToInt()} min");Slider(value=clean,onValueChange={clean=it},valueRange=0f..540f,modifier=Modifier.testTag("preview-clean"))}
+                item{Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween){Text("Classic scenery");Switch(checked=classic,onCheckedChange={classic=it})}}
+                item{LivingMeadow(health.roundToInt(),world,if(classic)MeadowScenery.Classic else MeadowScenery.Valley){discoveries=discoveries+it}}
+                item{MeadowValleyCard(world)}
                 item{MeadowGrowthCard(world)}
             }
         } }

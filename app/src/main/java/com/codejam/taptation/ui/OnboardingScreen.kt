@@ -1,24 +1,31 @@
 package com.codejam.taptation.ui
 
 import android.content.Context
-import android.provider.Settings
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -28,29 +35,43 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.codejam.taptation.BuildConfig
+import com.codejam.taptation.TaptationApplication
+import com.codejam.taptation.logic.AppRule
+import com.codejam.taptation.logic.GameConfig
+import com.codejam.taptation.logic.GameEngine
+import com.codejam.taptation.logic.GameRepository
+import com.codejam.taptation.logic.RulePicker
 import com.codejam.taptation.service.PermissionHelper
+import com.codejam.taptation.ui.common.AppRuleRow
 import com.codejam.taptation.ui.common.CriteriaField
+import com.codejam.taptation.ui.common.RuleLegend
 import com.codejam.taptation.ui.common.SectionCard
+import com.codejam.taptation.ui.common.color
 import com.codejam.taptation.ui.common.openOverlaySettings
+import com.codejam.taptation.ui.common.rememberAppLabels
 import com.codejam.taptation.ui.common.rememberGameRepository
 import com.codejam.taptation.ui.home.GrassMeadow
+import kotlinx.coroutines.launch
+import kotlin.math.roundToInt
 
 private const val PREFS = "first_run"
 private const val TUTORIAL_COMPLETE = "tutorial_complete"
 private const val PAGE_WELCOME = 0
 private const val PAGE_PERSONAL_CRITERIA = 1
-private const val PAGE_SAFE_APPS = 2
-private const val PAGE_CATCHES = 3
+private const val PAGE_CATCHES = 2
+private const val PAGE_APP_RULES = 3
 private const val PAGE_SETUP = 4
 private const val TUTORIAL_PAGE_COUNT = PAGE_SETUP
 
@@ -65,17 +86,12 @@ internal fun completeTutorial(context: Context) {
 @Composable
 internal fun OnboardingScreen(startAtSetup: Boolean, onComplete: () -> Unit) {
     val context = LocalContext.current
+    val app = context.applicationContext as TaptationApplication
     val repository = rememberGameRepository()
     val gameState by repository.state.collectAsStateWithLifecycle()
+    // Permission state comes from the backend, which re-reads it whenever the activity resumes.
+    val permissions by app.system.permissions.collectAsStateWithLifecycle()
     var page by rememberSaveable { mutableIntStateOf(if (startAtSetup) PAGE_SETUP else PAGE_WELCOME) }
-    var notificationAccess by remember { mutableStateOf(PermissionHelper.isNotificationAccessGranted(context)) }
-    var overlayAccess by remember { mutableStateOf(Settings.canDrawOverlays(context)) }
-
-    fun refresh() {
-        notificationAccess = PermissionHelper.isNotificationAccessGranted(context)
-        overlayAccess = Settings.canDrawOverlays(context)
-    }
-    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { refresh() }
     val scroll = rememberScrollState()
     LaunchedEffect(page) { scroll.scrollTo(0) }
     Column(
@@ -94,7 +110,7 @@ internal fun OnboardingScreen(startAtSetup: Boolean, onComplete: () -> Unit) {
                 when (page) {
                     PAGE_SETUP -> "A couple of settings"
                     PAGE_PERSONAL_CRITERIA -> "What matters to you?"
-                    PAGE_SAFE_APPS -> "Set rules for your apps"
+                    PAGE_APP_RULES -> "Set rules for your apps"
                     PAGE_CATCHES -> "Pause, then choose what to do next."
                     else -> "Give your attention a little space"
                 },
@@ -103,85 +119,20 @@ internal fun OnboardingScreen(startAtSetup: Boolean, onComplete: () -> Unit) {
             )
             if (page < PAGE_SETUP) {
                 Text("Step ${page + 1} of $TUTORIAL_PAGE_COUNT", style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant)
-                if (page == PAGE_WELCOME) GrassMeadow(health = 100)
-                if (page == PAGE_PERSONAL_CRITERIA) {
-                    SectionCard(
-                        title = "Set your personal notification priorities",
-                        subtitle = "These preferences guide automatic checks. They only affect apps set to Let us decide, and you can change them later in Settings.",
-                    ) {
-                        val config = gameState?.config
-                        if (config == null) {
-                            Text("Loading your saved preferences…", style = MaterialTheme.typography.bodyMedium)
-                        } else {
-                            CriteriaField(
-                                label = "What messages would you not want Taptation to interrupt?",
-                                placeholder = "Family messages, work shifts, delivery updates, appointment changes…",
-                                saved = config.essentialCriteria,
-                            ) { value -> repository.updateConfig { it.copy(essentialCriteria = value.trim()) } }
-                            CriteriaField(
-                                label = "What notifications would distract you?",
-                                placeholder = "Likes, follows, game rewards, sales, suggested posts…",
-                                saved = config.nonEssentialCriteria,
-                            ) { value -> repository.updateConfig { it.copy(nonEssentialCriteria = value.trim()) } }
-                        }
-                        Text(
-                            if (BuildConfig.CF_ACCOUNT_ID.isNotBlank() && BuildConfig.CF_API_TOKEN.isNotBlank()) {
-                                "Your answers are saved on this device. When AI judging runs, Taptation sends your preferences and notification details to Cloudflare. Notification details are not saved by Taptation."
-                            } else {
-                                "Your answers are saved on this device. Automatic AI checks are not available in this build, so apps set to Let us decide will not be penalized automatically."
-                            },
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                } else {
-                    SectionCard(
-                        title = when (page) {
-                            PAGE_WELCOME -> "Make space for what matters."
-                            PAGE_SAFE_APPS -> "Choose which apps are safe or always caught if you want instead of the default behavior"
-                            else -> "A tap can be a moment to pause."
-                        },
-                        subtitle = when (page) {
-                            PAGE_WELCOME -> "Some distracting notification taps trigger a reminder and lower your meadow’s health. Important notifications are excluded."
-                            PAGE_SAFE_APPS -> "Always important keeps an app safe. Always bait catches each eligible tap. Apps left on Let us decide are checked automatically; we explain that next."
-                            else -> "For apps on Let us decide, AI checks whether each notification is important or distracting. Important ones stay safe; distracting ones use your catch chance. Always bait will catches all notification tapped, while Always important stays safe. If caught, your meadow loses health and a reminder explains the cost."
-                        },
-                    ) {
-                        if (page == PAGE_SAFE_APPS) Text("You can change an app’s rule any time in Settings.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                }
-            } else {
-                Text("Taptation needs notification access to detect notification taps. Showing catch feedback over other apps is optional but recommended.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.fillMaxWidth())
-                SectionCard("Notification access", "Lets Taptation notice when you open a notification. Message text is not stored.") {
-                    AccessStatus(if (notificationAccess) "Enabled" else "Needed", notificationAccess)
-                    if (!notificationAccess) Button(
-                        onClick = { PermissionHelper.openNotificationAccessSettings(context) },
-                        modifier = Modifier.fillMaxWidth(),
-                    ) { Text("Open notification access settings") }
-                }
-                SectionCard("Display over other apps",
-                    "Recommended. Lets catch feedback appear while you’re using another app. Without it, a notification opens the choice instead.") {
-                    AccessStatus(if (overlayAccess) "Enabled" else "Recommended", overlayAccess, required = false)
-                    if (!overlayAccess) Button(
-                        onClick = { openOverlaySettings(context) },
-                        modifier = Modifier.fillMaxWidth(),
-                    ) { Text("Allow display over other apps") }
-                }
-                Text("Return here after changing either setting. Taptation will check again automatically.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.fillMaxWidth())
+                    color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.fillMaxWidth())
+            }
+            when (page) {
+                PAGE_WELCOME -> WelcomePage()
+                PAGE_PERSONAL_CRITERIA -> CriteriaPage(gameState?.config, repository)
+                PAGE_CATCHES -> CatchesPage(gameState?.config ?: GameConfig())
+                PAGE_APP_RULES -> AppRulesPage(repository)
+                else -> SetupPage(permissions.notificationAccess, permissions.overlay)
             }
         }
 
         Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+            Row(Modifier.padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically) {
                 repeat(PAGE_SETUP + 1) { index ->
                     Surface(
                         color = if (index == page) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant,
@@ -191,13 +142,13 @@ internal fun OnboardingScreen(startAtSetup: Boolean, onComplete: () -> Unit) {
                 }
             }
             if (page == PAGE_PERSONAL_CRITERIA) {
-                TextButton(onClick = { page = PAGE_SAFE_APPS }) { Text("Skip for now") }
+                TextButton(onClick = { page = PAGE_CATCHES }) { Text("Skip for now") }
             }
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 if (page > PAGE_WELCOME && page < PAGE_SETUP) {
                     OutlinedButton(onClick = { page-- }, modifier = Modifier.weight(1f).height(52.dp)) { Text("Back") }
                 }
-                val canFinish = page == PAGE_SETUP && notificationAccess
+                val canFinish = page == PAGE_SETUP && permissions.notificationAccess
                 Button(
                     onClick = {
                         if (page < PAGE_SETUP) page++ else if (canFinish) onComplete()
@@ -206,9 +157,9 @@ internal fun OnboardingScreen(startAtSetup: Boolean, onComplete: () -> Unit) {
                     modifier = Modifier.weight(1f).height(52.dp),
                     shape = RoundedCornerShape(16.dp),
                 ) { Text(when (page) {
-                    PAGE_WELCOME, PAGE_PERSONAL_CRITERIA, PAGE_SAFE_APPS -> "Next"
-                    PAGE_CATCHES -> "Set up notifications"
-                    else -> "Finish setup"
+                    PAGE_APP_RULES -> "Set up notifications"
+                    PAGE_SETUP -> "Finish setup"
+                    else -> "Next"
                 }) }
             }
         }
@@ -216,14 +167,219 @@ internal fun OnboardingScreen(startAtSetup: Boolean, onComplete: () -> Unit) {
 }
 
 @Composable
-private fun AccessStatus(label: String, enabled: Boolean, required: Boolean = true) {
-    Text(
-        "●  $label",
+private fun WelcomePage() {
+    GrassMeadow(health = 100)
+    SectionCard(
+        title = "Make space for what matters.",
+        subtitle = "Some distracting notification taps trigger a reminder and lower your meadow’s health. Important notifications are excluded.",
+    ) {}
+}
+
+@Composable
+private fun CriteriaPage(config: GameConfig?, repository: GameRepository) {
+    val aiConfigured = (LocalContext.current.applicationContext as TaptationApplication).judges.isConfigured
+    SectionCard(
+        title = "Set your personal notification priorities",
+        subtitle = "These preferences guide automatic checks. They only affect apps set to Let us decide, and you can change them later in Settings.",
+    ) {
+        if (config == null) {
+            Text("Loading your saved preferences…", style = MaterialTheme.typography.bodyMedium)
+        } else {
+            CriteriaField(
+                label = "What messages would you not want Taptation to interrupt?",
+                placeholder = "Family messages, work shifts, delivery updates, appointment changes…",
+                saved = config.essentialCriteria,
+            ) { value -> repository.setCriteria(essential = value.trim()) }
+            CriteriaField(
+                label = "What notifications would distract you?",
+                placeholder = "Likes, follows, game rewards, sales, suggested posts…",
+                saved = config.nonEssentialCriteria,
+            ) { value -> repository.setCriteria(nonEssential = value.trim()) }
+        }
+        Text(
+            if (aiConfigured) {
+                "Your answers are saved on this device. When AI judging runs, Taptation sends your preferences and notification details to Cloudflare. Notification details are not saved by Taptation."
+            } else {
+                "Your answers are saved on this device. Automatic AI checks are not available in this build, so apps set to Let us decide will not be penalized automatically."
+            },
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
+/** What happens after a tap, in order: the check, the chance, the reminder over the app, the choice. */
+@Composable
+private fun CatchesPage(config: GameConfig) {
+    // An example catch from full health, with the user's real difficulty and damage.
+    val health = 100
+    val chance = (config.difficulty.probability * 100).roundToInt()
+    val healthAfter = (health - config.currentDamage).coerceAtLeast(0)
+    Column(Modifier.fillMaxWidth()) {
+        TimelineStep(1, "You tap a notification") {
+            MiniNotification("$SAMPLE_APP · Let us decide")
+        }
+        TimelineStep(2, "AI checks it") {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                VerdictTile("Important", "Opens normally", AppRule.AlwaysImportant.color(), Modifier.weight(1f))
+                VerdictTile("Distracting", "$chance% catch chance on ${config.difficulty.name}",
+                    AppRule.AlwaysBait.color(), Modifier.weight(1f), outlined = true)
+            }
+        }
+        TimelineStep(3, "If you’re caught, a reminder pops up over the app") {
+            OverlayIllustration(health = health, healthAfter = healthAfter)
+            Text("Your meadow loses ${health - healthAfter} health.", style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        TimelineStep(4, "You choose where to go", last = true) {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                MiniButton("Go to Taptation", filled = true, Modifier.weight(1f), caption = "No extra cost")
+                MiniButton("Continue to the app", filled = false, Modifier.weight(1f),
+                    caption = "−${GameEngine.CONTINUE_EXTRA_DAMAGE} more health")
+            }
+        }
+    }
+    Text("Apps set to Always important or Always distracting skip the AI check. You’ll choose those next.",
+        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.fillMaxWidth())
+}
+
+@Composable
+private fun TimelineStep(number: Int, title: String, last: Boolean = false, content: @Composable () -> Unit) {
+    val line = MaterialTheme.colorScheme.outlineVariant
+    Row(Modifier.fillMaxWidth().drawBehind {
+        if (!last) drawLine(line, Offset(14.dp.toPx(), 30.dp.toPx()), Offset(14.dp.toPx(), size.height - 2.dp.toPx()), 2.dp.toPx())
+    }, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+        Box(Modifier.width(28.dp)) {
+            Box(Modifier.size(28.dp).border(1.5.dp, MaterialTheme.colorScheme.primary, CircleShape)
+                .background(MaterialTheme.colorScheme.background, CircleShape), contentAlignment = Alignment.Center) {
+                Text(number.toString(), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+            }
+        }
+        Column(Modifier.weight(1f).padding(top = 3.dp, bottom = if (last) 0.dp else 20.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(title, style = MaterialTheme.typography.titleSmall)
+            content()
+        }
+    }
+}
+
+@Composable
+private fun VerdictTile(title: String, body: String, accent: Color, modifier: Modifier, outlined: Boolean = false) {
+    Surface(modifier, shape = RoundedCornerShape(12.dp), color = Color.Transparent,
+        contentColor = MaterialTheme.colorScheme.onSurface,
+        border = BorderStroke(1.dp, if (outlined) accent else MaterialTheme.colorScheme.outlineVariant)) {
+        Column(Modifier.padding(horizontal = 10.dp, vertical = 8.dp)) {
+            Text(title, style = MaterialTheme.typography.titleSmall, color = accent)
+            Text(body, style = MaterialTheme.typography.bodySmall)
+        }
+    }
+}
+
+/** The rules explained, then a few of the user's apps with the same picker as Settings. */
+@Composable
+private fun AppRulesPage(repository: GameRepository) {
+    val app = LocalContext.current.applicationContext as TaptationApplication
+    val picker by app.rulePicker.collectAsStateWithLifecycle()
+    val error by repository.error.collectAsStateWithLifecycle()
+    val labels = rememberAppLabels()
+    val scope = rememberCoroutineScope()
+    var showAll by rememberSaveable { mutableStateOf(false) }
+    var search by rememberSaveable { mutableStateOf("") }
+    var saving by remember { mutableStateOf(setOf<String>()) }
+
+    Text("Every app starts on Let us decide. Change any app now, or later in Settings.",
+        style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.fillMaxWidth())
+    RuleLegend(Modifier.fillMaxWidth())
+    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        val suggested = picker.suggestions()
+        val rows = when {
+            showAll -> picker.search(search)
+            suggested.isNotEmpty() -> suggested
+            else -> picker.search("").take(RulePicker.ONBOARDING_SUGGESTIONS)
+        }
+        Text(when {
+            showAll -> "All your apps"
+            suggested.isNotEmpty() -> "Your social, video and game apps"
+            else -> "Your apps"
+        }, style = MaterialTheme.typography.titleMedium)
+        if (showAll) OutlinedTextField(search, onValueChange = { search = it }, label = { Text("Find an app") },
+            modifier = Modifier.fillMaxWidth(), singleLine = true, shape = RoundedCornerShape(16.dp))
+        when {
+            picker.apps == null && picker.error != null -> {
+                Text("Couldn’t load installed apps.", color = MaterialTheme.colorScheme.error)
+                OutlinedButton(onClick = app.apps::reload) { Text("Try again") }
+            }
+            picker.apps == null -> Text("Loading your apps…", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            rows.isEmpty() -> Text(if (showAll && search.isNotBlank()) "No matching apps. Try a different name."
+                else "No apps with notifications turned on yet. You can set rules later in Settings.",
+                color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        rows.forEach { row ->
+            val pkg = row.app.packageName
+            AppRuleRow(row.app, row.rule, labels, pkg !in saving) { choice ->
+                saving = saving + pkg
+                repository.setAppRule(pkg, choice).whenComplete { _, _ -> scope.launch { saving = saving - pkg } }
+            }
+        }
+        error?.let { Text("Some changes could not be saved. Please try again.", color = MaterialTheme.colorScheme.error,
+            style = MaterialTheme.typography.bodySmall) }
+        if (showAll || picker.apps.orEmpty().size > rows.size) {
+            TextButton(onClick = { showAll = !showAll; search = "" }, modifier = Modifier.heightIn(min = 48.dp)) {
+                Text(if (showAll) "Show fewer apps" else "Show all apps")
+            }
+        }
+    }
+}
+
+@Composable
+private fun SetupPage(notificationAccess: Boolean, overlayAccess: Boolean) {
+    val context = LocalContext.current
+    Text("One is required, one is recommended.",
         style = MaterialTheme.typography.bodyMedium,
-        color = when {
-            enabled -> MaterialTheme.colorScheme.primary
-            required -> MaterialTheme.colorScheme.error
-            else -> MaterialTheme.colorScheme.onSurfaceVariant
-        },
-    )
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.fillMaxWidth())
+    IllustratedCard("Notification access",
+        "Required. Lets Taptation notice when you open a notification. Message text is not stored.",
+        illustration = { TapIllustration() }) {
+        AccessStatus(if (notificationAccess) "Enabled" else "Needed", notificationAccess)
+        if (!notificationAccess) Button(
+            onClick = { PermissionHelper.openNotificationAccessSettings(context) },
+            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+            shape = RoundedCornerShape(16.dp),
+        ) { Text("Open notification access settings") }
+    }
+    IllustratedCard("Show reminders over other apps",
+        "Recommended. The reminder appears on top of the app you opened. Without it, you get a notification instead.",
+        illustration = { OverlayIllustration(compact = true) }) {
+        AccessStatus(if (overlayAccess) "Enabled" else "Recommended", overlayAccess, required = false)
+        if (!overlayAccess) OutlinedButton(
+            onClick = { openOverlaySettings(context) },
+            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+            shape = RoundedCornerShape(16.dp),
+        ) { Text("Allow display over other apps") }
+    }
+    Text("Come back here after changing a setting. Taptation checks again automatically.",
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.fillMaxWidth())
+}
+
+/** Status chip: enabled, needed (required and missing) or recommended (optional and missing). */
+@Composable
+private fun AccessStatus(label: String, enabled: Boolean, required: Boolean = true) {
+    val colors = MaterialTheme.colorScheme
+    val (background, foreground, dot) = when {
+        enabled -> Triple(colors.primaryContainer, colors.onPrimaryContainer, colors.primary)
+        required -> Triple(colors.errorContainer, colors.onErrorContainer, colors.error)
+        else -> Triple(colors.tertiaryContainer, colors.onTertiaryContainer, colors.tertiary)
+    }
+    Surface(color = background, contentColor = foreground, shape = RoundedCornerShape(50)) {
+        Row(Modifier.padding(horizontal = 12.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Box(Modifier.size(8.dp).background(dot, CircleShape))
+            Text(label, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Medium)
+        }
+    }
 }

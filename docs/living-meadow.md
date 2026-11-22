@@ -38,6 +38,34 @@ between observations. Missing transition history is treated conservatively, not 
 existing engine records delayed recovery when it is observed; the meadow does not infer an earlier
 full-health timestamp. Initial installation starts new growth, rather than fabricating past rewards.
 
+## Valley reveal
+
+Behind the grass, a valley (`ui/home/MeadowScenery.kt`, `ValleyScenery`) opens up with the current **clean
+streak**: time without a catch while monitoring works (same eligibility as growth; paused time neither
+counts nor resets). Mockup: [valley-reveal-mockup.html](valley-reveal-mockup.html).
+
+| Clean streak | Stage (`ValleyStage`) | Shows |
+|---|---|---|
+| 0 | Grass | Only the meadow; mist above |
+| 15 min | NearField | Near slope, bushes, daisies (daisies need health above 70) |
+| 30 min | River | The river |
+| 60 min | Hills | Rolling hills; the path grows in |
+| 120 min | Bridge | Bridge over the river |
+| 240 min | Ridges | Far ridges, pines, sky, sun/moon |
+| 360 min | Cottage | Cottage with chimney smoke (lit window at night) |
+| 480 min | Valley | Whole valley; windmill on the far ridge |
+
+- `MeadowProgression` keeps `cleanMillis`, `checkpointCatches` (game `totalCatches` at the checkpoint;
+  -1 until first seen, so old catches never roll back) and `revealedStage` in `meadow_world_v1`.
+- Each catch rolls the streak back to the start of the previous stage, then clean time resumes from
+  `lastCatchMillis`. Landmarks reached once (`MeadowState.revealed`) stay; only the camera and mist follow the
+  streak, so they can wait behind the mist.
+- Presentation only: `ValleyCamera` maps the streak to a camera zoom about the grass line and a mist line,
+  eased between stages and animated on change. Health still drives grass, hill dryness and river level.
+  Grass, creatures, flowers, oak, underground and gestures are unchanged and drawn on top.
+- Home shows `MeadowValleyCard` (stage, clean time, next stage). The note line says when the mist lifts or
+  rolls back. Debug → Open meadow preview has a clean-time slider and a Classic scenery switch.
+
 ## Play
 
 - Brush the grass to bend it; circular drags create a whirlwind. Wind has a shared travelling

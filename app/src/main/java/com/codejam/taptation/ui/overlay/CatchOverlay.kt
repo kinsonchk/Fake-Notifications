@@ -113,13 +113,6 @@ class CatchOverlay(private val context: Context,
                 }
             }
         })
-        val quiet=LinearLayout(context).apply{orientation=LinearLayout.HORIZONTAL}
-        fun quietChoice(label:Int,action:()->Unit)=Button(context).apply{
-            setText(label);isAllCaps=false;textSize=12f;setTextColor(green);backgroundTintList=null;stateListAnimator=null;this.background=null
-            layoutParams=LinearLayout.LayoutParams(0,-2,1f);minHeight=dp(48);setPadding(dp(4),dp(8),dp(4),dp(8));setOnClickListener{action()}
-        }
-        if(prompt.canCorrect)quiet.addView(quietChoice(R.string.caught_correct){actions.correct()})
-        quiet.addView(quietChoice(R.string.caught_later){actions.postpone()});panel.addView(quiet)
         val params = WindowManager.LayoutParams(
             minOf(context.resources.displayMetrics.widthPixels - dp(32), dp(480)), WindowManager.LayoutParams.WRAP_CONTENT,
             WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,

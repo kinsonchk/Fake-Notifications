@@ -83,7 +83,8 @@ there when an intentional app-wide design change is requested. Avoid hard-coded 
 | Buttons | `labelLarge` | Sans, medium, 14sp / 20sp |
 
 Use one serif page heading. Keep card headings and controls sans-serif. Use short sentence-case
-labels. Do not add eyebrow text above headings. Allow text to wrap before shrinking it.
+labels. Say "distracting", never "bait", in product text: the rules are Always important, Let us decide
+and Always distracting (`AppRule.AlwaysBait` in code; `AppRule.label()` in `ui/common/AppRuleRow.kt`). Do not add eyebrow text above headings. Allow text to wrap before shrinking it.
 
 ## 4. Layout and components
 

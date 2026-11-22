@@ -22,28 +22,28 @@ class FishingCatchUiTest {
     private val fixture=CatchDetails("com.instagram.android",90,80,10,"app_always_bait",null)
     private fun text(id:Int)=compose.activity.getString(id)
 
-    @Test fun destinationsAndCorrectionWorkDuringTheAnimationWithoutApplyingHealth(){
+    @Test fun destinationsWorkDuringTheAnimationWithoutApplyingHealth(){
         val app=compose.activity.application as TaptationApplication
         compose.waitUntil(10_000){app.game.state.value!=null}
         val before=app.game.state.value!!.health
-        var home=0;var original=0;var correction=0;var later=0
+        var home=0;var original=0
         compose.activity.setContent{TaptationTheme{
-            CatchChoiceDialog(fixture,"Instagram",onTaptation={home++},onOriginal={original++},onCorrect={correction++},
-                onLater={later++},continueExtraDamage=5,cameo=MeadowCameo.Fish,sceneKey="animated-test")
+            CatchChoiceDialog(fixture,"Instagram",onTaptation={home++},onOriginal={original++},
+                continueExtraDamage=5,cameo=MeadowCameo.Fish,sceneKey="animated-test")
         }}
         compose.onNodeWithText(text(R.string.caught_title)).assertIsDisplayed()
         compose.onNodeWithText(text(R.string.caught_our_app)).assertIsDisplayed().performClick()
         compose.onNodeWithContentDescription(compose.activity.getString(R.string.caught_original_app_with_penalty,"Instagram",5)).assertIsDisplayed().performClick()
-        compose.onNodeWithText(text(R.string.caught_correct)).performScrollTo().performClick()
-        compose.onNodeWithText(text(R.string.caught_later)).performScrollTo().performClick()
-        assertEquals(listOf(1,1,1,1),listOf(home,original,correction,later));assertEquals(before,app.game.state.value!!.health)
+        compose.onNodeWithText("This should be important").assertDoesNotExist()
+        compose.onNodeWithText("Not now").assertDoesNotExist()
+        assertEquals(listOf(1,1),listOf(home,original));assertEquals(before,app.game.state.value!!.health)
     }
 
     @Test fun everyCameoRendersInBothThemesAndPostponedPromptsShowFinalHealth(){
         for(dark in listOf(false,true))for(scene in MeadowCameo.entries){
             compose.activity.setContent{TaptationTheme(darkTheme=dark){
                 CatchChoiceDialog(fixture,"Instagram",onTaptation={},onOriginal={},continueExtraDamage=5,
-                    animateDamage=false,cameo=scene,sceneKey="${scene.name}-$dark",onCorrect={})
+                    animateDamage=false,cameo=scene,sceneKey="${scene.name}-$dark")
             }}
             compose.onNodeWithTag("caught-scene-${scene.name}").assertIsDisplayed().performTouchInput{click()}
             compose.onNodeWithContentDescription("Health 80 out of 100, down 10").assertExists()

@@ -44,7 +44,7 @@ fun NotificationRulesScreen(contentPadding: PaddingValues, repository: GameRepos
     val config = snapshot?.config
     val matches = picker.search(search)
     TabScreen(contentPadding, "Notification rules", itemSpacing = 10.dp,
-        subtitle = "Choose which apps are always important or always bait. Let us decide uses your answers below.") {
+        subtitle = "Choose which apps are always important or always distracting. Let us decide uses your answers below.") {
         item { BackLink("Settings", onBack) }
         error?.let { item { Text(it, color = MaterialTheme.colorScheme.error) } }
         if (config == null) {
@@ -57,8 +57,7 @@ fun NotificationRulesScreen(contentPadding: PaddingValues, repository: GameRepos
                 Text(if (picker.notificationFilterSupported) "Only apps allowed to send notifications are shown."
                     else "This Android version can’t check other apps’ notification permission, so all apps are shown.",
                     style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Text("Always important: never penalized. Always bait: eligible taps are always caught, without AI or a chance roll. Let us decide: AI classifies each notification, then the catch chance applies to distracting ones.",
-                    style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                RuleLegend()
                 TextButton(onClick = { appsExpanded = !appsExpanded }, modifier = Modifier.heightIn(min = 48.dp)) {
                     Text(if (appsExpanded) "Collapse apps" else "Show apps")
                 }
@@ -118,67 +117,6 @@ fun NotificationRulesScreen(contentPadding: PaddingValues, repository: GameRepos
     }
 }
 
-private fun AppRule.label() = when (this) {
-    AppRule.AlwaysBait -> "Always bait"
-    AppRule.AlwaysImportant -> "Always important"
-    AppRule.LetUsDecide -> "Let us decide"
-}
-
-@Composable
-private fun AppRuleRow(app: InstalledApp, rule: AppRule, labels: AppLabels, enabled: Boolean, onChange: (AppRule) -> Unit) {
-    val stripe = when (rule) {
-        AppRule.AlwaysBait -> MaterialTheme.colorScheme.tertiary
-        AppRule.AlwaysImportant -> MaterialTheme.colorScheme.primary
-        AppRule.LetUsDecide -> MaterialTheme.colorScheme.outline
-    }
-    BoxWithConstraints {
-    val compact = maxWidth < 480.dp
-    Surface(shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.surfaceContainerLowest,
-        contentColor = MaterialTheme.colorScheme.onSurface,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) {
-        Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min)) {
-            Box(Modifier.width(6.dp).fillMaxHeight().background(stripe))
-            Box(Modifier.weight(1f).padding(14.dp)) {
-                val appName: @Composable () -> Unit = {
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        AppIcon(app.packageName, labels, 36.dp)
-                        Text(app.label, style = MaterialTheme.typography.titleSmall)
-                    }
-                }
-                if (compact) Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    appName()
-                    RuleSelector(app.label, rule, enabled, Modifier.fillMaxWidth(), onChange)
-                } else Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Box(Modifier.weight(1f)) { appName() }
-                    RuleSelector(app.label, rule, enabled, Modifier.width(190.dp), onChange)
-                }
-            }
-        }
-    }
-}
-}
-
-@Composable
-private fun RuleSelector(app: String, rule: AppRule, enabled: Boolean, modifier: Modifier, onChange: (AppRule) -> Unit) {
-    var expanded by remember { mutableStateOf(false) }
-    Box(modifier) {
-        OutlinedButton(onClick = { expanded = true }, enabled = enabled, shape = RoundedCornerShape(12.dp),
-            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).semantics { contentDescription = "$app notification rule" }) {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                Text(if (enabled) rule.label() else "Saving…", style = MaterialTheme.typography.labelLarge)
-                Text("▾")
-            }
-        }
-        DropdownMenu(expanded, onDismissRequest = { expanded = false }) {
-            AppRule.entries.forEach { choice ->
-                DropdownMenuItem(text = { Text(choice.label(), fontWeight = if (choice == rule) FontWeight.Medium else FontWeight.Normal) },
-                    modifier = Modifier.semantics { selected = choice == rule },
-                    onClick = { expanded = false; if (choice != rule) onChange(choice) })
-            }
-        }
-    }
-}
-
 @Composable
 private fun CriteriaSection(config: GameConfig, repository: GameRepository) {
     // Whether the AI judge works in this build (API keys) is the backend's answer, not BuildConfig's.
@@ -221,9 +159,9 @@ private fun StrictnessSection(config: GameConfig, repository: GameRepository) {
                         fontWeight = if (level == current) FontWeight.Medium else FontWeight.Normal) }
                 }
                 Text(when (current) {
-                    Strictness.Relaxed -> "Only clear bait is marked as bait. Uncertain notifications are not penalized."
-                    Strictness.Balanced -> "Likely bait can trigger catches; important and uncertain notifications are not penalized."
-                    Strictness.Strict -> "More notifications count as bait. Uncertain AI decisions are still not penalized."
+                    Strictness.Relaxed -> "Only clearly distracting notifications count as distracting. Uncertain ones are not penalized."
+                    Strictness.Balanced -> "Likely distracting notifications can trigger catches. Important and uncertain ones are not penalized."
+                    Strictness.Strict -> "More notifications count as distracting. Uncertain AI decisions are still not penalized."
                 }, style = MaterialTheme.typography.bodyMedium)
             }
         }

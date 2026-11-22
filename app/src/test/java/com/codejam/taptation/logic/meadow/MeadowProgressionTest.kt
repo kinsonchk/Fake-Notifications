@@ -63,4 +63,39 @@ class MeadowProgressionTest {
         val full=advance(low,GameState(healthHistory=listOf(HealthRecord(start+10*minute,50,100,"recovery"))),at=start+25*minute)
         assertEquals(45,full.healthyMinutes)
     }
+
+    // Valley reveal: clean streak, one stage back per catch, revealed landmarks kept.
+    @Test fun cleanTimeRevealsTheValleyStageByStage() {
+        val s=advance(started(),at=start+45*minute)
+        assertEquals(45*minute,s.cleanMillis);assertEquals(ValleyStage.River,s.valleyStage)
+        assertEquals(15*minute,s.valleyRemainingMillis);assertEquals(.5f,s.valleyProgress,.001f)
+        assertEquals(ValleyStage.Valley,advance(s,at=start+480*minute).valleyStage)
+    }
+    @Test fun firstObservationDoesNotRollBackForOldCatches() {
+        val s=advance(MeadowState(),GameState(totalCatches=12,lastCatchMillis=start-minute),at=start)
+        assertEquals(0L,s.cleanMillis);assertEquals(12L,s.checkpointCatches)
+    }
+    @Test fun aCatchRollsTheViewBackOneStageButKeepsRevealedLandmarks() {
+        val s=advance(started(),GameState(totalCatches=0),at=start+130*minute)
+        assertEquals(ValleyStage.Bridge,s.valleyStage)
+        val caught=GameState(health=80,totalCatches=1,lastCatchMillis=start+130*minute,
+            healthHistory=listOf(HealthRecord(start+130*minute,100,80,"caught")))
+        val after=advance(s,caught,at=start+140*minute)
+        // Back to the start of Hills (60 min), plus the 10 clean minutes since the catch.
+        assertEquals(70*minute,after.cleanMillis);assertEquals(ValleyStage.Hills,after.valleyStage)
+        assertEquals(ValleyStage.Bridge,after.revealed)
+    }
+    @Test fun severalCatchesRollBackSeveralStagesAndNeverBelowZero() {
+        val s=advance(started(),at=start+130*minute)
+        val after=advance(s,GameState(totalCatches=3,lastCatchMillis=start+131*minute),at=start+131*minute)
+        assertEquals(15*minute,after.cleanMillis)
+        val many=advance(after,GameState(totalCatches=40,lastCatchMillis=start+132*minute),at=start+132*minute)
+        assertEquals(0L,many.cleanMillis);assertEquals(ValleyStage.Bridge,many.revealed)
+    }
+    @Test fun pausedTimeNeitherEarnsNorResetsCleanTime() {
+        val s=advance(started(),at=start+40*minute)
+        val off=advance(s,working=false,at=start+100*minute)
+        assertEquals(40*minute,off.cleanMillis)
+        assertEquals(40*minute,advance(off,at=start+160*minute).cleanMillis)
+    }
 }
