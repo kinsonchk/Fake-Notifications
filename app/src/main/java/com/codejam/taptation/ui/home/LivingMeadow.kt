@@ -1,6 +1,14 @@
 package com.codejam.taptation.ui.home
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.CompositingStrategy
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.BlendMode
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.snap
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
@@ -52,22 +60,23 @@ internal fun LivingMeadow(health: Int, world: MeadowState, scenery: MeadowScener
         else if (world.valleyStage.ordinal > seenStage) effects.say("The mist lifts. ${valleyText(world.valleyStage)}")
         seenStage = world.valleyStage.ordinal; seenCatches = world.checkpointCatches
     }
+    val motion = rememberMotionEnabled()
+    val soilOpen by animateFloatAsState(if (underground) 1f else 0f, if (motion) tween(500) else snap(), label = "Soil open")
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        BoxWithConstraints {
-            SideEffect { width = maxWidth.value }
-            MeadowCanvas(health = health, world = world, effects = effects,
-                onDiscover = onDiscover, onOpenUnderground = { underground = true }, scenery = scenery)
+        // Meadow and underground touch: one cross-section, the meadow drawing the soil's top slice.
+        Column {
+            BoxWithConstraints {
+                SideEffect { width = maxWidth.value }
+                MeadowCanvas(health = health, world = world, effects = effects,
+                    onDiscover = onDiscover, onOpenUnderground = { underground = true }, scenery = scenery, soilOpen = soilOpen)
+            }
+            AnimatedVisibility(underground) { UndergroundMeadow(health, world, effects, scenery) }
         }
         TextButton(onClick = { underground = !underground }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
             Text(if (underground) "Back to the surface ↑" else "Below ground ↓")
         }
-        AnimatedVisibility(underground) {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                UndergroundMeadow(world, effects)
-                Text("Tap a mushroom, the beetle, or the busy ant.", style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-        }
+        if (underground) Text("Tap a mushroom, the beetle, the ant, the worm or the fish.", style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant)
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             MeadowAction("Whirlwind") { effects.whirlwind(Offset(width * .5f, 110f)) }
             MeadowAction("Rain", effects::rain)
@@ -191,29 +200,60 @@ private fun entries(world:MeadowState)=listOf(
     MeadowEntry("Young oak",world.acornStage>=3,"Your visitors have changed the landscape.","360 min at full health."),
 )
 
+/** Continues the meadow's soil below its bottom edge, with the same painter, scale and soil coordinates. */
 @Composable
-private fun UndergroundMeadow(world:MeadowState,effects:MeadowEffects) {
-    val motion=rememberMotionEnabled()
-    val painter=remember{MeadowPainter()}
-    val dark=MaterialTheme.colorScheme.background.luminance()<.5f
-    painter.palette(if(dark)GrassDarkHighlight else GrassHighlight,if(dark)GrassDarkBlade else Forest,
-        if(dark)MeadowNightPetal else MeadowPetal,MeadowGold,if(dark)GrassDarkDry else Earth,dark)
+private fun UndergroundMeadow(health: Int, world: MeadowState, effects: MeadowEffects, scenery: MeadowScenery) {
+    val motion = rememberMotionEnabled()
+    val painter = remember { MeadowPainter() }
+    val blades = remember { MeadowMotion().blades }
+    val dark = MaterialTheme.colorScheme.background.luminance() < .5f
+    painter.palette(if (dark) GrassDarkHighlight else GrassHighlight, if (dark) GrassDarkBlade else Forest,
+        if (dark) MeadowNightPetal else MeadowPetal, MeadowGold, if (dark) GrassDarkDry else Earth, dark)
     // Own visible clock: the underground keeps moving if its surface has scrolled off screen.
-    val lifecycle=androidx.lifecycle.compose.LocalLifecycleOwner.current.lifecycle
+    val lifecycle = androidx.lifecycle.compose.LocalLifecycleOwner.current.lifecycle
     var started by remember { mutableStateOf(lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.STARTED)) }
-    DisposableEffect(lifecycle){val observer=androidx.lifecycle.LifecycleEventObserver{_,_->started=lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.STARTED)};lifecycle.addObserver(observer);onDispose{lifecycle.removeObserver(observer)}}
-    var frame by remember{mutableIntStateOf(0)}
-    var visible by remember{mutableStateOf(false)}
-    LaunchedEffect(motion,started,visible){if(motion&&started&&visible){while(true)androidx.compose.animation.core.withInfiniteAnimationFrameNanos{frame++}}}
-    Canvas(Modifier.fillMaxWidth().height(230.dp)
-        .onGloballyPositioned { visible=it.boundsInWindow().let{b->b.width>0&&b.height>0} }
-        .semantics{contentDescription="Underground meadow: roots, mushrooms, a beetle and an ant"}
-        .pointerInput(Unit){detectTapGestures{point->val x=point.x/size.width;val y=point.y/size.height
-            when{y>.63f&&x>.54f->{effects.antParcel=(effects.antParcel+1)%3;effects.say("An ambitious ant. A very important delivery.")}
-                x>.55f&&y<.67f->{effects.beetleUntil=effects.time+5;effects.say("The beetle stretches, then goes for a wander.")}
-                else->{effects.glowUntil=effects.time+5;effects.say("The mushrooms answer with a soft glow.")}}
-        }}) {
-        @Suppress("UNUSED_VARIABLE")val tick=frame+effects.revision
-        drawIntoCanvas{canvas->val scale=size.height/230;canvas.nativeCanvas.save();canvas.nativeCanvas.scale(scale,scale);canvas.nativeCanvas.clipRect(0f,0f,size.width/scale,230f);painter.underground(canvas.nativeCanvas,size.width/scale,world,effects,motion);canvas.nativeCanvas.restore()}
+    DisposableEffect(lifecycle) {
+        val observer = androidx.lifecycle.LifecycleEventObserver { _, _ -> started = lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.STARTED) }
+        lifecycle.addObserver(observer); onDispose { lifecycle.removeObserver(observer) }
+    }
+    var frame by remember { mutableIntStateOf(0) }
+    var visible by remember { mutableStateOf(false) }
+    LaunchedEffect(motion, started, visible) { if (motion && started && visible) { while (true) androidx.compose.animation.core.withInfiniteAnimationFrameNanos { frame++ } } }
+    val shown = meadowSoilShown(scenery)
+    Canvas(Modifier.fillMaxWidth().height(UNDERGROUND_HEIGHT.dp)
+        .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
+        .onGloballyPositioned { visible = it.boundsInWindow().let { b -> b.width > 0 && b.height > 0 } }
+        .semantics { contentDescription = "Underground: soil layers, roots, mushrooms, a beetle, an ant, a worm" +
+            (if (MeadowDiscovery.Pond in world.discoveries) ", the pond's fish" else "") + if (health < 60) ", dry and cracked" else "" }
+        .pointerInput(world.discoveries) { detectTapGestures { point ->
+            // Back to soil coordinates (y = 0 at the grass line), as drawn.
+            val scale = size.height / UNDERGROUND_HEIGHT; val w = size.width / scale
+            val x = point.x / scale; val y = point.y / scale + shown
+            fun near(cx: Float, cy: Float, r: Float) = kotlin.math.hypot(x - cx, y - cy) < r
+            val mushroom = (0..2).firstOrNull { val (mx, my) = painter.mushroom(it, w); near(mx, my - 14, 24f) }
+            when {
+                mushroom != null -> { effects.glowUntil = effects.time + 5; effects.pulseFrom = mushroom; effects.pulseAt = effects.time
+                    effects.say("The mushrooms glow, and light runs along the threads to the roots.") }
+                near(w * .76f, 110f, 28f) -> { effects.beetleUntil = effects.time + 5; effects.say("The beetle stretches, then goes for a wander.") }
+                MeadowDiscovery.Pond in world.discoveries && near(w * .81f, 32f, 32f) -> { effects.bubbleAt = effects.time; effects.say("A little fish lives in your pond.") }
+                near(w * .40f + 13, 40f, 18f) -> { effects.wormUntil = effects.time + 3; effects.say("A worm, busy keeping the soil soft.") }
+                near(w * .58f, 168f, 16f) -> effects.say("An old shell, older than the meadow itself.")
+                x in w * .58f..w * .74f && y < 100f -> { effects.antParcel = (effects.antParcel + 1) % 3; effects.say("An ambitious ant. A very important delivery.") }
+                else -> { effects.glowUntil = effects.time + 5; effects.say("The mushrooms answer with a soft glow.") }
+            }
+        } }) {
+        @Suppress("UNUSED_VARIABLE") val tick = frame + effects.revision
+        val scale = size.height / UNDERGROUND_HEIGHT; val w = size.width / scale
+        drawIntoCanvas { canvas -> val native = canvas.nativeCanvas
+            native.save(); native.scale(scale, scale); native.translate(0f, -shown)
+            native.clipRect(0f, shown, w, shown + UNDERGROUND_HEIGHT)
+            painter.soil(native, w, shown + UNDERGROUND_HEIGHT, health, world, effects, motion, blades)
+            native.restore()
+        }
+        // Same soft sides as the meadow, plus a fade into the page at the bottom.
+        drawRect(Brush.horizontalGradient(0f to Color.Transparent, .07f to Color.Black, .93f to Color.Black, 1f to Color.Transparent), blendMode = BlendMode.DstIn)
+        drawRect(Brush.verticalGradient(0f to Color.Black, .85f to Color.Black, 1f to Color.Transparent), blendMode = BlendMode.DstIn)
     }
 }
+
+private const val UNDERGROUND_HEIGHT = 260f

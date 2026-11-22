@@ -27,6 +27,11 @@ internal class MeadowEffects {
     var glowUntil = -1f
     var beetleUntil = -1f
     var antParcel = 0
+    var wormUntil = -1f
+    var bubbleAt = -10f
+    /** Mushroom whose fungus thread carries a light pulse, and when it started. */
+    var pulseFrom = -1
+    var pulseAt = -10f
     var dragVelocity = 0f
     fun tick(dt: Float) { gust *= kotlin.math.exp(-3.7f * dt); dragVelocity *= .9f }
     fun whirlwind(at: Offset) { vortex = at; vortexUntil = time + 5; gust = 1f; say("A little whirlwind. The butterfly is riding it.") }

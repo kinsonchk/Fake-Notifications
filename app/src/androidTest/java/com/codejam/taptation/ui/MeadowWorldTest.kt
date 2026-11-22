@@ -50,11 +50,11 @@ class MeadowWorldTest {
         compose.waitUntil(10_000){app.game.state.value!=null}
         val health=app.game.state.value!!.health
         show()
-        compose.onNodeWithContentDescription("Meadow health 100 out of 100").performTouchInput{
+        compose.onNodeWithContentDescription("Meadow health 100 out of 100", substring = true).performTouchInput{
             down(Offset(width*.1f,height*.82f));moveTo(Offset(width*.24f,height*.82f),250);up()
         }
         compose.waitUntil(5_000){MeadowDiscovery.Hedgehog in world.discoveries}
-        compose.onNodeWithContentDescription("Meadow health 100 out of 100").performTouchInput{
+        compose.onNodeWithContentDescription("Meadow health 100 out of 100", substring = true).performTouchInput{
             val cx=width*.5f;val cy=height*.48f;val radius=width/7f
             down(Offset(cx+radius,cy))
             for(i in 1..48){val a=i*2*PI/48;moveTo(Offset(cx+cos(a).toFloat()*radius,cy+sin(a).toFloat()*radius),16)}
@@ -75,8 +75,8 @@ class MeadowWorldTest {
         compose.onNodeWithText("Young oak").assertIsDisplayed()
         androidx.test.espresso.Espresso.pressBack()
         compose.onNodeWithText("Below ground ↓").performClick()
-        compose.onNodeWithContentDescription("Underground meadow: roots, mushrooms, a beetle and an ant").assertExists()
-        compose.onNodeWithContentDescription("Underground meadow: roots, mushrooms, a beetle and an ant").performTouchInput{click(Offset(width*.15f,height*.7f))}
+        compose.onNodeWithContentDescription("Underground:", substring = true).assertExists()
+        compose.onNodeWithContentDescription("Underground:", substring = true).performTouchInput{click(Offset(width*.15f,height*.7f))}
         compose.onNodeWithText("The mushrooms answer with a soft glow.").assertExists()
         capture("meadow-underground")
     }
@@ -85,7 +85,7 @@ class MeadowWorldTest {
         world=world.copy(discoveries=MeadowDiscovery.entries.toSet())
         for(dark in listOf(false,true))for(health in listOf(0,45,100)){
             show(health,dark)
-            compose.onNodeWithContentDescription("Meadow health $health out of 100").assertExists()
+            compose.onNodeWithContentDescription("Meadow health $health out of 100", substring = true).assertExists()
             capture("meadow-${if(dark)"dark" else "light"}-$health")
         }
     }
@@ -99,8 +99,8 @@ class MeadowWorldTest {
         compose.onNodeWithTag("tab-content").performScrollToNode(hasText("Open meadow preview"))
         compose.onNodeWithText("Open meadow preview").performClick()
         compose.onNodeWithTag("preview-health").performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.SetProgress){it(0f)}
-        compose.onNodeWithTag("meadow-preview").performScrollToNode(hasContentDescription("Meadow health 0 out of 100"))
-        compose.onNodeWithContentDescription("Meadow health 0 out of 100").assertExists()
+        compose.onNodeWithTag("meadow-preview").performScrollToNode(hasContentDescription("Meadow health 0 out of 100", substring = true))
+        compose.onNodeWithContentDescription("Meadow health 0 out of 100", substring = true).assertExists()
         assertEquals(health,app.game.state.value!!.health);assertEquals(discoveries,app.meadow.state.value!!.discoveries)
     }
 
