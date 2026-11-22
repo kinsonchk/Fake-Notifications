@@ -39,6 +39,9 @@ object JudgePrompt {
         appendLine("title: ${clip(context.title.orEmpty())}")
         appendLine("text: ${clip(context.text.orEmpty())}")
         if (context.actions.isNotEmpty()) appendLine("buttons: ${context.actions.joinToString { clip(it) }}")
+        context.media?.let { appendLine("attachment: ${it.name.lowercase()}") }
+        context.sender?.takeIf { it.isNotBlank() }?.let { appendLine("sender: ${clip(it)}") }
+        context.isGroup?.let { appendLine("group chat: $it") }
         append("</notification>")
     }
 
