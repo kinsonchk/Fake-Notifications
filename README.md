@@ -52,19 +52,18 @@ The original `dispatch(packageName)` / `onTap(packageName)` entry points remain 
 | `service/NotificationSignals.kt` | Category, channel, importance, conversation flags and timing for the `posted`/`removed` Logcat lines (never title/text) |
 | `ui/TaptationApp.kt` | Bottom tabs shown by `MainActivity` (see *App layout* below) |
 | `ui/home`, `ui/stats`, `ui/settings`, `ui/common` | Home status card, stats, settings, shared layout and tap-reason text |
-| `debug/DebugScreen.kt`, `debug/NotificationsScreen.kt`, `debug/TestNotification.kt` | Debug-only tabs: system status + demo controls; notification composer, saved presets, tap reasons, observed notifications |
+| `debug/DebugScreen.kt`, `debug/NotificationsScreen.kt`, `debug/TestNotification.kt` | Debug-only tab: system status + demo controls, plus notification tools (composer, saved presets, tap reasons, observed notifications) |
 
 ### App layout
 
-Bottom tabs, each answering one question. Debug and Notifications exist only in debug builds.
+Bottom tabs, each answering one question. Debug exists only in debug builds.
 
 | Tab | Shows |
 |---|---|
 | **Home** | Tree status: health, catches, taps, lockout countdown, last tap and why. Warns if notification access is off. Person 3 replaces it with the tree. |
 | **Stats** | Totals, taps per app, recent taps with their reason, health history. |
-| **Notifications** | Post test notification; custom notification form (package, title, text, category, channel, conversation, actions, image) with a live "would be" preview; saved presets; last 20 taps with classification, reason and outcome; observed notifications with the classification they would get. |
 | **Settings** | Catch chance and level, whitelisted apps, VIP names, important and bait keywords, per-app rules (bait app, profile, channels). |
-| **Debug** | Access/service/battery status, demo controls (0/100 %, set health, force catch, fast-forward, reset), simulate bait tap. |
+| **Debug** | Access/service/battery status, demo controls (0/100 %, set health, force catch, fast-forward, reset), simulate bait tap, and **Notification tools** (post test notification, custom notification form + live "would be" preview, saved presets, last 20 taps with reasons, observed notifications). |
 
 ### Run
 
@@ -88,7 +87,7 @@ adb shell cmd notification allow_listener com.codejam.taptation/com.codejam.tapt
 
 ### Verify
 
-1. **Notifications** tab > **Post test notification**, then tap the notification: a new row shows up in *Last 20 taps* with its classification and reason (a fresh install shows *Unsure*, because the test notification has no category). Mark its package as bait in **Settings** > *Per-app rules* to enable catch rolls for it.
+1. **Debug** tab > **Notification tools** > **Post test notification**, then tap the notification: a new row shows up in *Last 20 taps* with its classification and reason (a fresh install shows *Unsure*, because the test notification has no category). Mark its package as bait in **Settings** > *Per-app rules* to enable catch rolls for it.
 2. Post another one and **swipe it away**: no new row (Logcat shows `reason=CANCEL`).
 3. Tap a notification from a real app (Messages, Gmail): a row shows up with that app's package name.
 4. **Simulate tap (no notification)** on the custom notification form: a row with the typed package shows up without using the shade.
@@ -120,7 +119,7 @@ removed pkg=com.discord reason=CLICK(1) cat=msg channelId=... ... age=8123ms key
 
 ## Person 4 debug controls
 
-The **Debug** tab has the Person 4 demo controls for probability, health, force catch, fast-forward, and reset. They go through `RepositoryDemoControls`, which calls the real `GameRepository`, so they change the same saved game as normal taps. Release builds hide the Debug and Notifications tabs.
+The **Debug** tab has the Person 4 demo controls for probability, health, force catch, fast-forward, and reset. They go through `RepositoryDemoControls`, which calls the real `GameRepository`, so they change the same saved game as normal taps. Release builds hide the Debug tab.
 
 The in-app test notification is the repeatable tap test because it has a content action and auto-cancels. A shell-posted ADB notification can check appearance, but should not be used to verify tap detection. Use db logcat -s FakeNotifs to inspect listener messages.
 

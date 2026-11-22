@@ -85,9 +85,15 @@ class MockupScreensTest {
             compose.onNodeWithTag("tab-content").performScrollToNode(hasText("How strict should the AI be?"))
             capture("rule-strictness-light")
             compose.onNodeWithText("Settings").performClick()
+            compose.onAllNodesWithText("Notifications").assertCountEquals(0)
             compose.onNodeWithText("Debug").performClick()
             compose.onNodeWithText("System").assertIsDisplayed()
             capture("debug-light")
+            compose.onNodeWithText("Open notification tools").performClick()
+            compose.onNodeWithTag("screen-title").assertTextEquals("Notifications")
+            compose.onNodeWithText("Quick test").assertIsDisplayed()
+            compose.onNodeWithText("←  Debug").performClick()
+            compose.onNodeWithText("System").assertIsDisplayed()
         } finally { app.game.updateConfig { previous }.get(5, TimeUnit.SECONDS) }
     }
 

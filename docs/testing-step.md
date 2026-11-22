@@ -52,14 +52,14 @@ The app already had a **Post test notification** button. Person 4's changes keep
 
 A real tap and a swipe are different:
 
-- Tapping should add one row to **Last 20 taps** on the **Notifications** tab, with its classification and the reason.
+- Tapping should add one row to **Last 20 taps** in **Debug** > **Notification tools**, with its classification and the reason.
 - Swiping it away should not add a row.
 
 The **Simulate tap (no notification)** button on the custom notification form only tests the app's internal handoff. It does not test tapping a notification in Android's notification shade.
 
 ### 3. A check so debug tools are hidden in the release build
 
-The app shows bottom tabs: Home, Stats, Notifications, Settings, Debug. The Notifications and Debug tabs exist only in the debug build; the release build shows Home, Stats and Settings.
+The app shows bottom tabs: Home, Stats, Settings, Debug. The Debug tab (including Notification tools) exists only in the debug build; the release build shows Home, Stats and Settings.
 
 ### 4. A test for the new panel
 
@@ -181,7 +181,7 @@ Move the mouse to the very top of the emulator screen.
 Hold the mouse button and drag down.
 Find the Taptation test notification and tap it.
 7. and tap the Taptation test notification.
-8. Return to Taptation's **Notifications** tab. There should be one new row in **Last 20 taps**.
+8. Return to Taptation's **Debug** tab > **Notification tools**. There should be one new row in **Last 20 taps**.
 9.  Post another test notification, open the shade, and swipe it away.
 10. Return to Taptation. The swipe should not add a row.
 
@@ -251,7 +251,7 @@ Run:
 .\gradlew.bat assembleRelease --console=plain
 ```
 
-**What this checks:** the release version builds with the Notifications and Debug tabs hidden.
+**What this checks:** the release version builds with the Debug tab hidden.
 
 ## Results already obtained in this project
 
@@ -278,7 +278,7 @@ All of these refuse to run in a release build.
 
 ## Custom notifications (stand in for another app)
 
-The **Notifications** tab has a **Custom notification** form. Fill in package, title, text, category, channel name, app category, conversation flag and action buttons, optionally choose an image (shown as the notification's picture), then:
+**Debug** > **Notification tools** has a **Custom notification** form. Fill in package, title, text, category, channel name, app category, conversation flag and action buttons, optionally choose an image (shown as the notification's picture), then:
 
 - **Post custom notification** posts a real notification from Taptation on the debug test channel. Tap it in the shade to run the full pipeline. In debug builds the listener replaces the package, channel name, conversation flag and app category with the values you typed, so the logic sees, for example, `com.instagram.android`. Title, text, category and action buttons are set on the notification itself.
 - **Simulate tap (no notification)** skips the shade and sends the same context straight to the logic.

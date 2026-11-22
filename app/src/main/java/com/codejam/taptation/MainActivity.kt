@@ -35,7 +35,7 @@ class MainActivity : ComponentActivity() {
                 }
                 TaptationTheme(darkTheme = dark) {
                     androidx.compose.material3.Surface(Modifier.fillMaxSize(), color = androidx.compose.material3.MaterialTheme.colorScheme.background) {
-                        // Debug and Notifications tabs only exist in debug builds.
+                        // Debug tab only exists in debug builds.
                         TaptationApp(debug = BuildConfig.DEBUG)
                     }
                 }
