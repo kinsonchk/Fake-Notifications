@@ -21,7 +21,7 @@ class RevisedUiTest {
         var ours = 0
         var original = 0
         compose.setContent { MaterialTheme {
-            CatchChoiceDialog(onTaptation = { ours++ }, onOriginal = { original++ })
+            CatchChoiceDialog(continueExtraDamage = 0, onTaptation = { ours++ }, onOriginal = { original++ }, onLater = {})
         } }
         compose.onNodeWithText("Go to Taptation").assertIsDisplayed().performClick()
         compose.onNodeWithText("Go to original app").assertIsDisplayed().performClick()

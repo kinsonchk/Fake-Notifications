@@ -183,4 +183,19 @@ class NotificationClassifierTest {
         listOf(normal.copy(title = "Ann"), normal.copy(title = null), NotificationContext("any.app", category = "alarm"))
             .forEach { assertEquals(Assessment(Classification.Bait, "let_us_decide"), NotificationClassifier.assess(it, config)) }
     }
+
+    @Test fun letUsDecideFollowsTheAiVerdict() {
+        val config = GameConfig()
+        fun judged(c: Classification?) = NotificationClassifier.assess(NotificationContext("any.app", judged = c), config)
+        assertEquals(Assessment(Classification.Important, "ai_important"), judged(Classification.Important))
+        assertEquals(Assessment(Classification.Bait, "ai_bait"), judged(Classification.Bait))
+        assertEquals(Assessment(Classification.Unknown, "ai_unsure"), judged(Classification.Unknown))
+        assertEquals(Assessment(Classification.Bait, "let_us_decide"), judged(null))
+    }
+
+    @Test fun appRulesOverrideTheAiVerdict() {
+        val config = GameConfig(appRules = mapOf("any.app" to AppRule.AlwaysBait))
+        assertEquals(Assessment(Classification.Bait, "app_always_bait"),
+            NotificationClassifier.assess(NotificationContext("any.app", judged = Classification.Important), config))
+    }
 }

@@ -3,12 +3,15 @@ package com.codejam.taptation.service
 import android.content.ComponentName
 import android.app.Notification
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
 import android.content.pm.ApplicationInfo
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
 import android.util.Log
 import com.codejam.taptation.logic.TapDispatcher
 import com.codejam.taptation.logic.NotificationContext
+import com.codejam.taptation.logic.GameConfig
 import com.codejam.taptation.TaptationApplication
 import android.app.ActivityOptions
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -24,6 +27,8 @@ import kotlinx.coroutines.flow.asStateFlow
  * Callbacks arrive on the main thread. Keep them to filter + log + dispatch.
  */
 class TapListenerService : NotificationListenerService() {
+    private val mainHandler = Handler(Looper.getMainLooper())
+
     // Text stays in memory only; bound the cache even if removal callbacks are missed.
     private val contexts = object : LinkedHashMap<String, NotificationContext>() {
         override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, NotificationContext>?): Boolean =
@@ -44,10 +49,39 @@ class TapListenerService : NotificationListenerService() {
         super.onListenerConnected()
         Log.d(TAG, "onListenerConnected")
         _connected.value = true
+        judgeActiveNotifications()
+    }
+
+    /**
+     * After a (re)connect, notifications already in the shade got no posted callback. Judge them now
+     * so "Let us decide" has a verdict for them too, not just for ones posted from here on.
+     */
+    private fun judgeActiveNotifications() {
+        // Right after a process start the game state may still be loading: wait for it.
+        (application as TaptationApplication).game.refresh().thenAccept { state ->
+            mainHandler.post { if (_connected.value) judgeActiveNotifications(state.config) }
+        }
+    }
+
+    private fun judgeActiveNotifications(config: GameConfig) {
+        if (skipWhileDisabled()) return
+        val active = try { activeNotifications.orEmpty() } catch (e: RuntimeException) {
+            Log.w(TAG, "activeNotifications failed", e); return
+        }
+        val ranking = currentRanking
+        val eligible = active.filter { sbn ->
+            val flags = sbn.notification?.flags ?: 0
+            flags and (Notification.FLAG_GROUP_SUMMARY or Notification.FLAG_ONGOING_EVENT) == 0 &&
+                (sbn.packageName != packageName ||
+                    (isDebugBuild() && sbn.notification?.channelId == TapDetection.OWN_TEST_CHANNEL_ID))
+        }
+        eligible.forEach { sbn -> judges().onPosted(contextFor(sbn, ranking), config) }
+        Log.d(TAG, "judging ${eligible.size} active notifications after connect")
     }
 
     override fun onListenerDisconnected() {
         super.onListenerDisconnected()
+        judges().clear()
         contexts.clear()
         firstSeen.clear()
         simulations.clear()
@@ -69,6 +103,7 @@ class TapListenerService : NotificationListenerService() {
     }
 
     override fun onDestroy() {
+        judges().clear()
         contexts.clear()
         firstSeen.clear()
         simulations.clear()
@@ -86,6 +121,8 @@ class TapListenerService : NotificationListenerService() {
         val context = contextFor(sbn, rankingMap)
         contexts[sbn.key] = context
         TapDispatcher.handler.onNotificationPosted(context)
+        // "Let us decide": ask the AI judge now (off this thread) so the verdict is ready at tap time.
+        (application as TaptationApplication).game.state.value?.config?.let { judges().onPosted(context, it) }
         if (isDebugBuild()) {
             _observations.value = (listOf(context) + _observations.value.filter { it.key != context.key }).take(10)
         }
@@ -120,8 +157,9 @@ class TapListenerService : NotificationListenerService() {
         if (skipWhileDisabled()) return
         val now = System.currentTimeMillis()
         val firstSeenAt = firstSeen.remove(sbn.key) ?: sbn.postTime
-        val context = withRanking(contexts.remove(sbn.key) ?: contextFor(sbn, rankingMap), rankingMap)
-            .copy(ageMillis = now - sbn.postTime, firstSeenAgeMillis = now - minOf(firstSeenAt, sbn.postTime))
+        val removed = withRanking(contexts.remove(sbn.key) ?: contextFor(sbn, rankingMap), rankingMap)
+        val context = removed.copy(ageMillis = now - sbn.postTime, firstSeenAgeMillis = now - minOf(firstSeenAt, sbn.postTime),
+            judged = judges().classificationFor(removed))
         simulations.remove(sbn.key)
         // Simulated package for our debug notifications, the real one otherwise.
         val pkg = context.packageName
@@ -153,6 +191,7 @@ class TapListenerService : NotificationListenerService() {
             // A bug in the handler must not take down the listener.
             Log.e(TAG, "TapHandler threw for $pkg ($kind)", e)
         } finally {
+            judges().onRemoved(sbn.key)
             TapDispatcher.handler.onNotificationRemoved(sbn.key)
         }
     }
@@ -186,6 +225,7 @@ class TapListenerService : NotificationListenerService() {
         val config = (application as TaptationApplication).game.state.value?.config
         if (config?.isActive(System.currentTimeMillis()) == true) return false
         contexts.clear(); firstSeen.clear(); simulations.clear(); _observations.value = emptyList()
+        judges().clear()
         TapDispatcher.handler.onListenerReset()
         return true
     }
@@ -208,6 +248,8 @@ class TapListenerService : NotificationListenerService() {
         val extras = sbn.notification?.extras ?: return null
         return DebugSimulation.from(extras::getString)
     }
+
+    private fun judges() = (application as TaptationApplication).judges
 
     private fun isDebugBuild(): Boolean =
         applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0

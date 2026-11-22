@@ -1,7 +1,17 @@
-﻿plugins {
+﻿import java.util.Properties
+
+plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
 }
+
+// Cloudflare Workers AI credentials for the "Let us decide" judge. They live in the git-ignored
+// local.properties (cloudflare.accountId / cloudflare.apiToken); missing values build as "" and the
+// judge then answers Unsure.
+val localProps = Properties().apply {
+    rootProject.file("local.properties").takeIf { it.exists() }?.inputStream()?.use { load(it) }
+}
+fun localProp(name: String): String = localProps.getProperty(name, "").trim().replace("\"", "")
 
 android {
     namespace = "com.codejam.taptation"
@@ -17,6 +27,9 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        buildConfigField("String", "CF_ACCOUNT_ID", "\"${localProp("cloudflare.accountId")}\"")
+        buildConfigField("String", "CF_API_TOKEN", "\"${localProp("cloudflare.apiToken")}\"")
     }
 
     buildTypes {
