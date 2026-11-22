@@ -43,6 +43,14 @@ class TapListenerService : NotificationListenerService() {
     // update so ranking data can't overwrite the simulated channel/conversation values.
     private val simulations = HashMap<String, DebugSimulation>()
 
+    // A doubled listener connection delivers each callback twice; handle each event once.
+    private val duplicates = DuplicateEventFilter()
+    private fun isDuplicate(kind: DuplicateEventFilter.Kind, sbn: StatusBarNotification): Boolean {
+        if (duplicates.isFirst(kind, sbn.key, sbn.postTime, System.currentTimeMillis())) return false
+        Log.d(TAG, "duplicate ${kind.name.lowercase()} ignored pkg=${sbn.packageName} key=${sbn.key}")
+        return true
+    }
+
     override fun onListenerConnected() {
         super.onListenerConnected()
         Log.d(TAG, "onListenerConnected")
@@ -68,6 +76,7 @@ class TapListenerService : NotificationListenerService() {
 
     override fun onListenerDisconnected() {
         super.onListenerDisconnected()
+        duplicates.clear()
         judges().clear()
         contexts.clear()
         firstSeen.clear()
@@ -102,6 +111,7 @@ class TapListenerService : NotificationListenerService() {
 
     override fun onNotificationPosted(sbn: StatusBarNotification, rankingMap: RankingMap) {
         if (skipWhileDisabled()) return
+        if (isDuplicate(DuplicateEventFilter.Kind.Posted, sbn)) return
         // update=true: same key already active, so the app replaced it (e.g. a new chat message).
         val update = contexts.containsKey(sbn.key)
         firstSeen.putIfAbsent(sbn.key, sbn.postTime)
@@ -143,6 +153,7 @@ class TapListenerService : NotificationListenerService() {
         reason: Int,
     ) {
         if (skipWhileDisabled()) return
+        if (isDuplicate(DuplicateEventFilter.Kind.Removed, sbn)) return
         val now = System.currentTimeMillis()
         val firstSeenAt = firstSeen.remove(sbn.key) ?: sbn.postTime
         val removed = withRanking(contexts.remove(sbn.key) ?: contextFor(sbn, rankingMap), rankingMap)

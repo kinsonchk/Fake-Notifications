@@ -31,9 +31,10 @@ class AppLabelsTest {
 
 class SettingsTextTest {
     @Test fun chanceIsExplainedInPlainNumbers() {
-        assertEquals("About 1 in 5 distracting taps. Important notifications are never caught.", chanceSummary(Difficulty.Easy))
-        assertTrue(chanceSummary(Difficulty.Medium).startsWith("About 2 in 5"))
-        assertTrue(chanceSummary(Difficulty.Hard).startsWith("About 7 in 10"))
+        assertEquals("Let us decide: about 1 in 5 AI-classified distracting taps. Always distracting catches eligible taps; Always important stays safe.",
+            chanceSummary(Difficulty.Easy))
+        assertTrue(chanceSummary(Difficulty.Medium).startsWith("Let us decide: about 2 in 5"))
+        assertTrue(chanceSummary(Difficulty.Hard).startsWith("Let us decide: about 7 in 10"))
     }
 
     @Test fun timeLimitReadsNaturally() {

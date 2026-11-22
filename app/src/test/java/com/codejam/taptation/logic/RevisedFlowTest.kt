@@ -9,8 +9,9 @@ class RevisedFlowTest {
         override fun load() = snapshot?.let(GameStateCodec::decode)
         override fun save(state: GameState) { snapshot = GameStateCodec.encode(state) }
     }
+    // "Let us decide" needs an AI verdict to roll; without one the tap is Unknown (no penalty).
     private val context = NotificationContext("social.app", title = "An update", text = "Something new",
-        category = "social", isConversation = false, ageMillis = 0)
+        category = "social", isConversation = false, ageMillis = 0, judged = Classification.Bait)
 
     @Test fun difficultyHasFixedChancesAndReleaseIgnoresDebugOverride() {
         assertEquals(listOf(0.2, 0.4, 0.7), Difficulty.entries.map { it.probability })

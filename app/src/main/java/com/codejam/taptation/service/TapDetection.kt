@@ -122,3 +122,30 @@ object TapDetection {
         else -> "UNKNOWN"
     }
 }
+
+/**
+ * Drops the second copy of a listener event. Android can end up with two connections to the same
+ * listener (for example when a rebind races the system's own reconnect); every posted/removed
+ * callback then arrives twice, and a single tap would be counted twice (the second copy finding no
+ * AI verdict left). A real repost always has a new postTime, so the same kind + key + postTime seen
+ * again within [windowMillis] is a duplicate. Pure: the caller passes the clock; not thread-safe
+ * (listener callbacks run on the main thread).
+ */
+class DuplicateEventFilter(private val windowMillis: Long = 2_000, private val capacity: Int = 128) {
+    enum class Kind { Posted, Removed }
+
+    private val seen = object : LinkedHashMap<String, Long>(capacity, 0.75f, false) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, Long>?): Boolean = size > capacity
+    }
+
+    /** True the first time this event is seen; false for a duplicate delivered within the window. */
+    fun isFirst(kind: Kind, key: String, postTime: Long, nowMillis: Long): Boolean {
+        val id = "${kind.name}|$postTime|$key"
+        val previous = seen[id]
+        if (previous != null && nowMillis - previous in 0..windowMillis) return false
+        seen.remove(id); seen[id] = nowMillis
+        return true
+    }
+
+    fun clear() = seen.clear()
+}
