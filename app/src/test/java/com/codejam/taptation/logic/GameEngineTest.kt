@@ -72,7 +72,9 @@ class GameEngineTest {
     @Test fun keywordMatchingIsCaseInsensitiveAndDoesNotPersistContent() {
         val f = Fixture()
         f.configure { it.copy(baitKeywords = setOf("SALE")) }
-        assertEquals(TapOutcome.Caught, f.game.onTap(NotificationContext("shop", title = "Shop", text = "private sale message")).outcome)
+        // "Let us decide" catches only with an AI Bait verdict; keyword rules are off the tap path.
+        assertEquals(TapOutcome.Caught, f.game.onTap(NotificationContext("shop", title = "Shop", text = "private sale message",
+            judged = Classification.Bait)).outcome)
         val bytes = java.util.Base64.getDecoder().decode(f.store.encoded)
         assertFalse(String(bytes, Charsets.ISO_8859_1).contains("private sale message"))
     }
@@ -154,7 +156,8 @@ class GameEngineTest {
         assertEquals("lockout", result.reason)
         assertEquals(90, result.state.health)
         assertEquals(until, result.state.lockoutUntilMillis)
-        assertEquals(1, f.rolls)
+        // Always distracting catches without a roll, and the lockout tap doesn't roll either.
+        assertEquals(0, f.rolls)
         assertEquals(2, result.state.taps.size)
     }
 
@@ -229,7 +232,8 @@ class GameEngineTest {
         val dead = f.tap("bait")
         assertEquals(TapOutcome.Caught, dead.outcome)
         assertEquals(0, dead.state.taps.last().damage)
-        assertEquals(1, f.rolls)
+        // Always distracting never rolls, alive or dead.
+        assertEquals(0, f.rolls)
         val reset = f.game.reset()
         assertEquals(100, reset.health)
         assertEquals(2L, reset.totalCatches)

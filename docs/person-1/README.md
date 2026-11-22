@@ -37,6 +37,15 @@ Check before it merges: the tap rules in `CLAUDE.md` still hold, `onNotification
 5. **Reliability** (priority feature): reboot (listener should rebind without opening the app), 10+ minutes idle with screen off, app killed from recents, revoke access mid-session.
 6. **Catch notification support**: when Person 3 adds the "you got caught" alert, check its channel is not `debug_test` and that tapping it does not log a tap.
 7. **Hand-offs**: Person 3 reuses `PermissionHelper` for onboarding; Person 4 uses the debug screen and test notification.
+8. **Idea, not implemented: adaptive tap wait for the AI verdict.** A tap on a "Let us decide" notification whose
+   verdict hasn't arrived waits a fixed `JudgeQueue.TAP_GRACE_MILLIS` (1 s; commit `823dc71`'s message says 2 s but
+   the code has always been 1 s), then goes through as `ai_pending_timeout` (no penalty). The wait could adapt instead:
+   - Verdict arrived within the wait: shorten the next wait towards the observed latency (for example
+     `max(latency × 1.5, 300 ms)`), so fast connections don't hold taps longer than needed.
+   - Wait expired without a verdict: lengthen the next wait (for example × 1.5, capped around 3 s), so a slow network
+     stops turning every quick tap into a free pass.
+   - Keep it in memory in `JudgeQueue` (resets to 1 s on restart), never block the listener callback, and log only
+     the wait length. Trade-off: a longer wait delays the catch overlay after a tap.
 
 Privacy rule: notification title/text may be shown on the debug screen from memory but must never be logged or persisted. Brief C2 asks to "log ... title": show it on screen, not in Logcat.
 ## Discord #general: expected result

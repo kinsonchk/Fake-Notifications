@@ -8,6 +8,7 @@ import android.os.SystemClock
 import android.provider.Settings
 import android.view.accessibility.AccessibilityNodeInfo
 import androidx.test.platform.app.InstrumentationRegistry
+import com.codejam.taptation.logic.Classification
 import com.codejam.taptation.logic.GameRepository
 import com.codejam.taptation.logic.NotificationContext
 import com.codejam.taptation.logic.TapOutcome
@@ -53,7 +54,7 @@ class CaughtOverlayTest {
             repository.refresh().get(5, TimeUnit.SECONDS)
             repository.setDebugCatchProbability(1.0).get(5, TimeUnit.SECONDS)
             val result = repository.processTap(NotificationContext(original.packageName, title = "Demo",
-                text = "Routine update", category = "promo", isConversation = false, ageMillis = 0,
+                text = "Routine update", category = "promo", isConversation = false, ageMillis = 0, judged = Classification.Bait,
                 openOriginal = { opened.set(true) })).get(5, TimeUnit.SECONDS)
             assertEquals(TapOutcome.Caught, result.outcome)
             fun node(text: String, prefix: Boolean = false): AccessibilityNodeInfo? = automation.windows.asSequence()
