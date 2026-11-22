@@ -18,7 +18,7 @@ class ClefJudge(
 ) : NotificationJudge {
     override val isConfigured: Boolean get() = workersAi.isConfigured
 
-    /** Unsure when no key is set, the notification has no title/text, or the call fails; a judge error must never cost health. */
+    /** Unavailable checks never cost health; a usable score is Important or Bait. */
     override fun judge(context: NotificationContext, config: GameConfig): Verdict =
         judgeWithReason(context, config).verdict
 
@@ -32,7 +32,7 @@ class ClefJudge(
             val reason = when (verdict) {
                 Verdict.Important -> "ai_important"
                 Verdict.Bait -> "ai_bait"
-                Verdict.Unsure -> "ai_unsure_range"
+                Verdict.Unsure -> "ai_unsure"
             }
             JudgeResult(verdict, reason)
         } catch (e: Exception) {

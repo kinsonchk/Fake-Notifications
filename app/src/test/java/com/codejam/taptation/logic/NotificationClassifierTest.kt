@@ -157,15 +157,15 @@ class NotificationClassifierTest {
         assertEquals(55, engine.getHealth())
     }
 
-    @Test fun packageOnlyTapIsLetUsDecideBaitAndLogsAge() {
+    @Test fun packageOnlyTapWithoutAiIsNotPenalizedAndLogsAge() {
         val engine = GameEngine(object : GameStore {
             override fun load(): GameState? = null
             override fun save(state: GameState) {}
         }, { 1000 }, { 0.999 })
         val result = engine.onTap("unknown.app", 500)
         assertEquals(TapOutcome.NoPenalty, result.outcome)
-        assertEquals("roll_passed", result.reason)
-        assertEquals("let_us_decide", result.rule)
+        assertEquals("ai_not_configured", result.reason)
+        assertEquals("ai_not_configured", result.rule)
         assertEquals(500L, engine.state.taps.single().ageMillis)
     }
 
@@ -177,11 +177,11 @@ class NotificationClassifierTest {
             NotificationClassifier.assess(NotificationContext("safe.app"), rules))
     }
 
-    @Test fun appsNotSetDefaultToLetUsDecideWhichIsBaitForNow() {
+    @Test fun appsNotSetDefaultToLetUsDecideAndNoAiResultIsNotPenalized() {
         val config = GameConfig(vipNames = setOf("Ann"))
         assertEquals(AppRule.LetUsDecide, config.ruleFor("any.app"))
         listOf(normal.copy(title = "Ann"), normal.copy(title = null), NotificationContext("any.app", category = "alarm"))
-            .forEach { assertEquals(Assessment(Classification.Bait, "let_us_decide"), NotificationClassifier.assess(it, config)) }
+            .forEach { assertEquals(Assessment(Classification.Unknown, "ai_not_configured"), NotificationClassifier.assess(it, config)) }
     }
 
     @Test fun letUsDecideFollowsTheAiVerdict() {
@@ -190,7 +190,7 @@ class NotificationClassifierTest {
         assertEquals(Assessment(Classification.Important, "ai_important"), judged(Classification.Important))
         assertEquals(Assessment(Classification.Bait, "ai_bait"), judged(Classification.Bait))
         assertEquals(Assessment(Classification.Unknown, "ai_unsure"), judged(Classification.Unknown))
-        assertEquals(Assessment(Classification.Bait, "let_us_decide"), judged(null))
+        assertEquals(Assessment(Classification.Unknown, "ai_not_configured"), judged(null))
     }
 
     @Test fun appRulesOverrideTheAiVerdict() {

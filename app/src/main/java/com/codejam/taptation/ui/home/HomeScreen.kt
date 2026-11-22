@@ -147,8 +147,8 @@ private fun NoticeCard(title: String, body: String, actions: @Composable android
 
 @Composable
 private fun FirstUseCard(difficulty: com.codejam.taptation.logic.Difficulty, onOpenSettings: (String) -> Unit) {
-    SectionCard("Notification rules", "Choose apps that should always get through, then tell us what matters to you.") {
-        Text("${difficulty.name}: ${(difficulty.probability * 100).toInt()}% catch chance on an eligible distracting tap.",
+    SectionCard("Notification rules", "Choose Always important, Always bait, or Let us decide for each app.") {
+        Text("${difficulty.name}: ${(difficulty.probability * 100).toInt()}% catch chance for distracting notifications in Let us decide. Always bait catches eligible taps automatically.",
             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         TextButton(onClick = { onOpenSettings(SettingsPages.Rules) }) { Text("Choose apps and preferences") }
     }

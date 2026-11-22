@@ -31,6 +31,7 @@ class GameEngine(
         val before = next.health
         val outcome: TapOutcome
         val reason: String
+        val alwaysBaitRule = next.config.ruleFor(context.packageName) == AppRule.AlwaysBait
         when {
             classification == Classification.Important -> {
                 outcome = TapOutcome.Bypass
@@ -48,7 +49,8 @@ class GameEngine(
                     }
                     // At 0 health every bait tap is caught (100%, no roll): no damage is left to
                     // take, but the catch, lockout and choice overlay still happen.
-                    next.isDead || random() < (if (allowDebugOverrides) next.config.catchProbability else next.config.difficulty.probability) -> {
+                    next.isDead || alwaysBaitRule ||
+                        random() < (if (allowDebugOverrides) next.config.catchProbability else next.config.difficulty.probability) -> {
                         next = caught(next, next.config.level, now).let {
                             it.copy(pendingCatch = it.pendingCatch?.copy(packageName = context.packageName,
                                 rule = assessment.reason, channel = context.channelName))

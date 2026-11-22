@@ -5,7 +5,7 @@ A settings screen where the user labels each installed app with one of three cho
 
 | Choice | Meaning |
 |---|---|
-| **Always bait** | Notifications from this app are bait. A quick tap can get the user caught. |
+| **Always bait** | Notifications from this app are classified as bait and an eligible tap is always caught, without an AI check or catch-probability roll. |
 | **Always important** | Notifications from this app are never penalized (bypass). |
 | **Let us decide** | The app judges each notification using the user's answers and the strictness setting. |
 
@@ -19,8 +19,8 @@ A settings screen where the user labels each installed app with one of three cho
 
 ## How the choice is used
 1. **Always important:** the classifier returns `Bypass` and stops.
-2. **Always bait:** the notification is treated as bait. The freshness window and the random roll still apply.
-3. **Let us decide:** the classifier runs the rules (category, VIP names, keywords, the user's essential and non-essential descriptions). If it is unsure, it returns `NoPenalty` (fail safe).
+2. **Always bait:** the notification is treated as bait and an eligible tap is caught without AI or the random catch-probability roll. The freshness window and catch lockout still apply.
+3. **Let us decide:** the AI classifies each notification as Important or Bait. Important notifications bypass the catch; Bait notifications use the selected catch probability. If the AI check is unavailable or fails, it returns `NoPenalty` (fail safe).
 
 ## Related settings on the same screen
 - **Essential:** a text field, "What makes a message essential for you?"
@@ -50,7 +50,7 @@ Store only the apps the user changed. A missing app means the default, so newly 
 ## Acceptance criteria
 1. A freshly installed app, and an app the user never touched, behaves as "Let us decide."
 2. Setting an app to "Always important" makes its notifications return `Bypass`.
-3. Setting an app to "Always bait" makes its notifications go straight to the freshness check and roll.
+3. Setting an app to "Always bait" makes its notifications skip AI and the probability roll; a fresh eligible tap causes a catch unless the game is paused or the catch lockout is active.
 4. The three choices persist across an app restart.
 5. The two text fields and the strictness slider are saved and readable by the classifier.
 

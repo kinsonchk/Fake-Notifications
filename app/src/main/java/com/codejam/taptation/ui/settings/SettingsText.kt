@@ -12,10 +12,10 @@ internal fun listSummary(values: Set<String>, empty: String): String {
 }
 
 internal fun chanceSummary(difficulty: Difficulty): String = when (difficulty) {
-    Difficulty.Easy -> "About 1 in 5 distracting taps."
-    Difficulty.Medium -> "About 2 in 5 distracting taps."
-    Difficulty.Hard -> "About 7 in 10 distracting taps."
-} + " Important notifications are never caught."
+    Difficulty.Easy -> "Let us decide: about 1 in 5 AI-classified distracting taps."
+    Difficulty.Medium -> "Let us decide: about 2 in 5 AI-classified distracting taps."
+    Difficulty.Hard -> "Let us decide: about 7 in 10 AI-classified distracting taps."
+} + " Always bait catches eligible taps; Always important stays safe."
 
 internal fun timeLimitText(seconds: Int): String = when {
     seconds < 60 -> "$seconds seconds"

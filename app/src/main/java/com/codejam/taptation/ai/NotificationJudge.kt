@@ -22,7 +22,7 @@ data class JudgeResult(val verdict: Verdict, val reason: String) {
  * they must never be logged or persisted.
  */
 interface NotificationJudge {
-    /** False when the judge can't work at all (e.g. no API key): "Let us decide" keeps its fallback. */
+    /** False when the judge can't work (e.g. missing API key): "Let us decide" gets no penalty. */
     val isConfigured: Boolean get() = true
 
     fun judge(context: NotificationContext, config: GameConfig): Verdict

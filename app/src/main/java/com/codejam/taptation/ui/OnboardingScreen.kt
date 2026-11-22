@@ -94,9 +94,9 @@ internal fun OnboardingScreen(startAtSetup: Boolean, onComplete: () -> Unit) {
                 when (page) {
                     PAGE_SETUP -> "A couple of settings"
                     PAGE_PERSONAL_CRITERIA -> "What matters to you?"
-                    PAGE_SAFE_APPS -> "Your important apps stay safe."
-                    PAGE_CATCHES -> "A tap can be a moment to pause."
-                    else -> "A little more room"
+                    PAGE_SAFE_APPS -> "Set rules for your apps"
+                    PAGE_CATCHES -> "Pause, then choose what to do next."
+                    else -> "Give your attention a little space"
                 },
                 style = MaterialTheme.typography.headlineLarge,
                 modifier = Modifier.fillMaxWidth(),
@@ -107,20 +107,20 @@ internal fun OnboardingScreen(startAtSetup: Boolean, onComplete: () -> Unit) {
                 if (page == PAGE_WELCOME) GrassMeadow(health = 100)
                 if (page == PAGE_PERSONAL_CRITERIA) {
                     SectionCard(
-                        title = "Help the AI understand your priorities",
-                        subtitle = "These answers guide the AI for apps set to Let us decide. You can change them later in Settings.",
+                        title = "Set your personal notification priorities",
+                        subtitle = "These preferences guide automatic checks. They only affect apps set to Let us decide, and you can change them later in Settings.",
                     ) {
                         val config = gameState?.config
                         if (config == null) {
                             Text("Loading your saved preferences…", style = MaterialTheme.typography.bodyMedium)
                         } else {
                             CriteriaField(
-                                label = "What notifications are important in your life?",
+                                label = "What messages would you not want Taptation to interrupt?",
                                 placeholder = "Family messages, work shifts, delivery updates, appointment changes…",
                                 saved = config.essentialCriteria,
                             ) { value -> repository.updateConfig { it.copy(essentialCriteria = value.trim()) } }
                             CriteriaField(
-                                label = "What notifications are usually not important to you?",
+                                label = "What notifications would distract you?",
                                 placeholder = "Likes, follows, game rewards, sales, suggested posts…",
                                 saved = config.nonEssentialCriteria,
                             ) { value -> repository.updateConfig { it.copy(nonEssentialCriteria = value.trim()) } }
@@ -129,7 +129,7 @@ internal fun OnboardingScreen(startAtSetup: Boolean, onComplete: () -> Unit) {
                             if (BuildConfig.CF_ACCOUNT_ID.isNotBlank() && BuildConfig.CF_API_TOKEN.isNotBlank()) {
                                 "Your answers are saved on this device. When AI judging runs, Taptation sends your preferences and notification details to Cloudflare. Notification details are not saved by Taptation."
                             } else {
-                                "Your answers are saved on this device. AI judging is not configured in this build, so these answers will not affect automatic decisions yet."
+                                "Your answers are saved on this device. Automatic AI checks are not available in this build, so apps set to Let us decide will not be penalized automatically."
                             },
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -139,16 +139,16 @@ internal fun OnboardingScreen(startAtSetup: Boolean, onComplete: () -> Unit) {
                     SectionCard(
                         title = when (page) {
                             PAGE_WELCOME -> "Make space for what matters."
-                            PAGE_SAFE_APPS -> "Your important apps stay safe."
+                            PAGE_SAFE_APPS -> "Choose which apps are safe or always caught if you want instead of the default behavior"
                             else -> "A tap can be a moment to pause."
                         },
                         subtitle = when (page) {
                             PAGE_WELCOME -> "Some distracting notification taps trigger a reminder and lower your meadow’s health. Important notifications are excluded."
-                            PAGE_SAFE_APPS -> "Choose the apps and people you want to protect. Taptation can also skip urgent and important notifications."
-                            else -> "Taptation checks distracting notification taps. If a catch happens, your meadow loses health and a reminder shows what it cost before you continue."
+                            PAGE_SAFE_APPS -> "Always important keeps an app safe. Always bait catches each eligible tap. Apps left on Let us decide are checked automatically; we explain that next."
+                            else -> "For apps on Let us decide, AI checks whether each notification is important or distracting. Important ones stay safe; distracting ones use your catch chance. Always bait will catches all notification tapped, while Always important stays safe. If caught, your meadow loses health and a reminder explains the cost."
                         },
                     ) {
-                        if (page == PAGE_SAFE_APPS) Text("You can choose safe apps later in Settings.",
+                        if (page == PAGE_SAFE_APPS) Text("You can change an app’s rule any time in Settings.",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }

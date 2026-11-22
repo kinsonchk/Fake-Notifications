@@ -12,9 +12,6 @@ object ClefQuestion {
     const val IMPORTANT = "important"
     const val BAIT = "bait"
 
-    /** At or below this bait probability the notification counts as Important. */
-    const val IMPORTANT_MAX_BAIT = 0.3
-
     const val INSTRUCTIONS = "Classify this phone notification by whether opening it would serve a meaningful need or interest of this user, or whether it mainly seeks attention without meaningful personal value. " +
         "IMPORTANT does not mean urgent: useful personal, work, security, money, delivery, travel, appointment, or care information can matter even when it can wait. " +
         "BAIT means the notification mainly invites repeat checking or engagement, such as likes, follows, recommendations, streaks, rewards, promotions, or trending content, with no clear user-directed need. " +
@@ -53,12 +50,9 @@ object ClefQuestion {
         Strictness.Strict -> 0.55
     }
 
-    /** Between the two thresholds the model is torn, which is Unsure (no penalty). */
-    fun verdict(baitProbability: Double, strictness: Strictness): Verdict = when {
-        baitProbability >= baitThreshold(strictness) -> Verdict.Bait
-        baitProbability <= IMPORTANT_MAX_BAIT -> Verdict.Important
-        else -> Verdict.Unsure
-    }
+    /** Only technical failures produce Unsure. Any usable model score below the bait threshold is Important. */
+    fun verdict(baitProbability: Double, strictness: Strictness): Verdict =
+        if (baitProbability >= baitThreshold(strictness)) Verdict.Bait else Verdict.Important
 
     private fun describe(general: String, label: String, user: String): String =
         if (user.isBlank()) general else "$general $label: ${user.trim()}"

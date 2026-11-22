@@ -57,8 +57,8 @@ fun StatsScreen(contentPadding: PaddingValues) {
                 SegmentedChoice(listOf("Last 7 days", "Last 30 days"), if (month) 1 else 0, { month = it == 1 })
                 Text("Showing", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 SegmentedChoice(listOf("Distracting", "All detected"), if (includeImportant) 1 else 0, { includeImportant = it == 1 })
-                Text(if (includeImportant) "Every notification Taptation detected, including important and unsure ones."
-                    else "Distracting notifications are the ones that can trigger a catch. Important and unsure ones are left out.",
+                Text(if (includeImportant) "Every notification Taptation detected, including important ones and checks with no result."
+                    else "Distracting notifications are the ones that can trigger a catch. Important ones and checks with no result are left out.",
                     style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }

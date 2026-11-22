@@ -2,7 +2,7 @@
 
 ## Decision to make
 
-Taptation needs a clear way for a person to choose how often a bait notification can cause a catch. The two main choices are named difficulty presets (Easy, Medium, Hard) and a custom percentage.
+Taptation needs a clear way for a person to choose how often an automatically classified bait notification can cause a catch. The **Always bait** app rule is separate: it skips AI and the probability roll, so an eligible tap is caught. The two main catch-chance choices are named difficulty presets (Easy, Medium, Hard) and a custom percentage.
 
 ## Recommendation
 
@@ -10,7 +10,7 @@ Offer a small set of named presets as the main choice, with an optional **Custom
 
 Suggested choices:
 
-| Choice | Catch chance per eligible bait tap | User-facing meaning |
+| Choice | Catch chance per eligible AI-classified bait tap | User-facing meaning |
 |---|---:|---|
 | Easy | 5% | Catches are occasional; most bait taps are safe. |
 | Medium | 10% | Catches happen sometimes. |
@@ -68,20 +68,20 @@ Avoid promises such as “exactly one catch in every ten taps.” Random chance 
 
 ## What counts as a catch chance attempt?
 
-Only a notification tap that the game has classified as bait, and that is not whitelisted, should use the catch chance. A whitelisted app must bypass the roll. Swiping a notification away is not a tap and must not roll. A non-bait or unknown notification should follow the project's classification rules and should not be presented as a catch attempt unless the rules explicitly classify it as bait.
+The catch chance applies only to a notification on **Let us decide** that AI classifies as bait. **Always important** bypasses the catch. **Always bait** skips AI and the random roll, and catches each eligible tap. Swiping a notification away is not a tap and must not trigger a catch. Stale notifications, a paused game and the catch lockout keep their existing behavior.
 
 The sequence should be understandable and consistent:
 
 ```text
 Notification is tapped
         ↓
-Is its app whitelisted? ── yes → safe bypass; no roll
+Is app Always important? ── yes → safe bypass
         ↓ no
-Is the notification classified as bait? ── no → no catch roll
-        ↓ yes
-Roll against the selected catch chance
-        ↓
-Catch or no catch
+Is app Always bait? ── yes → catch (no AI, no probability roll)
+        ↓ no: Let us decide
+AI classifies notification ── Important → safe bypass
+        ↓ Bait
+Roll against selected catch chance → catch or no catch
 ```
 
 ## Data and implementation guidance
@@ -90,14 +90,15 @@ Store one numeric catch probability in the existing game configuration (for exam
 
 When someone selects a preset, save its percentage. When someone adjusts the custom value, save that percentage. If the user later returns to the difficulty options, the app may show **Custom** when the saved percentage does not match a preset. This keeps the displayed choice consistent with the actual game behavior.
 
-The game engine should receive the final numeric probability and apply it only after whitelist and bait classification. UI code should update the shared settings repository; it should not implement catch rules itself.
+The game engine should receive the final numeric probability and apply it only after the AI classifies a Let us decide notification as bait. Always bait is a forced-catch app rule and does not consume the random source. UI code should update the shared settings repository; it should not implement catch rules itself.
 
 ## Testing examples
 
-- **0% custom:** eligible bait taps do not catch; the random comparison should never pass.
+- **0% custom:** eligible AI-classified bait taps on Let us decide do not catch; Always bait apps still catch.
 - **5%, 10%, or 20% presets:** the engine uses the matching stored probability. Unit tests should use a deterministic random value to check both sides of the threshold rather than expecting a particular rate over a short run.
-- **100% custom:** every eligible bait tap catches unless another rule (whitelist, active lockout) prevents that attempt. At 0 health every bait tap catches anyway, whatever the chance.
-- **Whitelisted bait app:** no random roll at any selected chance.
+- **100% custom:** every eligible AI-classified bait tap catches unless the active lockout prevents that attempt. Always bait also catches without a roll.
+- **Always important app:** no AI request or catch roll at any selected chance.
+- **Always bait app:** no AI request or catch roll; an eligible tap catches unless the game is paused, stale or in catch lockout.
 - **Swipe-dismissed notification:** no tap and no random roll.
 - **Custom value is saved:** after closing and reopening the app, the selected percentage and displayed option agree.
 

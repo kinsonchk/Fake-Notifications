@@ -119,7 +119,7 @@ private fun AppearanceCard() {
 
 @Composable
 private fun GameRulesCard(config: GameConfig, repository: GameRepository) {
-    SectionCard("Difficulty", "Chance of a catch when you open a distracting notification within your time limit.") {
+    SectionCard("Difficulty", "For apps on Let us decide, this is the catch chance after AI marks a notification as distracting. Always bait apps catch eligible taps without a chance roll.") {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Difficulty.entries.forEach { difficulty ->
                 val select = { repository.setDifficulty(difficulty); Unit }

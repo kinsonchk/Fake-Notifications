@@ -14,6 +14,8 @@ Shared docs (whole team):
 - [caught-fishing-scenes.md](caught-fishing-scenes.md): shared fishing/cameo renderer, headline, earned visitor eligibility, unchanged catch actions and isolated preview.
 - [living-meadow.md](living-meadow.md): earned meadow growth, permanent discoveries, creature stories, underground play and isolated debug preview.
 - [ai/tutorial-personal-ai-criteria-design.md](ai/tutorial-personal-ai-criteria-design.md): onboarding page for collecting the user's important/non-essential notification preferences and feeding the existing AI judge.
+- [onboarding-and-app-copy-options.md](onboarding-and-app-copy-options.md): current onboarding and catch/settings wording, with three alternatives per main copy section and a short spoken demo script.
+- [app-rule-and-catch-flow-findings.md](app-rule-and-catch-flow-findings.md): traces Always important, Always bait, and Let us decide through classification, AI use, catch chance, and the guaranteed-catch fix.
 - [ai/clef-prompt-alternatives.md](ai/clef-prompt-alternatives.md): three candidate prompts for the active Clef notification classifier, with their improvements, tradeoffs and evaluation guidance.
 - [UI_DESIGN_GUIDE.md](UI_DESIGN_GUIDE.md): required visual rules for UI work, component recipes, reference screenshots, review checklist and a reusable AI prompt.
 - [features-by-person.md](features-by-person.md): core vs priority features per person, shared interfaces, go/no-go checkpoint, cut list.

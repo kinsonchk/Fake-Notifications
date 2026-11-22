@@ -9,16 +9,16 @@ object TapExplanations {
     fun rule(code: String): String = when (code) {
         "app_always_important" -> "App set to Always important"
         "app_always_bait" -> "App set to Always distracting"
-        "let_us_decide" -> "Let us decide: AI is not configured in this build"
+        "let_us_decide" -> "Automatic check unavailable; no penalty"
         "ai_important" -> "AI judged this important"
         "ai_bait" -> "AI judged this distracting"
-        "ai_unsure" -> "AI couldn't provide a clear classification; no penalty"
-        "ai_unsure_range" -> "AI confidence was between the Important and Bait thresholds; no penalty"
-        "ai_missing_content" -> "AI couldn't decide because the notification had neither a title nor text"
-        "ai_request_failed" -> "AI request failed or returned unusable data; no penalty"
-        "ai_not_configured" -> "AI isn't configured in this build"
-        "ai_pending" -> "AI decision wasn't ready when the notification was opened; no penalty"
-        "ai_pending_timeout" -> "AI didn't reply within 1 second; no penalty"
+        "ai_unsure" -> "Automatic check didn't return a clear result; no penalty"
+        "ai_unsure_range" -> "Automatic check didn't confirm distraction; no penalty"
+        "ai_missing_content" -> "No readable notification text; treated as distracting"
+        "ai_request_failed" -> "Couldn't check this notification right now; no penalty"
+        "ai_not_configured" -> "Automatic checking isn't available in this build; no penalty"
+        "ai_pending" -> "Automatic check wasn't ready when the notification was opened; no penalty"
+        "ai_pending_timeout" -> "Automatic check didn't finish in time; no penalty"
         "whitelisted" -> "Always-safe app"
         "important_category" -> "Call, alarm, reminder or event"
         "vip_title" -> "From someone on your always-get-through list"
@@ -62,7 +62,7 @@ object TapExplanations {
     fun classification(classification: Classification): String = when (classification) {
         Classification.Important -> "Important"
         Classification.Bait -> "Distracting"
-        Classification.Unknown -> "Unsure"
+        Classification.Unknown -> "Not checked"
     }
 
     /** What happened to the tap ([com.codejam.taptation.logic.TapRecord.reason] + outcome). */
@@ -75,7 +75,7 @@ object TapExplanations {
             "dead" -> "Health is already at zero"
             "stale" -> "Too old: opened after your time limit, so it can't catch you"
             "disabled" -> "Taptation was paused: nothing was checked"
-            else -> "Not penalized: unsure notifications are never penalized"
+            else -> "Not penalized: no automatic result was available"
         }
     }
 }

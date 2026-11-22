@@ -6,7 +6,10 @@ settings and lockout instructions in the older briefs.
 ## User-facing behavior
 
 - Settings offers **Easy 20%, Medium 40%, Hard 70%**. No probability slider is shown there.
-  Difficulty changes catch probability only. Catch damage is unchanged. Health regenerates at
+  For apps on **Let us decide**, AI classifies a notification first and difficulty sets the catch
+  probability for Bait results. **Always important** bypasses the catch; **Always bait** skips AI
+  and the probability roll and catches eligible taps. Stale taps, a paused game and the catch
+  lockout still prevent catches. Catch damage is unchanged. Health regenerates at
   +5 per 60 clean minutes; only a successful Bait catch resets the timer. A missed Bait roll
   preserves partial progress. The debug panel can use 1/5/15-minute intervals; release uses 60.
 - A caught notification creates one persistent pending choice: **Go to Taptation** or

@@ -74,6 +74,19 @@ class JudgeQueueTest {
     }
 
     @Test
+    fun alwaysBaitSkipsAiAndAutomaticAppsUseIt() {
+        val judge = FakeJudge(Verdict.Bait)
+        val queue = JudgeQueue(judge) { tasks += it }
+        queue.onPosted(post(), config.copy(appRules = mapOf("com.app" to AppRule.AlwaysBait)))
+        runAll()
+        assertEquals(0, judge.calls)
+
+        queue.onConfigChanged(config)
+        runAll()
+        assertEquals(1, judge.calls)
+    }
+
+    @Test
     fun changedCriteriaOrStrictnessRejudge() {
         val judge = FakeJudge(Verdict.Bait)
         val queue = JudgeQueue(judge) { tasks += it }
@@ -96,12 +109,12 @@ class JudgeQueueTest {
     }
 
     @Test
-    fun withoutAKeyNothingIsJudgedAndTheFallbackStays() {
+    fun withoutAKeyNotificationsHaveNoAutomaticPenalty() {
         val judge = FakeJudge(isConfigured = false)
         val queue = JudgeQueue(judge) { tasks += it }
         queue.onPosted(post(), config); runAll()
         assertEquals(0, judge.calls)
-        assertNull(queue.classificationFor(post()))
+        assertEquals(Classification.Unknown, queue.classificationFor(post()))
         assertNull(queue.judgeNow(post(), config))
     }
 }

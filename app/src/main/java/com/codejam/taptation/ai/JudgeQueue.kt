@@ -84,20 +84,23 @@ class JudgeQueue(
     }
 
     /**
-     * What "Let us decide" should use for [context]. Null without a judge (keep the old fallback);
-     * Unknown while pending, after a failure, or when the notification was never judged.
+     * What "Let us decide" should use for [context]. An unavailable judge, pending request, or
+     * failed request is Unknown (no penalty); a completed model score is Important or Bait.
      */
     fun classificationFor(
         context: NotificationContext,
         verdicts: Map<String, Verdict> = this.verdicts.value,
     ): Classification? {
-        if (!judge.isConfigured) return null
+        if (!judge.isConfigured) return Classification.Unknown
         return context.key?.let { verdicts[it] }.toClassification()
     }
 
     /** Current non-waiting result used for dismissals and debug previews. */
     fun contextWithCurrentResult(context: NotificationContext): NotificationContext {
-        if (!judge.isConfigured) return context
+        if (!judge.isConfigured) return context.copy(
+            judged = Classification.Unknown,
+            judgingReason = "ai_not_configured",
+        )
         synchronized(lock) {
             val key = context.key
             val verdict = key?.let { _verdicts.value[it] }
@@ -114,7 +117,10 @@ class JudgeQueue(
      * logic only after the decision arrives or the timeout expires.
      */
     fun contextForTap(context: NotificationContext): CompletableFuture<NotificationContext> {
-        if (!judge.isConfigured) return CompletableFuture.completedFuture(context)
+        if (!judge.isConfigured) return CompletableFuture.completedFuture(context.copy(
+            judged = Classification.Unknown,
+            judgingReason = "ai_not_configured",
+        ))
         val pending = synchronized(lock) {
             val key = context.key
             val verdict = key?.let { _verdicts.value[it] }

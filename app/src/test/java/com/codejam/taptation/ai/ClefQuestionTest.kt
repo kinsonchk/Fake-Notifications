@@ -11,8 +11,8 @@ import org.junit.Test
 class ClefQuestionTest {
     @Test
     fun strictnessMovesTheBaitThreshold() {
-        assertEquals(Verdict.Unsure, ClefQuestion.verdict(0.6, Strictness.Relaxed))
-        assertEquals(Verdict.Unsure, ClefQuestion.verdict(0.6, Strictness.Balanced))
+        assertEquals(Verdict.Important, ClefQuestion.verdict(0.6, Strictness.Relaxed))
+        assertEquals(Verdict.Important, ClefQuestion.verdict(0.6, Strictness.Balanced))
         assertEquals(Verdict.Bait, ClefQuestion.verdict(0.6, Strictness.Strict))
         assertEquals(Verdict.Bait, ClefQuestion.verdict(0.9, Strictness.Relaxed))
     }
@@ -21,8 +21,8 @@ class ClefQuestionTest {
     fun lowBaitProbabilityIsImportant() {
         assertEquals(Verdict.Important, ClefQuestion.verdict(0.1, Strictness.Strict))
         assertEquals(Verdict.Important, ClefQuestion.verdict(0.3, Strictness.Balanced))
-        assertEquals(Verdict.Unsure, ClefQuestion.verdict(0.31, Strictness.Balanced))
-        assertEquals(Verdict.Unsure, ClefQuestion.verdict(0.4, Strictness.Balanced))
+        assertEquals(Verdict.Important, ClefQuestion.verdict(0.31, Strictness.Balanced))
+        assertEquals(Verdict.Important, ClefQuestion.verdict(0.4, Strictness.Balanced))
     }
 
     @Test

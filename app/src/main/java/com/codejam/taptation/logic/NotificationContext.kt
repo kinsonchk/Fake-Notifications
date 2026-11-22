@@ -21,7 +21,7 @@ package com.codejam.taptation.logic
  *   Personal data: transient like title/text, never logged or persisted.
  * @property isGroup true for a group chat, false for a 1-to-1 chat, null when unknown or not a chat.
  * @property judged the AI judge's verdict for "Let us decide", set by the listener at removal. Null
- *   when no judge is set up (no API key); Unknown when it is pending, failed or unsure.
+ *   when this context has not been judged; the classifier treats a missing result as no penalty.
  * @property judgingReason content-free AI decision reason code, transient and never logged or saved
  */
 /** Kind of attachment a notification announces. See [NotificationContext.media]. */

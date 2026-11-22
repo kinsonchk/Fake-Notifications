@@ -27,13 +27,13 @@ object NotificationClassifier {
 
     /**
      * Apps left on "Let us decide" follow the AI judge's verdict ([NotificationContext.judged], made
-     * when the notification was posted from the user's criteria and strictness). Without a judge
-     * (no API key) every notification stays non-essential, as before.
+     * when the notification was posted from the user's criteria and strictness). If no result is
+     * available (unconfigured, pending or failed), the tap has no penalty.
      */
     @Suppress("UNUSED_PARAMETER")
     private fun letUsDecide(context: NotificationContext, config: GameConfig): Assessment =
         when (context.judged) {
-            null -> bait("let_us_decide")
+            null -> unknown(context.judgingReason ?: "ai_not_configured")
             Classification.Important -> important("ai_important")
             Classification.Bait -> bait("ai_bait")
             Classification.Unknown -> unknown(context.judgingReason ?: "ai_unsure")

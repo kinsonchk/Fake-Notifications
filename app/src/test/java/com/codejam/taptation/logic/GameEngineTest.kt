@@ -40,7 +40,7 @@ class GameEngineTest {
         assertEquals(1L, result.state.tapsPerApp["bait"])
     }
 
-    @Test fun resettingAnAppToLetUsDecideMakesItBaitAndKeepsOtherRules() {
+    @Test fun resettingAnAppToLetUsDecideUsesAiVerdictAndKeepsOtherRules() {
         val f = Fixture()
         f.configure { it.copy(
             debugCatchProbability = 1.0,
@@ -55,18 +55,18 @@ class GameEngineTest {
         f.game.updateConfig(f.game.state.config.copy(appRules = f.game.state.config.appRules - "bait"))
         assertEquals(mapOf("important" to AppRule.AlwaysImportant), f.game.state.config.appRules)
 
-        val caught = f.tap("bait")
-        assertEquals("let_us_decide", caught.rule)
+        val caught = f.game.onTap(f.context("bait").copy(judged = Classification.Bait))
+        assertEquals("ai_bait", caught.rule)
         assertEquals(TapOutcome.Caught, caught.outcome)
         assertEquals(1, f.rolls)
         assertEquals(90, caught.state.health)
     }
-    @Test fun appsLeftOnLetUsDecideAreBaitAndRoll() {
+    @Test fun appsLeftOnLetUsDecideWithoutAiResultAreNotPenalized() {
         val f = Fixture()
         val result = f.game.onTap("unknown")
-        assertEquals(Classification.Bait, result.classification)
-        assertEquals("let_us_decide", result.rule)
-        assertEquals(1, f.rolls)
+        assertEquals(Classification.Unknown, result.classification)
+        assertEquals("ai_not_configured", result.rule)
+        assertEquals(0, f.rolls)
     }
 
     @Test fun keywordMatchingIsCaseInsensitiveAndDoesNotPersistContent() {
@@ -85,24 +85,43 @@ class GameEngineTest {
         assertEquals(Classification.Unknown, rules(NotificationContext("music")))
     }
 
-    @Test fun probabilityZeroNeverCatches() {
+    @Test fun automaticBaitWithProbabilityZeroDoesNotCatch() {
         val f = Fixture()
-        f.configure { it.copy(debugCatchProbability = 0.0) }
-        assertEquals(TapOutcome.NoPenalty, f.tap("bait").outcome)
+        f.configure { it.copy(debugCatchProbability = 0.0, appRules = mapOf("bait" to AppRule.LetUsDecide)) }
+        val result = f.game.onTap(f.context("bait").copy(judged = Classification.Bait))
+        assertEquals(TapOutcome.NoPenalty, result.outcome)
+        assertEquals("roll_passed", result.reason)
+        assertEquals(1, f.rolls)
     }
 
-    @Test fun probabilityOneAlwaysCatches() {
+    @Test fun automaticBaitWithProbabilityOneCatches() {
         val f = Fixture()
         f.roll = 0.999999
-        f.configure { it.copy(debugCatchProbability = 1.0) }
-        assertEquals(TapOutcome.Caught, f.tap("bait").outcome)
+        f.configure { it.copy(debugCatchProbability = 1.0, appRules = mapOf("bait" to AppRule.LetUsDecide)) }
+        val result = f.game.onTap(f.context("bait").copy(judged = Classification.Bait))
+        assertEquals(TapOutcome.Caught, result.outcome)
+        assertEquals(1, f.rolls)
     }
 
     @Test fun rollAtThresholdIsNotCaught() {
         val f = Fixture()
-        f.configure()
+        f.configure { it.copy(appRules = mapOf("bait" to AppRule.LetUsDecide)) }
         f.roll = 0.20
-        assertEquals(TapOutcome.NoPenalty, f.tap("bait").outcome)
+        assertEquals(TapOutcome.NoPenalty,
+            f.game.onTap(f.context("bait").copy(judged = Classification.Bait)).outcome)
+    }
+
+    @Test fun alwaysBaitCatchesWithoutAiOrProbabilityRoll() {
+        val f = Fixture()
+        f.configure { it.copy(debugCatchProbability = 0.0) }
+        f.roll = 0.999999
+
+        val result = f.tap("bait")
+
+        assertEquals(Classification.Bait, result.classification)
+        assertEquals("app_always_bait", result.rule)
+        assertEquals(TapOutcome.Caught, result.outcome)
+        assertEquals(0, f.rolls)
     }
 
     @Test fun eachLevelAppliesExactlyOneDamageAndCatch() {
@@ -163,10 +182,13 @@ class GameEngineTest {
 
     @Test fun missedRollPreservesRecoveryButBypassAndUnknownDoNot() {
         val f = Fixture()
-        f.configure { it.copy(debugCatchProbability = 0.0, appRules = it.appRules + ("urgent" to AppRule.AlwaysImportant)) }
+        f.configure { it.copy(debugCatchProbability = 0.0, appRules = mapOf(
+            "bait" to AppRule.LetUsDecide,
+            "urgent" to AppRule.AlwaysImportant,
+        )) }
         f.game.setHealthForDebug(50)
         f.hours(0.75)
-        f.tap("bait")
+        f.game.onTap(f.context("bait").copy(judged = Classification.Bait))
         f.hours(0.75)
         f.game.onTap("urgent")
         // Too old for the freshness window: Unknown, so the clean timer keeps running.

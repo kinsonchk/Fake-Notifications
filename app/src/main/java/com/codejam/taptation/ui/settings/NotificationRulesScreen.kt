@@ -57,7 +57,7 @@ fun NotificationRulesScreen(contentPadding: PaddingValues, repository: GameRepos
                 Text(if (picker.notificationFilterSupported) "Only apps allowed to send notifications are shown."
                     else "This Android version can’t check other apps’ notification permission, so all apps are shown.",
                     style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Text("Always important: never penalized. Always bait: a quick tap can trigger a catch. Every app starts on Let us decide.",
+                Text("Always important: never penalized. Always bait: eligible taps are always caught, without AI or a chance roll. Let us decide: AI classifies each notification, then the catch chance applies to distracting ones.",
                     style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 TextButton(onClick = { appsExpanded = !appsExpanded }, modifier = Modifier.heightIn(min = 48.dp)) {
                     Text(if (appsExpanded) "Collapse apps" else "Show apps")
@@ -195,8 +195,8 @@ private fun CriteriaSection(config: GameConfig, repository: GameRepository) {
             "For example: likes, follows, game rewards, sales and group chatter.", config.nonEssentialCriteria) { text ->
             repository.setCriteria(nonEssential = text)
         }
-        Text(if (aiConfigured) "For automatic decisions, notification content is sent to Cloudflare. Taptation doesn’t save the notification text. Uncertain or unavailable AI decisions are not penalized."
-            else "Automatic decisions aren’t configured in this build. Let us decide currently treats notifications as bait. Choose Always important for apps you don’t want penalized.",
+        Text(if (aiConfigured) "For automatic decisions, notification content is sent to Cloudflare. Taptation doesn’t save the notification text. If a check fails or times out, there is no penalty."
+            else "Automatic checking isn’t available in this build. Apps set to Let us decide won’t be penalized automatically. Choose Always distracting if you want an app to count as distracting, or Always important to keep it safe.",
             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
