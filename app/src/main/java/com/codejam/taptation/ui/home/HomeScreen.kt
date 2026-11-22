@@ -78,7 +78,7 @@ fun HomeScreen(contentPadding: PaddingValues, onOpenSettings: (String) -> Unit =
         val status = MonitoringStatus.from(access, connected, state.config, now)
         item { StatusArea(status, pause) }
         item { GrassMeadow(health = state.health) }
-        item { HealthCard(state, now, onReset = { repository.reset() }) }
+        item { HealthCard(state, now) }
         if (state.taps.isEmpty()) item { FirstUseCard(state.config.difficulty, onOpenSettings) }
         if (state.taps.isNotEmpty()) item { RecentActivity(state, labels) }
         if (state.totalCatches > 0 || state.tapsPerApp.isNotEmpty()) item { AllTimeCard(state, now) }
@@ -163,7 +163,7 @@ private fun SetupRow(title: String, hint: String, onClick: () -> Unit) {
 }
 
 @Composable
-private fun HealthCard(state: GameState, now: Long, onReset: () -> Unit) {
+private fun HealthCard(state: GameState, now: Long) {
     val config = state.config
     androidx.compose.material3.Surface(shape = RoundedCornerShape(20.dp),
         color = MaterialTheme.colorScheme.surfaceContainerLowest, contentColor = MaterialTheme.colorScheme.onSurface,
@@ -186,8 +186,7 @@ private fun HealthCard(state: GameState, now: Long, onReset: () -> Unit) {
             val cooldown = (state.lockoutUntilMillis - now).coerceAtLeast(0)
             if (cooldown > 0) Text("No extra catch for ${(cooldown + 999) / 1000} s.", style = MaterialTheme.typography.bodySmall)
             if (state.isDead) {
-                Text("Reset health to 100 to start growing again. History and settings stay.", style = MaterialTheme.typography.bodySmall)
-                Button(onClick = onReset) { Text("Reset health") }
+                Text("Health is at zero.", style = MaterialTheme.typography.bodySmall)
             }
         }
     }
