@@ -36,7 +36,7 @@ object NotificationClassifier {
             null -> bait("let_us_decide")
             Classification.Important -> important("ai_important")
             Classification.Bait -> bait("ai_bait")
-            Classification.Unknown -> unknown("ai_unsure")
+            Classification.Unknown -> unknown(context.judgingReason ?: "ai_unsure")
         }
 
     /**

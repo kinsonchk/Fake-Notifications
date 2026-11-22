@@ -30,11 +30,17 @@ class JudgeQueue(
     private val lock = Any()
     private var config: GameConfig? = null
     private val _verdicts = MutableStateFlow<Map<String, Verdict>>(emptyMap())
+    private val reasons = mutableMapOf<String, String>()
 
     // Bounded like the listener's caches; an evicted candidate takes its verdict with it.
     private val candidates = object : LinkedHashMap<String, Candidate>(16, 0.75f, true) {
         override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, Candidate>): Boolean =
-            (size > MAX_ENTRIES).also { if (it) _verdicts.value -= eldest.key }
+            (size > MAX_ENTRIES).also {
+                if (it) {
+                    _verdicts.value -= eldest.key
+                    reasons.remove(eldest.key)
+                }
+            }
     }
 
     /** Finished verdicts by notification key, for the tap path and the debug screen. */
@@ -73,23 +79,42 @@ class JudgeQueue(
         return context.key?.let { verdicts[it] }.toClassification()
     }
 
+    /** Adds the current verdict and content-free reason to the transient context sent into game logic. */
+    fun contextForTap(context: NotificationContext): NotificationContext {
+        if (!judge.isConfigured) return context
+        synchronized(lock) {
+            val key = context.key
+            val verdict = key?.let { _verdicts.value[it] }
+            val reason = key?.let(reasons::get)
+            return context.copy(
+                judged = verdict.toClassification(),
+                judgingReason = reason ?: "ai_pending",
+            )
+        }
+    }
+
     /**
      * Judges [context] right now on the calling thread (blocking network call), without caching.
      * For debug "Simulate tap". Null without a judge or when the app isn't on "Let us decide".
      */
     fun judgeNow(context: NotificationContext, config: GameConfig): Classification? {
-        if (!judge.isConfigured || config.ruleFor(context.packageName) != AppRule.LetUsDecide) return null
-        return judge.judge(context, config).toClassification()
+        return judgeNowWithReason(context, config)?.classification
     }
+
+    fun judgeNowWithReason(context: NotificationContext, config: GameConfig): JudgeResult? =
+        if (!judge.isConfigured || config.ruleFor(context.packageName) != AppRule.LetUsDecide) null
+        else judge.judgeWithReason(context, config)
 
     fun onRemoved(key: String) = synchronized(lock) {
         candidates.remove(key)
         _verdicts.value -= key
+        reasons.remove(key)
     }
 
     fun clear() = synchronized(lock) {
         candidates.clear()
         _verdicts.value = emptyMap()
+        reasons.clear()
     }
 
     /** Caller holds [lock]. */
@@ -101,13 +126,17 @@ class JudgeQueue(
         if (candidate.requested == input) return
         candidate.requested = input
         _verdicts.value -= key
+        reasons[key] = "ai_pending"
         executor.execute {
             // Skip requests that became outdated while queued, before spending a network call.
             val context = synchronized(lock) { candidates[key]?.takeIf { it.requested == input }?.context }
                 ?: return@execute
-            val verdict = judge.judge(context, config)
+            val result = judge.judgeWithReason(context, config)
             synchronized(lock) {
-                if (candidates[key]?.requested == input) _verdicts.value += key to verdict
+                if (candidates[key]?.requested == input) {
+                    _verdicts.value += key to result.verdict
+                    reasons[key] = result.reason
+                }
             }
         }
     }

@@ -181,9 +181,12 @@ fun NotificationsScreen(contentPadding: PaddingValues) {
                         val tapped = current.toContext(context.packageName).copy(ageMillis = 0)
                         // Judge it like a posted notification first (network, off the main thread).
                         scope.launch {
-                            val judged = withContext(Dispatchers.IO) { judges.judgeNow(tapped, config) }
+                            val judged = withContext(Dispatchers.IO) { judges.judgeNowWithReason(tapped, config) }
                             TapLog.record(tapped.packageName)
-                            TapDispatcher.dispatch(tapped.copy(judged = judged))
+                            TapDispatcher.dispatch(tapped.copy(
+                                judged = judged?.classification,
+                                judgingReason = judged?.reason,
+                            ))
                         }
                     },
                     modifier = Modifier.fillMaxWidth(),

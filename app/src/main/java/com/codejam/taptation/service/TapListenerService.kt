@@ -145,8 +145,10 @@ class TapListenerService : NotificationListenerService() {
         val now = System.currentTimeMillis()
         val firstSeenAt = firstSeen.remove(sbn.key) ?: sbn.postTime
         val removed = withRanking(contexts.remove(sbn.key) ?: contextFor(sbn, rankingMap), rankingMap)
-        val context = removed.copy(ageMillis = now - sbn.postTime, firstSeenAgeMillis = now - minOf(firstSeenAt, sbn.postTime),
-            judged = judges().classificationFor(removed))
+        val context = judges().contextForTap(removed.copy(
+            ageMillis = now - sbn.postTime,
+            firstSeenAgeMillis = now - minOf(firstSeenAt, sbn.postTime),
+        ))
         simulations.remove(sbn.key)
         // Simulated package for our debug notifications, the real one otherwise.
         val pkg = context.packageName

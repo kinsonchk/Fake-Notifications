@@ -19,13 +19,25 @@ class ClefJudge(
     override val isConfigured: Boolean get() = workersAi.isConfigured
 
     /** Unsure when no key is set, the notification has no title/text, or the call fails; a judge error must never cost health. */
-    override fun judge(context: NotificationContext, config: GameConfig): Verdict {
-        if (!isConfigured || !JudgePrompt.hasContent(context)) return Verdict.Unsure
+    override fun judge(context: NotificationContext, config: GameConfig): Verdict =
+        judgeWithReason(context, config).verdict
+
+    override fun judgeWithReason(context: NotificationContext, config: GameConfig): JudgeResult {
+        if (!isConfigured) return JudgeResult(Verdict.Unsure, "ai_not_configured")
+        if (!JudgePrompt.hasContent(context)) return JudgeResult(Verdict.Unsure, "ai_missing_content")
         return try {
-            judgeOrThrow(context, config)
+            val baitProbability = baitProbability(context, config)
+            require(baitProbability.isFinite() && baitProbability in 0.0..1.0) { "Invalid bait probability" }
+            val verdict = ClefQuestion.verdict(baitProbability, config.strictness)
+            val reason = when (verdict) {
+                Verdict.Important -> "ai_important"
+                Verdict.Bait -> "ai_bait"
+                Verdict.Unsure -> "ai_unsure_range"
+            }
+            JudgeResult(verdict, reason)
         } catch (e: Exception) {
             Log.w(WorkersAi.TAG, "Clef judge failed: ${e.javaClass.simpleName}")
-            Verdict.Unsure
+            JudgeResult(Verdict.Unsure, "ai_request_failed")
         }
     }
 
