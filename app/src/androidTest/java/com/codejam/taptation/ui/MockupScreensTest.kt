@@ -50,7 +50,7 @@ class MockupScreensTest {
         compose.onNodeWithText("Your attention,\nin perspective.").assertIsDisplayed()
         capture("stats-dark")
         compose.activity.setContent { TaptationTheme(darkTheme = false) {
-            CatchChoiceDialog(onTaptation = {}, onOriginal = {})
+            CatchChoiceDialog(continueExtraDamage = 0, onTaptation = {}, onOriginal = {}, onLater = {})
         } }
         compose.onNodeWithText("Go to Taptation").assertIsDisplayed()
         compose.onNodeWithText("Go to original app").assertIsDisplayed()
