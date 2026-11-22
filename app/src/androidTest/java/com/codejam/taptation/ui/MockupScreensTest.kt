@@ -18,7 +18,7 @@ class MockupScreensTest {
     @get:Rule val compose = createAndroidComposeRule<MainActivity>()
 
     @Test fun lightScreensKeepSettingsAndDebugReachable() {
-        compose.activity.setContent { TaptationTheme(darkTheme = false) { AppTabs(debug = true) } }
+        compose.activity.setContent { TaptationTheme(darkTheme = false) { TaptationApp(debug = true) } }
         compose.onNodeWithText("Room to grow.").assertIsDisplayed()
         capture("home-light")
         compose.onNodeWithText("Stats").performClick()
@@ -58,7 +58,7 @@ class MockupScreensTest {
     }
 
     @Test fun darkScreensAndCaughtChoicesRender() {
-        compose.activity.setContent { TaptationTheme(darkTheme = true) { AppTabs(debug = true) } }
+        compose.activity.setContent { TaptationTheme(darkTheme = true) { TaptationApp(debug = true) } }
         compose.onNodeWithText("Room to grow.").assertIsDisplayed()
         capture("home-dark")
         compose.onNodeWithText("Stats").performClick()

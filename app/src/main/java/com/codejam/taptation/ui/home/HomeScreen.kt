@@ -56,7 +56,7 @@ import com.codejam.taptation.ui.settings.rememberPauseFlow
  * recent-activity list and all-time totals. Incomplete setup always comes first.
  */
 @Composable
-fun HomeScreen(contentPadding: PaddingValues, onOpenSettings: (String) -> Unit = {}, onTutorial: () -> Unit = {}) {
+fun HomeScreen(contentPadding: PaddingValues, onOpenSettings: (String) -> Unit = {}) {
     val context = LocalContext.current
     val repository = rememberGameRepository()
     val snapshot by repository.state.collectAsStateWithLifecycle()
@@ -88,15 +88,6 @@ fun HomeScreen(contentPadding: PaddingValues, onOpenSettings: (String) -> Unit =
         if (status != MonitoringStatus.SetupNeeded || state.isDead) item { HealthCard(state, now, onReset = { repository.reset() }) }
         if (state.taps.isNotEmpty()) item { RecentActivity(state, labels) }
         if (state.totalCatches > 0 || state.tapsPerApp.isNotEmpty()) item { AllTimeCard(state, now) }
-        item {
-            SectionCard("Want a refresher?", "Review how Taptation works and revisit the access settings.") {
-                androidx.compose.material3.OutlinedButton(
-                    onClick = onTutorial,
-                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
-                    shape = RoundedCornerShape(16.dp),
-                ) { Text("View the tutorial") }
-            }
-        }
     }
 }
 
