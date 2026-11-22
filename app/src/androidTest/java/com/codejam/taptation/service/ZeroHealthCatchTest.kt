@@ -57,19 +57,21 @@ class ZeroHealthCatchTest {
                 text = "Routine update", category = "promo", isConversation = false, ageMillis = 0,
                 openOriginal = { opened.set(true) })).get(5, TimeUnit.SECONDS)
             assertEquals(TapOutcome.Caught, result.outcome)
-            fun node(text: String): AccessibilityNodeInfo? = automation.windows.asSequence()
+            fun node(text: String, prefix: Boolean = false): AccessibilityNodeInfo? = automation.windows.asSequence()
                 .mapNotNull { it.root }.flatMap { it.findAccessibilityNodeInfosByText(text).asSequence() }
-                .firstOrNull { it.text?.toString() == text }
+                .firstOrNull { if (prefix) it.text?.toString()?.startsWith(text) == true else it.text?.toString() == text }
             val extra = result.state.pendingCatch!!.continueExtraDamage
             assertEquals("no health left to lose by continuing", 0, extra)
-            val continueLabel = original.getString(R.string.caught_original_app)
+            // "Continue to <app>" with no "· −N health" suffix: nothing left to lose.
+            val continuePrefix = original.getString(R.string.caught_original_app, "").trimEnd()
             val deadline = SystemClock.elapsedRealtime() + 10_000
             var originalButton: AccessibilityNodeInfo? = null
             while (originalButton == null && SystemClock.elapsedRealtime() < deadline) {
-                originalButton = node(continueLabel)
+                originalButton = node(continuePrefix, prefix = true)
                 if (originalButton == null) SystemClock.sleep(100)
             }
             assertNotNull("Native caught overlay was not shown", originalButton)
+            assertFalse("Continuing must not show a penalty at 0 health", originalButton!!.text.toString().contains("health"))
             assertNotNull(node(original.getString(R.string.caught_our_app)))
             assertTrue(originalButton!!.performAction(AccessibilityNodeInfo.ACTION_CLICK))
             val openedDeadline = SystemClock.elapsedRealtime() + 5_000
