@@ -17,3 +17,11 @@ val NightGreen = Color(0xFFA8CDA6)
 val NightSage = Color(0xFF303F2E)
 val NightBorder = Color(0xFF39473B)
 val NightMuted = Color(0xFFA6B4A7)
+
+// Illustration colors from grass-screen-mockup.html; surface/selection colors desaturate the blades.
+val GrassHighlight = Color(0xFF4A7C59)
+val GrassDarkBlade = Color(0xFF4D9468)
+val GrassDarkHighlight = Color(0xFF78B88C)
+val MeadowSoil = Color(0xFFE6E1D3)
+val MeadowDarkSoil = Color(0xFF28251F)
+val GrassDarkDry = Color(0xFFB89566)
