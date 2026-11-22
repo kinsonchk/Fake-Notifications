@@ -85,6 +85,7 @@ system -> TapListenerService.onNotificationPosted   (cache NotificationContext b
 - `service/MediaDetection.kt`: `NotificationContext.media` (`MediaKind`: Image, Gif, Video, Sticker, Audio) from, in order, the MessagingStyle message's `dataMimeType`, a BigPictureStyle picture, or the app's placeholder text ("📷 Photo", "GIF", "sent you a photo", "a envoyé une photo"; whole last line or a "sent a …" phrase, so ordinary sentences mentioning a photo don't count). Only the kind is known; the attachment is never opened (its URI is granted to the system UI, not to listeners). Sent to the AI judge as `attachment`. Best effort per app: check `media=` in the `posted` log line on a real phone.
 - `service/PermissionHelper.kt`: notification-access check/settings intents and battery-optimization helpers; reuse for onboarding UI.
 - Onboarding (`ui/OnboardingScreen.kt`): the tutorial shows once; only notification access is required to reach the tabs. "Display over other apps" is recommended but optional (`CatchFeedback` falls back to a notification). Open that settings page only through `ui/common/openOverlaySettings` (some ROMs lack the screen; raw `startActivity` crashes).
+- `service/CatchFeedback.kt`: the catch flow's backend. Builds `prompt: StateFlow<CatchPrompt?>` from the pending catch (details recorded on `PendingCatch` at catch time, snapshot v8; no more reconstructing from history), decides overlay vs notification vs in-app dialog, owns "Not now" (`postpone` / `resume`), the animate-once flag and the correction request. `service/AppDirectory.kt`: the only package-manager reader (launchable apps, labels, icons). `service/SystemStatus.kt`: permissions and `MonitoringStatus`.
 - `ui/TaptationApp.kt`: bottom tabs Home · Stats · Notifications · Settings · Debug (Notifications and Debug only in debug builds); `rememberSaveableStateHolder` keeps each tab's state. `ui/home`, `ui/stats`, `ui/settings` read/write `GameRepository`; `ui/common` holds layout helpers, `rememberNow` (lockout ticker + periodic `refresh`) and `TapExplanations` (rule/outcome codes → text).
 - `debug/`: `DebugScreen` (system status, `DemoControlsPanel` backed by `RepositoryDemoControls`), `NotificationsScreen` (composer, saved `NotificationPreset`s with an image in `NotificationIcons`, last 20 taps with reasons, observed notifications with a live classifier preview), `TestNotification` posts an auto-cancel notification with a contentIntent so tapping it yields `REASON_CLICK`; the composer's Attachment chips post a MessagingStyle message with a real attachment (`DebugMedia`, served by a FileProvider declared only in `src/debug/AndroidManifest.xml`; NotificationManager rejects data URIs the poster can't grant). Presets hold only user-typed values; observed notifications stay memory-only.
 - `stats/`: `StatsRepository` (built in `TaptationApplication`, `app.stats`) records taps and dismissals with classification, caught and age in `SqliteStatsStore`; `weekly()` / `monthly()` return a precomputed `StatsSummary` (`StatsCalculator`: tap rate %, medians, averages capped at 1 h, bait only by default). See `docs/decision-stats-handler.md`. Debug tab > Stats harness generates fake history.
@@ -93,11 +94,45 @@ system -> TapListenerService.onNotificationPosted   (cache NotificationContext b
 
 Full rules, defaults and the Person 3 API are in `docs/person-2/PERSON_2_INTEGRATION.md`. Key gotchas from it (some superseded by per-app rules: every app now starts on "Let us decide", which the AI judge decides, or bait when no API key is set); `Caught` already applied damage, so UI must not call `applyCatch` again; notification title/text are transient and must never be persisted or logged.
 
+## UI ↔ backend contract (read before touching ui/ or the backend)
+
+The UI only **renders backend state and sends user intents**. Every decision (eligibility, allowed
+values, defaults, what a catch cost and why, permission/access status, Android system queries,
+persistence, timing) lives in the backend (`logic/`, `service/`, `stats/`, `ai/`). Full API list
+and what is still to move: [docs/ui-backend-contract.md](docs/ui-backend-contract.md).
+
+- **Backend never imports `ui/`.** The one UI piece the backend needs (the caught overlay drawn over
+  other apps) is behind the `service.CatchSurface` interface, implemented by `ui/overlay/CatchOverlay`
+  and wired in `TaptationApplication` (the composition root, the only file allowed to see both sides).
+- **UI never calls Android for app/permission state** (PackageManager, `Settings.canDrawOverlays`,
+  NotificationManager, SharedPreferences): it collects the backend flows below. It may start Android
+  screens the user asked for through `PermissionHelper.open…`, and run the POST_NOTIFICATIONS prompt
+  (needs an activity), reporting it with `system.markNotificationPromptShown()`.
+- **UI never edits `GameConfig` directly** (`updateConfig { copy(…) }` is for debug panels): it calls
+  the typed actions, which own the rules (allowed values, defaults, what a choice also resets).
+- **What the UI reads** (all via `(context.applicationContext as TaptationApplication)`):
+  `game.state` / `error` / `lastResult`; `feedback.prompt` (`CatchPrompt`: app label, cost, rule,
+  continue penalty, postponed, animate, canCorrect) and `feedback.corrections`; `rulePicker`
+  (`RulePicker`: eligible apps with their rule, orphaned rules, filter supported); `apps` (labels,
+  icons, `reload()`); `system.permissions` and `system.monitoring`; `judges.isConfigured`;
+  `stats.weekly/monthly`; constants `GameConfig.FRESHNESS_CHOICES_MINUTES`,
+  `DisableGate.DURATION_CHOICES_MINUTES` / `WAIT_MILLIS`; `game.recoveryIntervalMinutes(config)`,
+  `config.currentDamage`, `config.countOf(rule)`.
+- **What the UI calls**: catch choice through `feedback.actionsFor(id)` (`choose`, `postpone`,
+  `correct`) and `feedback.resume(id)`; `game.setDifficulty`, `setFreshnessEnabled`,
+  `setFreshnessMinutes`, `setFreshnessFromFirstSeen`, `setCriteria`, `setStrictness`, `setAppRule`,
+  `clearAppRule`, `markAppImportant`, `beginDisable` / `confirmDisable` / `cancelDisable` / `enable`.
+- **UI keeps**: layout, colours, animation, wording (mapping backend codes such as rule codes to
+  text in `TapExplanations`), view state (tab, search text, expanded sections, chart selection), a
+  1 s display clock (`rememberNow`), saving/error indicators.
+- **Missing something?** Add a backend API (a field on a state class, a typed action, a constant)
+  and use it from the screen; don't compute it in the screen. Refreshing on resume is already done
+  by `TaptationApplication` (permissions, installed apps, game recovery).
+
 ## Shared interfaces (agreed between teammates)
 
 - `onTap(context: NotificationContext)` (and legacy `onTap(packageName)`): Person 1 -> Person 2.
-- `GameRepository` (`state`, `getHealth()`, `isWhitelisted`, `setWhitelisted`, `updateConfig`, `applyCatch`, `reset`, `refresh`): Person 2 -> Person 3.
-- Storage owned by Person 2, read by Person 3 through `GameRepository.state`. Person 3's settings screen writes probability/level via `updateConfig`.
+- Backend → UI (Person 3): the contract above. Storage is owned by the backend and read through `GameRepository.state`; settings screens write through the typed actions, not `updateConfig`.
 
 ## Brief vs current code
 
