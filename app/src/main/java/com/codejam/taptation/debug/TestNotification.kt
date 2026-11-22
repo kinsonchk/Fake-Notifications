@@ -14,6 +14,7 @@ import android.os.Bundle
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
+import androidx.core.app.Person
 import androidx.core.content.ContextCompat
 import com.codejam.taptation.MainActivity
 import com.codejam.taptation.R
@@ -73,7 +74,19 @@ object TestNotification {
             .setCategory(spec.category?.trim()?.takeIf(String::isNotEmpty))
             .addExtras(Bundle().apply { simulation.toExtras().forEach(::putString) })
             .setLargeIcon(largeIcon)
-        spec.text?.takeIf(String::isNotBlank)?.let {
+        val mimeType = spec.media?.let(DebugMedia::mimeType)
+        if (mimeType != null || spec.sender != null || spec.isGroup != null) {
+            // Like a chat app: a MessagingStyle message from the sender, in a group or 1-to-1 chat,
+            // optionally with a real attachment (photo, GIF…).
+            val senderName = spec.sender?.takeIf(String::isNotBlank) ?: spec.title?.takeIf(String::isNotBlank) ?: "Someone"
+            val message = NotificationCompat.MessagingStyle.Message(spec.text.orEmpty(), System.currentTimeMillis(),
+                Person.Builder().setName(senderName).build())
+            if (mimeType != null) message.setData(mimeType, DebugMedia.uriFor(context, spec.media))
+            val style = NotificationCompat.MessagingStyle(Person.Builder().setName("You").build()).addMessage(message)
+            if (spec.isGroup == true) style.setConversationTitle(spec.title?.takeIf(String::isNotBlank) ?: "Group")
+            spec.isGroup?.let(style::setGroupConversation)
+            builder.setStyle(style)
+        } else spec.text?.takeIf(String::isNotBlank)?.let {
             builder.setStyle(NotificationCompat.BigTextStyle().bigText(it))
         }
         spec.actions.map(String::trim).filter(String::isNotEmpty).forEachIndexed { index, title ->

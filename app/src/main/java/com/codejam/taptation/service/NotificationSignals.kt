@@ -30,6 +30,8 @@ data class NotificationSignals(
     val hasContentIntent: Boolean,
     val hasGroup: Boolean,
     val postTimeMillis: Long,
+    /** Attachment kind announced by the notification (MediaDetection); the kind only, never content. */
+    val media: com.codejam.taptation.logic.MediaKind? = null,
 ) {
     /**
      * One-line `key=value` summary. `autoCancel=false` means a tap won't remove the
@@ -43,6 +45,7 @@ data class NotificationSignals(
         append(" conversation=").append(isConversation ?: "?")
         append(" groupConversation=").append(isGroupConversation ?: "?")
         append(" style=").append(style ?: "none")
+        append(" media=").append(media?.name?.lowercase() ?: "none")
         append(" autoCancel=").append(flags and Notification.FLAG_AUTO_CANCEL != 0)
         append(" ongoing=").append(flags and Notification.FLAG_ONGOING_EVENT != 0)
         append(" summary=").append(flags and Notification.FLAG_GROUP_SUMMARY != 0)
@@ -87,6 +90,7 @@ data class NotificationSignals(
                 hasContentIntent = notification.contentIntent != null,
                 hasGroup = notification.group != null,
                 postTimeMillis = sbn.postTime,
+                media = MediaDetection.from(notification),
             )
         }
     }

@@ -40,6 +40,9 @@ object ClefQuestion {
         put("title", JudgePrompt.clip(context.title.orEmpty()))
         put("text", JudgePrompt.clip(context.text.orEmpty()))
         if (context.actions.isNotEmpty()) put("buttons", context.actions.map(JudgePrompt::clip))
+        context.media?.let { put("attachment", it.name.lowercase()) }
+        context.sender?.takeIf { it.isNotBlank() }?.let { put("sender", JudgePrompt.clip(it)) }
+        context.isGroup?.let { put("group_chat", it) }
     }
 
     /** Bait probability needed for Bait: Strict takes less evidence, Relaxed more. */

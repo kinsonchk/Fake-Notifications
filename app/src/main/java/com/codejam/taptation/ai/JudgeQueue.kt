@@ -120,10 +120,12 @@ class JudgeQueue(
             Triple(config.essentialCriteria, config.nonEssentialCriteria, config.strictness)
 
         private fun inputOf(context: NotificationContext, config: GameConfig): Int =
-            listOf(context.packageName, context.title, context.text, judgingSettings(config)).hashCode()
+            listOf(context.packageName, context.title, context.text, context.media, context.sender, context.isGroup,
+                judgingSettings(config)).hashCode()
 
         private fun NotificationContext.sameContent(other: NotificationContext) =
-            packageName == other.packageName && title == other.title && text == other.text
+            packageName == other.packageName && title == other.title && text == other.text && media == other.media &&
+                sender == other.sender && isGroup == other.isGroup
 
         private fun Verdict?.toClassification(): Classification = when (this) {
             Verdict.Important -> Classification.Important

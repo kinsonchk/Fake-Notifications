@@ -327,7 +327,9 @@ private fun ObservedRow(context: NotificationContext, config: GameConfig) {
             Text(
                 "title=${context.title ?: "missing"}\n" +
                     "category=${context.category ?: "missing"} • channel=${context.channelName ?: "missing"} • " +
-                    "conversation=${context.isConversation ?: "unknown"}" +
+                    "conversation=${context.isConversation ?: "unknown"}\n" +
+                    "sender=${context.sender ?: "none"} • group=${context.isGroup ?: "unknown"} • " +
+                    "media=${context.media?.name?.lowercase() ?: "none"}" +
                     context.actions.takeIf { it.isNotEmpty() }?.joinToString(prefix = "\nactions=").orEmpty(),
                 style = MaterialTheme.typography.bodySmall,
             )

@@ -38,10 +38,11 @@ class NotificationSignalsTest {
             hasContentIntent = true,
             hasGroup = true,
             postTimeMillis = 1_000L,
+            media = com.codejam.taptation.logic.MediaKind.Gif,
         )
         assertEquals(
             "cat=msg channelId=dm channel=\"Direct Messages\" importance=HIGH conversation=true " +
-                "groupConversation=false style=MessagingStyle autoCancel=true ongoing=false " +
+                "groupConversation=false style=MessagingStyle media=gif autoCancel=true ongoing=false " +
                 "summary=false group=true contentIntent=true postTime=1000 age=1500ms",
             signals.describe(nowMillis = 2_500L),
         )

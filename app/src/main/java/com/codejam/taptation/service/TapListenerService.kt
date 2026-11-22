@@ -187,6 +187,7 @@ class TapListenerService : NotificationListenerService() {
         debugSimulationFor(sbn)?.let { simulations[sbn.key] = it }
         val notification = sbn.notification
         val extras = notification.extras
+        val conversation = ConversationDetection.from(notification)
         return withRanking(NotificationContext(
             packageName = sbn.packageName,
             key = sbn.key,
@@ -194,6 +195,9 @@ class TapListenerService : NotificationListenerService() {
             text = (extras?.getCharSequence(Notification.EXTRA_BIG_TEXT)
                 ?: extras?.getCharSequence(Notification.EXTRA_TEXT))?.toString(),
             category = notification.category,
+            media = MediaDetection.from(notification),
+            sender = conversation.sender,
+            isGroup = conversation.isGroup,
             actions = notification.actions.orEmpty()
                 .mapNotNull { it?.title?.toString()?.takeIf(String::isNotBlank) },
             ageMillis = System.currentTimeMillis() - sbn.postTime,

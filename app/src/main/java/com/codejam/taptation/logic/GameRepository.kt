@@ -8,6 +8,8 @@ import com.codejam.taptation.stats.StatsEventType
 import com.codejam.taptation.stats.StatsRepository
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Executors
+import java.util.concurrent.ScheduledFuture
+import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -19,7 +21,9 @@ class GameRepository(context: Context, private val stats: StatsRepository? = nul
     private val packageManager = context.applicationContext.packageManager
     private val appCategories = mutableMapOf<String, Int?>()
     private val notificationContexts = linkedMapOf<String, NotificationContext>()
-    private val worker = Executors.newSingleThreadExecutor()
+    private val worker = Executors.newSingleThreadScheduledExecutor()
+    // Worker-confined: the pending self-refresh for the next recovery step (see scheduleNextRefresh).
+    private var scheduledRefresh: ScheduledFuture<*>? = null
     private val store = PreferencesGameStore(context.applicationContext)
     private val debug = context.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0
 
@@ -39,6 +43,7 @@ class GameRepository(context: Context, private val stats: StatsRepository? = nul
             try {
                 engine = GameEngine(store, allowDebugOverrides = debug)
                 _state.value = engine.refresh()
+                scheduleNextRefresh()
             } catch (error: Exception) {
                 report(error)
             }
@@ -193,6 +198,7 @@ class GameRepository(context: Context, private val stats: StatsRepository? = nul
                 val result = engine.action()
                 _state.value = engine.state
                 _error.value = null
+                scheduleNextRefresh()
                 future.complete(result)
             } catch (error: Exception) {
                 report(error)
@@ -202,9 +208,27 @@ class GameRepository(context: Context, private val stats: StatsRepository? = nul
         return future
     }
 
+    /**
+     * Keeps [state] current on its own: recovery is computed lazily by refresh(), so without this
+     * health only moved when a screen happened to call refresh(). Re-armed after every operation,
+     * so it always targets the latest state. Runs on the worker; late after deep sleep, which the
+     * screens' on-resume refresh covers.
+     */
+    private fun scheduleNextRefresh() {
+        scheduledRefresh?.cancel(false)
+        val at = engine.nextScheduledChangeMillis() ?: return
+        val delay = (at - System.currentTimeMillis()).coerceAtLeast(0) + REFRESH_SLACK_MILLIS
+        scheduledRefresh = worker.schedule({ submit { refresh() } }, delay, TimeUnit.MILLISECONDS)
+    }
+
     private fun report(error: Exception) {
         _error.value = error.message ?: "Game operation failed"
         Log.e("FakeNotifs", "Game operation failed", error)
+    }
+
+    private companion object {
+        /** Lands the self-refresh just after the recovery step, not a hair before it. */
+        const val REFRESH_SLACK_MILLIS = 50L
     }
 }
 
