@@ -18,6 +18,7 @@ object TapExplanations {
         "ai_request_failed" -> "AI request failed or returned unusable data; no penalty"
         "ai_not_configured" -> "AI isn't configured in this build"
         "ai_pending" -> "AI decision wasn't ready when the notification was opened; no penalty"
+        "ai_pending_timeout" -> "AI didn't reply within 1 second; no penalty"
         "whitelisted" -> "Always-safe app"
         "important_category" -> "Call, alarm, reminder or event"
         "vip_title" -> "From someone on your always-get-through list"

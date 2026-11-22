@@ -9,6 +9,7 @@ import android.service.notification.StatusBarNotification
 import android.util.Log
 import com.codejam.taptation.logic.TapDispatcher
 import com.codejam.taptation.logic.NotificationContext
+import com.codejam.taptation.logic.Classification
 import com.codejam.taptation.logic.GameConfig
 import com.codejam.taptation.TaptationApplication
 import android.app.ActivityOptions
@@ -145,10 +146,10 @@ class TapListenerService : NotificationListenerService() {
         val now = System.currentTimeMillis()
         val firstSeenAt = firstSeen.remove(sbn.key) ?: sbn.postTime
         val removed = withRanking(contexts.remove(sbn.key) ?: contextFor(sbn, rankingMap), rankingMap)
-        val context = judges().contextForTap(removed.copy(
+        val context = removed.copy(
             ageMillis = now - sbn.postTime,
             firstSeenAgeMillis = now - minOf(firstSeenAt, sbn.postTime),
-        ))
+        )
         simulations.remove(sbn.key)
         // Simulated package for our debug notifications, the real one otherwise.
         val pkg = context.packageName
@@ -166,23 +167,43 @@ class TapListenerService : NotificationListenerService() {
             ownPackageName = packageName,
             includeOwnPackage = isDebugBuild(),
         )
+        var cleanupAfterTap = false
         try {
             when (kind) {
                 TapDetection.RemovalKind.Tap -> {
                     TapLog.record(pkg)
-                    TapDispatcher.dispatch(context)
+                    val resolvedContext = judges().contextForTap(context)
+                    cleanupAfterTap = true
+                    resolvedContext.whenComplete { resolved, _ ->
+                        try {
+                            val ready = resolved ?: context.copy(
+                                judged = Classification.Unknown,
+                                judgingReason = "ai_pending_timeout",
+                            )
+                            TapDispatcher.dispatch(ready)
+                        } catch (e: Exception) {
+                            Log.e(TAG, "TapHandler threw for $pkg (Tap)", e)
+                        } finally {
+                            finishRemoval(sbn.key)
+                        }
+                    }
                 }
                 // Swipe or clear-all: no game effect, only recorded for stats.
-                TapDetection.RemovalKind.Dismiss -> TapDispatcher.dispatchDismiss(context)
+                TapDetection.RemovalKind.Dismiss ->
+                    TapDispatcher.dispatchDismiss(judges().contextWithCurrentResult(context))
                 TapDetection.RemovalKind.Ignored -> Unit
             }
         } catch (e: Exception) {
             // A bug in the handler must not take down the listener.
             Log.e(TAG, "TapHandler threw for $pkg ($kind)", e)
         } finally {
-            judges().onRemoved(sbn.key)
-            TapDispatcher.handler.onNotificationRemoved(sbn.key)
+            if (!cleanupAfterTap) finishRemoval(sbn.key)
         }
+    }
+
+    private fun finishRemoval(key: String) {
+        judges().onRemoved(key)
+        TapDispatcher.handler.onNotificationRemoved(key)
     }
 
     private fun contextFor(sbn: StatusBarNotification, rankingMap: RankingMap): NotificationContext {

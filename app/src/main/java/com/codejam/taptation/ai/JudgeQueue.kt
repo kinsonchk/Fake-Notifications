@@ -7,6 +7,9 @@ import com.codejam.taptation.logic.NotificationContext
 import com.codejam.taptation.logic.Strictness
 import java.util.concurrent.Executor
 import java.util.concurrent.Executors
+import java.util.concurrent.ScheduledExecutorService
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.CompletableFuture
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -25,12 +28,19 @@ class JudgeQueue(
     private val executor: Executor = Executors.newSingleThreadExecutor(),
 ) {
     /** [requested] identifies the input of the last request (content + judging settings). */
-    private class Candidate(val context: NotificationContext, var requested: Int? = null)
+    private class Candidate(
+        var context: NotificationContext,
+        var requested: Int? = null,
+        var pendingResult: CompletableFuture<JudgeResult>? = null,
+    )
 
     private val lock = Any()
     private var config: GameConfig? = null
     private val _verdicts = MutableStateFlow<Map<String, Verdict>>(emptyMap())
     private val reasons = mutableMapOf<String, String>()
+    private val tapTimeouts: ScheduledExecutorService = Executors.newSingleThreadScheduledExecutor { task ->
+        Thread(task, "ai-tap-grace").apply { isDaemon = true }
+    }
 
     // Bounded like the listener's caches; an evicted candidate takes its verdict with it.
     private val candidates = object : LinkedHashMap<String, Candidate>(16, 0.75f, true) {
@@ -56,7 +66,13 @@ class JudgeQueue(
         val key = context.key ?: return
         synchronized(lock) {
             if (config != null) this.config = config
-            candidates[key] = Candidate(context, candidates[key]?.takeIf { it.context.sameContent(context) }?.requested)
+            val previous = candidates[key]
+            if (previous != null && previous.context.sameContent(context)) {
+                previous.context = context
+                candidates[key] = previous
+            } else {
+                candidates[key] = Candidate(context)
+            }
             request(key)
         }
     }
@@ -79,17 +95,47 @@ class JudgeQueue(
         return context.key?.let { verdicts[it] }.toClassification()
     }
 
-    /** Adds the current verdict and content-free reason to the transient context sent into game logic. */
-    fun contextForTap(context: NotificationContext): NotificationContext {
+    /** Current non-waiting result used for dismissals and debug previews. */
+    fun contextWithCurrentResult(context: NotificationContext): NotificationContext {
         if (!judge.isConfigured) return context
         synchronized(lock) {
             val key = context.key
             val verdict = key?.let { _verdicts.value[it] }
-            val reason = key?.let(reasons::get)
             return context.copy(
                 judged = verdict.toClassification(),
-                judgingReason = reason ?: "ai_pending",
+                judgingReason = key?.let(reasons::get) ?: "ai_pending",
             )
+        }
+    }
+
+    /**
+     * Resolves a tapped notification using its in-flight pre-judgment, with a bounded grace period.
+     * Called from the listener callback, but never blocks it; the returned future dispatches game
+     * logic only after the decision arrives or the timeout expires.
+     */
+    fun contextForTap(context: NotificationContext): CompletableFuture<NotificationContext> {
+        if (!judge.isConfigured) return CompletableFuture.completedFuture(context)
+        val pending = synchronized(lock) {
+            val key = context.key
+            val verdict = key?.let { _verdicts.value[it] }
+            if (verdict != null) {
+                return CompletableFuture.completedFuture(context.copy(
+                    judged = verdict.toClassification(),
+                    judgingReason = key?.let(reasons::get) ?: "ai_unsure",
+                ))
+            }
+            key?.let { candidates[it]?.pendingResult }
+        } ?: return CompletableFuture.completedFuture(context.copy(
+            judged = Classification.Unknown,
+            judgingReason = "ai_pending",
+        ))
+
+        val timeout = CompletableFuture<JudgeResult>()
+        tapTimeouts.schedule({
+            timeout.complete(JudgeResult(Verdict.Unsure, "ai_pending_timeout"))
+        }, TAP_GRACE_MILLIS, TimeUnit.MILLISECONDS)
+        return pending.applyToEither(timeout) { result ->
+            context.copy(judged = result.classification, judgingReason = result.reason)
         }
     }
 
@@ -125,6 +171,8 @@ class JudgeQueue(
         val input = inputOf(candidate.context, config)
         if (candidate.requested == input) return
         candidate.requested = input
+        val pendingResult = CompletableFuture<JudgeResult>()
+        candidate.pendingResult = pendingResult
         _verdicts.value -= key
         reasons[key] = "ai_pending"
         executor.execute {
@@ -133,16 +181,21 @@ class JudgeQueue(
                 ?: return@execute
             val result = judge.judgeWithReason(context, config)
             synchronized(lock) {
-                if (candidates[key]?.requested == input) {
+                val current = candidates[key]?.takeIf { it.requested == input }
+                if (current != null) {
                     _verdicts.value += key to result.verdict
                     reasons[key] = result.reason
                 }
             }
+            // Complete the particular request's waiters even if this notification was updated
+            // meanwhile; its tapped context may still refer to the content this request saw.
+            pendingResult.complete(result)
         }
     }
 
     companion object {
         const val MAX_ENTRIES = 500
+        const val TAP_GRACE_MILLIS = 1_000L
 
         /** The settings a verdict depends on; a change in any of them re-judges. */
         fun judgingSettings(config: GameConfig): Triple<String, String, Strictness> =

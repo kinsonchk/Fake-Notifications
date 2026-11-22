@@ -24,7 +24,7 @@ class ClefJudge(
 
     override fun judgeWithReason(context: NotificationContext, config: GameConfig): JudgeResult {
         if (!isConfigured) return JudgeResult(Verdict.Unsure, "ai_not_configured")
-        if (!JudgePrompt.hasContent(context)) return JudgeResult(Verdict.Unsure, "ai_missing_content")
+        if (!JudgePrompt.hasContent(context)) return JudgeResult(Verdict.Bait, "ai_missing_content")
         return try {
             val baitProbability = baitProbability(context, config)
             require(baitProbability.isFinite() && baitProbability in 0.0..1.0) { "Invalid bait probability" }
