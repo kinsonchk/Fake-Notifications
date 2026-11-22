@@ -7,6 +7,9 @@ import com.codejam.taptation.logic.TapOutcome
 object TapExplanations {
     /** Why the classifier picked Important, Bait or Unknown ([com.codejam.taptation.logic.TapRecord.rule]). */
     fun rule(code: String): String = when (code) {
+        "app_always_important" -> "App set to Always important"
+        "app_always_bait" -> "App set to Always distracting"
+        "let_us_decide" -> "Let us decide: counted as non-essential for now"
         "whitelisted" -> "Always-safe app"
         "important_category" -> "Call, alarm, reminder or event"
         "vip_title" -> "From someone on your always-get-through list"
@@ -39,7 +42,7 @@ object TapExplanations {
         val type = channel?.takeIf { it.isNotBlank() }
         return when (rule) {
             "bait_channel" -> if (type != null) "$appLabel · $type is set as distracting" else "$appLabel has a distracting notification type"
-            "configured_bait" -> "$appLabel is set as distracting"
+            "app_always_bait", "configured_bait" -> "$appLabel is set as distracting"
             "bait_category" -> "$appLabel sent a promo or social notification"
             "ordinary_notification" -> "$appLabel sent an ordinary message or email"
             "profile_default" -> "$appLabel notifications count as distracting"

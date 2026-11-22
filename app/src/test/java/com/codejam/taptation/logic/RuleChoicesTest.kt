@@ -69,8 +69,8 @@ class RuleChoicesTest {
     @Test fun realClassifierHonoursTheChosenTypeRule() {
         val config = RuleChoices.apply(GameConfig(), type, RuleBehavior.AlwaysSafe)
         val context = NotificationContext("com.insta", title = "t", text = "x", category = "social", channelName = "Suggested for you")
-        assertEquals("important_channel", NotificationClassifier.assess(context, config).reason)
+        assertEquals("important_channel", NotificationClassifier.assessByRules(context, config).reason)
         val other = context.copy(channelName = "Direct messages")
-        assertEquals("bait_category", NotificationClassifier.assess(other, config).reason)
+        assertEquals("bait_category", NotificationClassifier.assessByRules(other, config).reason)
     }
 }

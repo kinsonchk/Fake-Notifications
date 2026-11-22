@@ -147,7 +147,7 @@ class GameRepository(context: Context, private val stats: StatsRepository? = nul
     /** Snapshot read; observe state and call refresh() when the UI becomes active. */
     fun getHealth(): Int? = state.value?.health
     fun isWhitelisted(packageName: String): Boolean =
-        state.value?.config?.whitelistedPackages?.contains(packageName) == true
+        state.value?.config?.ruleFor(packageName) == AppRule.AlwaysImportant
     fun refresh(): CompletableFuture<GameState> = submit { refresh() }
     fun applyCatch(level: CatchLevel): CompletableFuture<GameState> = submit {
         val before = state.pendingCatch?.id
@@ -180,10 +180,17 @@ class GameRepository(context: Context, private val stats: StatsRepository? = nul
         updateConfig(state.config.copy(debugCatchProbability = value))
     }
 
-    fun setWhitelisted(packageName: String, enabled: Boolean): CompletableFuture<GameState> {
+    /** Kept for callers of the old whitelist API: on = Always important, off = Let us decide. */
+    fun setWhitelisted(packageName: String, enabled: Boolean): CompletableFuture<GameState> =
+        setAppRule(packageName, if (enabled) AppRule.AlwaysImportant else AppRule.LetUsDecide)
+
+    /** Saves the user's choice for one app; LetUsDecide is the default, so it removes the entry. */
+    fun setAppRule(packageName: String, rule: AppRule): CompletableFuture<GameState> {
         require(packageName.isNotBlank())
-        return updateConfig { it.copy(whitelistedPackages = if (enabled)
-            it.whitelistedPackages + packageName else it.whitelistedPackages - packageName) }
+        return updateConfig {
+            it.copy(appRules = if (rule == AppRule.LetUsDecide) it.appRules - packageName
+            else it.appRules + (packageName to rule))
+        }
     }
 
     fun setHealthForDebug(health: Int): CompletableFuture<GameState> = submit {

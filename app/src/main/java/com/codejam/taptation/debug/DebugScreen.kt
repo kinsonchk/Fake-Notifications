@@ -21,6 +21,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.codejam.taptation.logic.AppRule
 import com.codejam.taptation.logic.NotificationContext
 import com.codejam.taptation.service.PermissionHelper
 import com.codejam.taptation.service.TapListenerService
@@ -112,7 +113,7 @@ fun DebugScreen(contentPadding: PaddingValues = PaddingValues(), controls: DemoC
             SectionCard("Shortcuts", "Skip the notification shade. Custom taps are on the Notifications tab.") {
                 OutlinedButton(
                     onClick = {
-                        repository.updateConfig { it.copy(baitPackages = it.baitPackages + "com.test.fake") }
+                        repository.setAppRule("com.test.fake", AppRule.AlwaysBait)
                         repository.processTap(NotificationContext("com.test.fake", title = "Demo notification",
                             text = "Routine update", category = "promo", isConversation = false, ageMillis = 0))
                     },
