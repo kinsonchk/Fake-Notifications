@@ -31,6 +31,35 @@ class GameRepository(context: Context, private val stats: StatsRepository? = nul
     private val _lastResult = MutableStateFlow<TapResult?>(null)
     val lastResult: StateFlow<TapResult?> = _lastResult.asStateFlow()
 
+    private val ownPackage = context.packageName
+    private val observedPrefs = context.applicationContext.getSharedPreferences("observed_types", Context.MODE_PRIVATE)
+    private val _observed = MutableStateFlow(ObservedTypes.decode(observedPrefs.getString(OBSERVED_KEY, null)))
+    /** Notification types seen per app (names only, never titles or text); drives the rule picker. */
+    val observed: StateFlow<ObservedTypes> = _observed.asStateFlow()
+    private var observedSinceSave = 0
+    private val catchChannels = java.util.concurrent.ConcurrentHashMap<String, String>()
+
+    /** Why and how much the pending catch cost, from the saved tap record. */
+    fun catchDetails(pending: PendingCatch): CatchDetails? =
+        state.value?.let { CatchDetails.from(it, pending, catchChannels[pending.id]) }
+
+    /** Applies a friendly rule choice to the saved settings. */
+    fun applyRule(target: RuleTarget, behavior: RuleBehavior): CompletableFuture<GameState> =
+        updateConfig { RuleChoices.apply(it, target, behavior) }
+
+    private fun noteObserved(context: NotificationContext) {
+        if (context.packageName == ownPackage) return
+        val before = _observed.value
+        val isNew = context.channelName?.trim()?.takeIf { it.isNotEmpty() }
+            ?.let { name -> before.typesFor(context.packageName, System.currentTimeMillis(), ObservedTypes.KEEP_DAYS).none { it.channel == name } }
+            ?: !before.hasSeen(context.packageName)
+        _observed.value = before.record(context.packageName, context.channelName, System.currentTimeMillis())
+        if (isNew || ++observedSinceSave >= 10) {
+            observedSinceSave = 0
+            observedPrefs.edit().putString(OBSERVED_KEY, _observed.value.encode()).apply()
+        }
+    }
+
     init {
         worker.execute {
             try {
@@ -48,6 +77,7 @@ class GameRepository(context: Context, private val stats: StatsRepository? = nul
     override fun onNotificationPosted(context: NotificationContext) {
         worker.execute {
             if (::engine.isInitialized && !engine.state.config.isActive(System.currentTimeMillis())) return@execute
+            noteObserved(context)
             context.key?.let { notificationContexts[it] = context }
             if (notificationContexts.size > 500) notificationContexts.remove(notificationContexts.keys.first())
         }
@@ -106,6 +136,8 @@ class GameRepository(context: Context, private val stats: StatsRepository? = nul
             StatsEventType.TAP, context.ageMillis, it.classification,
             caught = it.outcome == TapOutcome.Caught, category = context.category))
         if (it.outcome == TapOutcome.Caught) it.state.pendingCatch?.let { pending ->
+            if (catchChannels.size >= 16) catchChannels.clear()
+            context.channelName?.takeIf { name -> name.isNotBlank() }?.let { name -> catchChannels[pending.id] = name }
             onCaught(pending, context.openOriginal)
         }
         Log.d("FakeNotifs", "tap pkg=${context.packageName} outcome=${it.outcome} " +
@@ -190,6 +222,8 @@ class GameRepository(context: Context, private val stats: StatsRepository? = nul
         _error.value = error.message ?: "Game operation failed"
         Log.e("FakeNotifs", "Game operation failed", error)
     }
+
+    private companion object { const val OBSERVED_KEY = "v1" }
 }
 
 

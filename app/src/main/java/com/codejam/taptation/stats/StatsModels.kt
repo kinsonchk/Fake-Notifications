@@ -1,4 +1,4 @@
-package com.codejam.taptation.stats
+﻿package com.codejam.taptation.stats
 
 import com.codejam.taptation.logic.Classification
 
@@ -51,4 +51,4 @@ data class CategoryStats(val category: String, val taps: Int, val dismissals: In
     val tapToDismissPercent: Double? get() = if (dismissals == 0) null else taps * 100.0 / dismissals
     val caughtPerTapPercent: Double? get() = if (taps == 0) null else caught * 100.0 / taps
 }
-data class DailyCatches(val date: String, val count: Int)
+data class DailyCatches(val date: String, val count: Int, val taps: Int = 0)

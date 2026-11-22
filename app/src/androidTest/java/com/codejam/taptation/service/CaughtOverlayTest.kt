@@ -55,17 +55,20 @@ class CaughtOverlayTest {
                 text = "Routine update", category = "promo", isConversation = false, ageMillis = 0,
                 openOriginal = { opened.set(true) })).get(5, TimeUnit.SECONDS)
             assertEquals(TapOutcome.Caught, result.outcome)
-            fun node(text: String): AccessibilityNodeInfo? = automation.windows.asSequence()
+            fun node(text: String, prefix: Boolean = false): AccessibilityNodeInfo? = automation.windows.asSequence()
                 .mapNotNull { it.root }.flatMap { it.findAccessibilityNodeInfosByText(text).asSequence() }
-                .firstOrNull { it.text?.toString() == text }
+                .firstOrNull { if (prefix) it.text?.toString()?.startsWith(text) == true else it.text?.toString() == text }
             val deadline = SystemClock.elapsedRealtime() + 10_000
             var originalButton: AccessibilityNodeInfo? = null
             while (originalButton == null && SystemClock.elapsedRealtime() < deadline) {
-                originalButton = node("Go to original app")
+                originalButton = node("Continue to", prefix = true)
                 if (originalButton == null) SystemClock.sleep(100)
             }
             assertNotNull("Native caught overlay was not shown", originalButton)
             assertNotNull(node("Go to Taptation"))
+            assertNotNull("Caught heading missing", node("Caught you."))
+            assertNotNull("Correction action missing", node("This should be important"))
+            assertNotNull("Cost should be stated in text", node("−10"))
             assertTrue(originalButton!!.performAction(AccessibilityNodeInfo.ACTION_CLICK))
             val openedDeadline = SystemClock.elapsedRealtime() + 5_000
             while (!opened.get() && SystemClock.elapsedRealtime() < openedDeadline) SystemClock.sleep(50)

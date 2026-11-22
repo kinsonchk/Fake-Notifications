@@ -1,4 +1,4 @@
-package com.codejam.taptation.ui.home
+﻿package com.codejam.taptation.ui.home
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -19,11 +19,11 @@ import androidx.compose.ui.unit.dp
 
 /** Decorative brand illustration. It deliberately does not choose the still-undecided home metric. */
 @Composable
-fun TreeIllustration(modifier: Modifier = Modifier) {
+fun TreeIllustration(modifier: Modifier = Modifier, height: androidx.compose.ui.unit.Dp = 235.dp) {
     val leaves = MaterialTheme.colorScheme.primary
     val earth = MaterialTheme.colorScheme.tertiary
     val soft = MaterialTheme.colorScheme.primaryContainer
-    Canvas(modifier.fillMaxWidth().height(235.dp).semantics { contentDescription = "A leafy tree illustration" }) {
+    Canvas(modifier.fillMaxWidth().height(height).semantics { contentDescription = "A leafy tree illustration" }) {
         drawOval(Brush.radialGradient(listOf(soft, soft.copy(alpha = 0f)),
             center = center, radius = size.minDimension * .7f), size = size)
         val unit = minOf(size.width / 260f, size.height / 240f)

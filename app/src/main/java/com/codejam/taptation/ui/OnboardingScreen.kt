@@ -83,9 +83,9 @@ internal fun OnboardingScreen(startAtSetup: Boolean, onComplete: () -> Unit) {
                         else -> "A tap can be a moment to pause."
                     },
                     subtitle = when (page) {
-                        0 -> "Taptation helps you notice when you open distracting notifications, while your tree gives you a gentle reminder of the habit you’re building."
+                        0 -> "Some distracting notification taps trigger a reminder and lower your tree’s health. Important notifications are excluded."
                         1 -> "Choose the apps and people you want to protect. Taptation can also skip urgent and important notifications."
-                        else -> "Taptation checks eligible notification taps. If a catch happens, your tree loses health and you’ll get a short pause before you continue."
+                        else -> "Taptation checks distracting notification taps. If a catch happens, your tree loses health and a reminder shows what it cost before you continue."
                     },
                 ) {
                     if (page == 1) Text("You can choose safe apps later in Settings.",

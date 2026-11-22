@@ -1,4 +1,4 @@
-package com.codejam.taptation.ui.common
+﻿package com.codejam.taptation.ui.common
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.BorderStroke
@@ -29,7 +30,9 @@ import androidx.compose.ui.unit.sp
 /** Scrolling tab body: a title, then [content] items, padded around the bottom bar. */
 @Composable
 fun TabScreen(contentPadding: PaddingValues, title: String, eyebrow: String? = null,
-    subtitle: String? = null, content: LazyListScope.() -> Unit) {
+    subtitle: String? = null, itemSpacing: androidx.compose.ui.unit.Dp = 20.dp,
+    overlay: @Composable BoxScope.() -> Unit = {},
+    content: LazyListScope.() -> Unit) {
     // Top inset as real padding so scrolled content never shows under the status bar.
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
     LazyColumn(
@@ -41,7 +44,7 @@ fun TabScreen(contentPadding: PaddingValues, title: String, eyebrow: String? = n
             top = 24.dp,
             bottom = 24.dp,
         ),
-        verticalArrangement = Arrangement.spacedBy(20.dp),
+        verticalArrangement = Arrangement.spacedBy(itemSpacing),
     ) {
         item {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -52,6 +55,9 @@ fun TabScreen(contentPadding: PaddingValues, title: String, eyebrow: String? = n
             }
         }
         content()
+    }
+    Box(Modifier.fillMaxSize().padding(bottom = contentPadding.calculateBottomPadding()), contentAlignment = Alignment.BottomCenter) {
+        Box(Modifier.widthIn(max = 560.dp), content = overlay)
     }
     }
 }

@@ -1,105 +1,136 @@
 package com.codejam.taptation.ui.stats
 
-import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.CornerRadius
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.Alignment
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.codejam.taptation.TaptationApplication
 import com.codejam.taptation.stats.DailyCatches
 import com.codejam.taptation.stats.StatsSummary
-import com.codejam.taptation.ui.common.LabelValue
+import com.codejam.taptation.stats.StatsText
 import com.codejam.taptation.ui.common.SectionCard
+import com.codejam.taptation.ui.common.SegmentedChoice
 import com.codejam.taptation.ui.common.TabScreen
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import kotlin.math.roundToInt
 
-/** Real SQLite history, including zero-catch days; no invented home-visual metric. */
+private val dayFormat = DateTimeFormatter.ofPattern("EEE, MMM d")
+private val shortDay = DateTimeFormatter.ofPattern("EEE")
+private val rangeFormat = DateTimeFormatter.ofPattern("MMM d")
+
+/** Real SQLite history. The scope (distracting or all) and the period are stated above the numbers. */
 @Composable
 fun StatsScreen(contentPadding: PaddingValues) {
     val stats = (LocalContext.current.applicationContext as TaptationApplication).stats
     val changes by stats.changes.collectAsStateWithLifecycle()
-    var month by remember { mutableStateOf(false) }
-    var includeImportant by remember { mutableStateOf(false) }
+    var month by rememberSaveable { mutableStateOf(false) }
+    var includeImportant by rememberSaveable { mutableStateOf(false) }
     var summary by remember { mutableStateOf<StatsSummary?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
     LaunchedEffect(changes, month, includeImportant) {
         try {
             summary = if (month) stats.monthly(includeImportant) else stats.weekly(includeImportant)
             error = null
-        } catch (failure: Exception) { error = failure.localizedMessage ?: "Could not load history" }
+        } catch (failure: Exception) { error = failure.localizedMessage ?: "Couldn't load your history" }
     }
     TabScreen(contentPadding, "Your attention,\nin perspective.", eyebrow = "Understand the pattern") {
         item {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Surface(shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.primaryContainer) {
-                Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                val colors = FilterChipDefaults.filterChipColors(containerColor = Color.Transparent,
-                    selectedContainerColor = MaterialTheme.colorScheme.surfaceContainerLowest,
-                    selectedLabelColor = MaterialTheme.colorScheme.onSurface)
-                FilterChip(selected = !month, onClick = { month = false }, label = { Text("Last 7 days") },
-                    modifier = Modifier.weight(1f), colors = colors, border = null, shape = RoundedCornerShape(12.dp))
-                FilterChip(selected = month, onClick = { month = true }, label = { Text("Last 30 days") },
-                    modifier = Modifier.weight(1f), colors = colors, border = null, shape = RoundedCornerShape(12.dp))
-                }
-                }
-                FilterChip(selected = includeImportant, onClick = { includeImportant = !includeImportant },
-                    label = { Text("Include important / unsure", style = MaterialTheme.typography.labelMedium) },
-                    shape = RoundedCornerShape(12.dp), border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant))
+            Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                SegmentedChoice(listOf("Last 7 days", "Last 30 days"), if (month) 1 else 0, { month = it == 1 })
+                Text("Showing", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                SegmentedChoice(listOf("Distracting", "All detected"), if (includeImportant) 1 else 0, { includeImportant = it == 1 })
+                Text(if (includeImportant) "Every notification Taptation detected, including important and unsure ones."
+                    else "Distracting notifications are the ones that can trigger a catch. Important and unsure ones are left out.",
+                    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
         error?.let { item { Text(it, color = MaterialTheme.colorScheme.error) } }
         val current = summary
         if (current == null) item { Text("Loading history…") }
         else {
+            item { Text(periodLabel(current, month), style = MaterialTheme.typography.titleSmall) }
             item {
                 Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    MetricCard("Tap-to-dismiss ratio", current.tapToDismissPercent.percent(),
-                        "${current.taps} taps ÷ ${current.dismissals} dismissals", Modifier.weight(1f))
-                    MetricCard("Catches per tap", current.caughtPerTapPercent.percent(),
-                        "${current.caught} catches ÷ ${current.taps} taps", Modifier.weight(1f))
+                    MetricCard("Opened vs. swiped away", StatsText.ratioHeadline(current.taps, current.dismissals),
+                        StatsText.openedPerSwiped(current.taps, current.dismissals) ?: "No notifications swiped away yet",
+                        Modifier.weight(1f))
+                    MetricCard("Catches", current.caught.toString(),
+                        if (current.taps == 0) "No notifications opened" else
+                            "in ${current.taps} opened" + (current.caughtPerTapPercent?.let { " (${it.roundToInt()}%)" } ?: ""),
+                        Modifier.weight(1f))
                 }
             }
+            when (StatsText.emptiness(current)) {
+                StatsText.Emptiness.NoActivity -> item {
+                    SectionCard("No activity recorded", "Taptation hasn't seen a notification tap or swipe in this period. " +
+                        "Keep monitoring on and check back.") {}
+                }
+                StatsText.Emptiness.NoCatches -> item {
+                    SectionCard("No catches this period", "You opened ${current.taps} distracting notification${if (current.taps == 1) "" else "s"} " +
+                        "and none caught you.") {
+                        StatusChip("0 caught · ${current.taps} opened")
+                    }
+                }
+                StatsText.Emptiness.HasCatches -> Unit
+            }
             item {
-                SectionCard("Tap vs. dismiss by category") {
-                    if (current.categories.isEmpty()) Text("A fresh start. Your first detected tap or dismissal will appear here.",
+                SectionCard("By notification type", if (current.categories.isEmpty()) null else "Bar shows the share you opened.") {
+                    if (current.categories.isEmpty()) Text("Nothing detected yet. Your first notification tap or swipe will appear here.",
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
                     current.categories.forEach { category ->
-                        LabelValue(category.category, "${category.taps} taps / ${category.dismissals} dismissals")
-                        Text("Tap/dismiss: ${category.tapToDismissPercent.percent()} · Catches/tap: ${category.caughtPerTapPercent.percent()}",
-                            style = MaterialTheme.typography.bodySmall)
+                        val name = StatsText.categoryName(category.category)
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text(name, style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
+                            Text("${category.taps} opened · ${category.dismissals} swiped away", style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
                         val total = category.taps + category.dismissals
                         if (total > 0) LinearProgressIndicator(progress = { category.taps.toFloat() / total },
                             modifier = Modifier.fillMaxWidth().semantics {
-                                contentDescription = "${category.category}: ${category.taps} tapped, ${category.dismissals} dismissed"
+                                contentDescription = "$name: ${category.taps} opened, ${category.dismissals} swiped away"
                             })
                     }
-                    if (current.categories.isNotEmpty()) Text("Green: tapped · Pale: dismissed. Older records appear as unknown.",
-                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
             item {
-                SectionCard("Catches over time") {
-                    CatchBars(current.dailyCatches)
-                    LabelValue("Catches", current.caught.toString())
-                    LabelValue("Average per day", "%.2f".format(current.averageCatchesPerDay))
-                    Text("Includes days with zero catches.", style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                SectionCard("Catches per day") {
+                    DailyChart(current.dailyCatches, current.caught == 0 && current.taps == 0, month)
+                    Text("Average ${"%.2f".format(current.averageCatchesPerDay)} a day, counting days with none.",
+                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
-            item { Text("Based on detected notification actions. ${if (includeImportant) "Includes important and unsure notifications." else "Bait only; important and unsure notifications are excluded."}",
-                style = MaterialTheme.typography.bodySmall) }
+            item { Text("Based on notification taps and swipes Taptation detected.", style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant) }
         }
+    }
+}
+
+internal fun periodLabel(summary: StatsSummary, month: Boolean): String {
+    val zone = ZoneId.systemDefault()
+    val from = Instant.ofEpochMilli(summary.fromMillis).atZone(zone).toLocalDate()
+    val to = Instant.ofEpochMilli(summary.toMillis - 1).atZone(zone).toLocalDate()
+    return "${if (month) "Last 30 days" else "Last 7 days"} · ${from.format(rangeFormat)} – ${to.format(rangeFormat)}"
+}
+
+@Composable
+private fun StatusChip(text: String) {
+    Surface(shape = RoundedCornerShape(50), color = MaterialTheme.colorScheme.primaryContainer, contentColor = MaterialTheme.colorScheme.primary) {
+        Text(text, Modifier.padding(horizontal = 12.dp, vertical = 6.dp), style = MaterialTheme.typography.labelMedium)
     }
 }
 
@@ -112,42 +143,45 @@ private fun MetricCard(label: String, value: String, context: String, modifier: 
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(label, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Text(value, style = MaterialTheme.typography.headlineMedium)
-            Text(context, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(context, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurface)
         }
     }
 }
 
+/** Bars with counts. Tap a bar (or use the arrows) to see that day's catches and notifications opened. */
 @Composable
-private fun CatchBars(days: List<DailyCatches>) {
-    if (days.none { it.count > 0 }) {
-        Column(Modifier.fillMaxWidth().padding(vertical = 22.dp), horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text("Room to begin.", style = MaterialTheme.typography.headlineSmall)
-            Text("Your catches will appear here over time.", style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
-        return
-    }
+private fun DailyChart(days: List<DailyCatches>, noActivity: Boolean, month: Boolean) {
+    if (days.isEmpty()) return
+    var selected by rememberSaveable(month, days.size) { mutableIntStateOf(days.lastIndex) }
+    val index = selected.coerceIn(0, days.lastIndex)
+    val max = days.maxOf { it.count }.coerceAtLeast(1)
+    val weekly = days.size <= 7
     val color = MaterialTheme.colorScheme.primary
-    val max = (days.maxOfOrNull { it.count } ?: 0).coerceAtLeast(1)
-    Text("Highest day: ${days.maxOfOrNull { it.count } ?: 0} catches", style = MaterialTheme.typography.bodySmall)
-    Canvas(Modifier.fillMaxWidth().height(140.dp).semantics {
-        contentDescription = days.joinToString { "${it.date}: ${it.count} catches" }
-    }) {
-        if (days.isNotEmpty()) {
-            val width = size.width / days.size
-            days.forEachIndexed { index, day ->
-                val height = size.height * day.count / max
-                if (day.count > 0) drawRoundRect(color,
-                    topLeft = Offset(index * width + width * 0.15f, size.height - height),
-                    size = Size(width * 0.7f, height), cornerRadius = CornerRadius(3.dp.toPx()))
+    val faded = MaterialTheme.colorScheme.primary.copy(alpha = .45f)
+    val summary = days.joinToString { "${LocalDate.parse(it.date).format(dayFormat)}: ${it.count} catches" }
+    Row(Modifier.fillMaxWidth().height(140.dp).semantics { contentDescription = summary }
+        .pointerInput(days.size) {
+            detectTapGestures { offset -> selected = (offset.x / size.width * days.size).toInt().coerceIn(0, days.lastIndex) }
+        }, horizontalArrangement = Arrangement.spacedBy(if (weekly) 6.dp else 2.dp)) {
+        days.forEachIndexed { i, day ->
+            Column(Modifier.weight(1f).fillMaxHeight(), verticalArrangement = Arrangement.Bottom, horizontalAlignment = Alignment.CenterHorizontally) {
+                if (weekly || i == index) Text(day.count.toString(), style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurface)
+                Box(Modifier.fillMaxWidth(if (weekly) .7f else .85f).height((86.dp * day.count / max).coerceAtLeast(2.dp))
+                    .background(if (i == index) color else if (day.count == 0) MaterialTheme.colorScheme.outlineVariant else faded,
+                        RoundedCornerShape(topStart = 6.dp, topEnd = 6.dp, bottomStart = 2.dp, bottomEnd = 2.dp)))
+                if (weekly) Text(LocalDate.parse(day.date).format(shortDay), style = MaterialTheme.typography.bodySmall,
+                    color = if (i == index) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
     }
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-        Text(days.firstOrNull()?.date.orEmpty(), style = MaterialTheme.typography.bodySmall)
-        Text(days.lastOrNull()?.date.orEmpty(), style = MaterialTheme.typography.bodySmall)
+    val day = days[index]
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        TextButton(enabled = index > 0, onClick = { selected = index - 1 }) { Text("‹ Earlier") }
+        Text(if (noActivity) "No activity recorded in this period."
+            else "${LocalDate.parse(day.date).format(dayFormat)} · ${day.count} catch${if (day.count == 1) "" else "es"} out of ${day.taps} opened",
+            Modifier.weight(1f), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurface,
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+        TextButton(enabled = index < days.lastIndex, onClick = { selected = index + 1 }) { Text("Later ›") }
     }
 }
-
-private fun Double?.percent(): String = this?.let { "%.1f%%".format(it) } ?: "—"

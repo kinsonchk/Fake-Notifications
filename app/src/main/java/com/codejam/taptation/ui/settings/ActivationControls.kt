@@ -1,4 +1,4 @@
-package com.codejam.taptation.ui.settings
+﻿package com.codejam.taptation.ui.settings
 
 import android.Manifest
 import android.content.Intent
@@ -41,37 +41,14 @@ import com.codejam.taptation.ui.common.rememberNow
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
+/** Pause and resume with the existing 10-second confirmation; renders the dialog while pausing. */
+class PauseFlow(val busy: Boolean, val pause: () -> Unit, val resume: () -> Unit)
+
 @Composable
-fun ActivationControls(repository: GameRepository, config: GameConfig) {
-    val now = rememberNow(repository)
-    val active = config.isActive(now)
+fun rememberPauseFlow(repository: GameRepository): PauseFlow {
     val scope = rememberCoroutineScope()
     var challenge by remember { mutableStateOf<DisableGate.Challenge?>(null) }
     var busy by remember { mutableStateOf(false) }
-    Surface(shape = RoundedCornerShape(22.dp), color = MaterialTheme.colorScheme.surfaceContainerLowest,
-        contentColor = MaterialTheme.colorScheme.onSurface,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) {
-        Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text("App active", style = MaterialTheme.typography.titleMedium)
-                Text(if (active) "Monitoring and catches are on." else "Monitoring and catches are paused.",
-                    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-            Switch(checked = active, enabled = !busy, modifier = Modifier.semantics { contentDescription = "App active" }, onCheckedChange = { enable ->
-                busy = true
-                if (enable) repository.enable().whenComplete { _, _ -> scope.launch { busy = false } }
-                else repository.beginDisable().whenComplete { next, _ -> scope.launch {
-                    busy = false; challenge = next
-                } }
-            })
-        }
-        config.disabledUntilMillis?.takeIf { !active }?.let {
-            Text("Automatically resumes at ${java.text.DateFormat.getTimeInstance(java.text.DateFormat.SHORT).format(java.util.Date(it))}")
-        }
-        }
-    }
     challenge?.let { pending ->
         DisableConfirmation(pending, busy, onCancel = { repository.cancelDisable(); challenge = null },
             onConfirm = { minutes ->
@@ -80,6 +57,42 @@ fun ActivationControls(repository: GameRepository, config: GameConfig) {
                     busy = false; challenge = null
                 } }
             })
+    }
+    return PauseFlow(busy,
+        pause = {
+            busy = true
+            repository.beginDisable().whenComplete { next, _ -> scope.launch { busy = false; challenge = next } }
+        },
+        resume = {
+            busy = true
+            repository.enable().whenComplete { _, _ -> scope.launch { busy = false } }
+        })
+}
+
+@Composable
+fun ActivationControls(repository: GameRepository, config: GameConfig) {
+    val now = rememberNow(repository)
+    val active = config.isActive(now)
+    val flow = rememberPauseFlow(repository)
+    Surface(shape = RoundedCornerShape(22.dp), color = MaterialTheme.colorScheme.surfaceContainerLowest,
+        contentColor = MaterialTheme.colorScheme.onSurface,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) {
+        Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text("Monitoring notifications", style = MaterialTheme.typography.titleMedium)
+                Text(if (active) "Pausing takes a 10-second confirmation." else "Paused. Turn on to start checking again.",
+                    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            Switch(checked = active, enabled = !flow.busy,
+                modifier = Modifier.semantics { contentDescription = "Monitoring notifications" },
+                onCheckedChange = { enable -> if (enable) flow.resume() else flow.pause() })
+        }
+        config.disabledUntilMillis?.takeIf { !active }?.let {
+            Text("Automatically resumes at ${java.text.DateFormat.getTimeInstance(java.text.DateFormat.SHORT).format(java.util.Date(it))}")
+        }
+        }
     }
 }
 
@@ -108,23 +121,4 @@ fun DisableConfirmation(challenge: DisableGate.Challenge, busy: Boolean,
         },
         confirmButton = { TextButton(enabled = seconds == 0L && !busy, onClick = { onConfirm(duration) }) { Text("Confirm disable") } },
         dismissButton = { TextButton(enabled = !busy, onClick = onCancel) { Text("Keep active") } })
-}
-
-@Composable
-fun CatchPermissionCard() {
-    val context = LocalContext.current
-    var overlayGranted by remember { mutableStateOf(Settings.canDrawOverlays(context)) }
-    val permission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { }
-    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { overlayGranted = Settings.canDrawOverlays(context) }
-    SectionCard("Caught feedback", "Choose where to go after a catch.") {
-        Text(if (overlayGranted) "Caught overlays are enabled." else "Allow display over other apps for the two-button caught overlay.")
-        if (!overlayGranted) Button(onClick = {
-            context.startActivity(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                Uri.fromParts("package", context.packageName, null)))
-        }) { Text("Allow caught overlay") }
-        if (Build.VERSION.SDK_INT >= 33) TextButton(onClick = {
-            permission.launch(Manifest.permission.POST_NOTIFICATIONS)
-        }) { Text("Enable notification fallback") }
-        Text("Without overlay access, a catch notification opens the same choice in Taptation.")
-    }
 }

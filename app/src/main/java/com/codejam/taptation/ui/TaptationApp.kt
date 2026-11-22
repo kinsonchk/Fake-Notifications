@@ -26,6 +26,8 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.codejam.taptation.ui.common.CatchChoiceDialog
+import com.codejam.taptation.ui.common.CorrectionSheet
+import com.codejam.taptation.ui.common.rememberAppLabels
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.selection.selectable
@@ -81,7 +83,7 @@ fun TaptationApp(debug: Boolean) {
 
 /** Bottom tabs. Debug-only tabs are hidden in release builds. */
 @Composable
-private fun AppTabs(debug: Boolean) {
+internal fun AppTabs(debug: Boolean) {
     val tabs = Tab.entries.filter { debug || !it.debugOnly }
     val compact = LocalConfiguration.current.screenWidthDp < 380
     var selected by rememberSaveable { mutableStateOf(Tab.Home) }
@@ -89,6 +91,8 @@ private fun AppTabs(debug: Boolean) {
     val snapshot by app.game.state.collectAsStateWithLifecycle()
     val requests by app.feedback.homeRequests.collectAsStateWithLifecycle()
     var handledRequest by rememberSaveable { mutableStateOf(0L) }
+    var settingsRequest by rememberSaveable { mutableStateOf<String?>(null) }
+    val correction by app.feedback.corrections.collectAsStateWithLifecycle()
     LaunchedEffect(requests) { if (requests > handledRequest) { selected = Tab.Home; handledRequest = requests } }
     // Keeps each tab's scroll position and typed text while another tab is shown.
     val tabState = rememberSaveableStateHolder()
@@ -124,16 +128,22 @@ private fun AppTabs(debug: Boolean) {
     ) { padding ->
         tabState.SaveableStateProvider(selected.name) {
             when (selected) {
-                Tab.Home -> HomeScreen(padding, onSettings = { selected = Tab.Settings })
+                Tab.Home -> HomeScreen(padding, onOpenSettings = { page -> settingsRequest = page; selected = Tab.Settings })
                 Tab.Stats -> StatsScreen(padding)
                 Tab.Notifications -> NotificationsScreen(padding)
-                Tab.Settings -> SettingsScreen(padding)
+                Tab.Settings -> SettingsScreen(padding, openPage = settingsRequest, onPageOpened = { settingsRequest = null })
                 Tab.Debug -> DebugScreen(padding)
             }
         }
     }
     snapshot?.pendingCatch?.let { pending ->
-        CatchChoiceDialog(onTaptation = { app.feedback.choose(pending, true) },
-            onOriginal = { app.feedback.choose(pending, false) })
+        val labels = rememberAppLabels()
+        val details = app.game.catchDetails(pending)
+        val pkg = pending.packageName ?: details?.packageName
+        CatchChoiceDialog(details, pkg?.let(labels::label),
+            onTaptation = { app.feedback.choose(pending, true) },
+            onOriginal = { app.feedback.choose(pending, false) },
+            onCorrect = if (pkg != null) ({ app.feedback.requestCorrection(pending) }) else null)
     }
+    correction?.let { request -> CorrectionSheet(request, onDone = { app.feedback.clearCorrection() }) }
 }

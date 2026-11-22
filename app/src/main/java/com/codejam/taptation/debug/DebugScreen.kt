@@ -17,6 +17,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -89,6 +90,19 @@ fun DebugScreen(contentPadding: PaddingValues = PaddingValues(), controls: DemoC
                 Slider(value = override, valueRange = 0f..100f, onValueChange = { override = it },
                     onValueChangeFinished = { repository.setDebugCatchProbability(override / 100.0) })
                 TextButton(onClick = { repository.setDebugCatchProbability(null) }) { Text("Use difficulty value") }
+            }
+        }
+
+        item {
+            SectionCard("Demo time limit", "Short windows for demos. Everyday choices live in Settings.") {
+                androidx.compose.foundation.layout.FlowRow(
+                    horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp)) {
+                    listOf(30 to "30 seconds", 60 to "1 minute", 120 to "2 minutes").forEach { (seconds, label) ->
+                        androidx.compose.material3.FilterChip(selected = snapshot?.config?.freshnessSeconds == seconds,
+                            onClick = { repository.updateConfig { it.copy(freshnessSeconds = seconds) } },
+                            label = { Text(label) })
+                    }
+                }
             }
         }
 

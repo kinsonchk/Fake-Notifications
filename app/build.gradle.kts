@@ -35,6 +35,11 @@ android {
         buildConfig = true
         compose = true
     }
+    lint {
+        // This LiveData-only check crashes the lint analyzer (NPE in NonNullableMutableLiveDataDetector)
+        // on this code base; the app has no LiveData, so there is nothing for it to find.
+        disable += "NullSafeMutableLiveData"
+    }
 }
 
 dependencies {

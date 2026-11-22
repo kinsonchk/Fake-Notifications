@@ -215,6 +215,16 @@ class TapListenerService : NotificationListenerService() {
     companion object {
         private const val TAG = "FakeNotifs"
 
+        /** Asks Android to bind the listener again after it was stopped. Safe to call when access is off. */
+        fun requestReconnect(context: android.content.Context) {
+            if (!PermissionHelper.isNotificationAccessGranted(context)) return
+            try {
+                requestRebind(ComponentName(context, TapListenerService::class.java))
+            } catch (e: RuntimeException) {
+                Log.w(TAG, "requestRebind failed", e)
+            }
+        }
+
         private val _connected = MutableStateFlow(false)
 
         /** True while the system has this listener bound. For the debug screen. */

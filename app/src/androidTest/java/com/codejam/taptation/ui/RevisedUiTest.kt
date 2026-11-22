@@ -21,10 +21,10 @@ class RevisedUiTest {
         var ours = 0
         var original = 0
         compose.setContent { MaterialTheme {
-            CatchChoiceDialog(onTaptation = { ours++ }, onOriginal = { original++ })
+            CatchChoiceDialog(null, "Instagram", onTaptation = { ours++ }, onOriginal = { original++ })
         } }
         compose.onNodeWithText("Go to Taptation").assertIsDisplayed().performClick()
-        compose.onNodeWithText("Go to original app").assertIsDisplayed().performClick()
+        compose.onNodeWithText("Continue to Instagram").assertIsDisplayed().performClick()
         compose.runOnIdle { assertEquals(1, ours); assertEquals(1, original) }
     }
 
