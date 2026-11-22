@@ -124,6 +124,14 @@ class GameEngineTest {
         assertEquals(0, f.rolls)
     }
 
+    @Test fun catchCooldownIsFifteenSeconds() {
+        val f = Fixture()
+        f.configure { it.copy(debugCatchProbability = 1.0) }
+
+        assertEquals(TapOutcome.Caught, f.tap("bait").outcome)
+        assertEquals(15_000L, f.game.state.lockoutUntilMillis - f.now)
+    }
+
     @Test fun eachLevelAppliesExactlyOneDamageAndCatch() {
         listOf(CatchLevel.Mild to 90, CatchLevel.Medium to 80, CatchLevel.Savage to 65).forEach { (level, health) ->
             val f = Fixture()
