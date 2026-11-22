@@ -51,7 +51,9 @@ class LeafBadgeView(context: Context, private val leaves: Int, private val earth
 }
 
 /** Rounded health bar for the native caught overlay; [fraction] is 0..1. */
-class HealthBarView(context: Context, private val track: Int, private val fill: Int) : View(context) {
+class HealthBarView(context: Context, private val track: Int, fill: Int) : View(context) {
+    var fillColor: Int = fill
+        set(value) { field = value; invalidate() }
     var fraction: Float = 1f
         set(value) { field = value.coerceIn(0f, 1f); invalidate() }
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
@@ -62,7 +64,7 @@ class HealthBarView(context: Context, private val track: Int, private val fill: 
         paint.color = track
         canvas.drawRoundRect(rect.apply { set(0f, 0f, width.toFloat(), height.toFloat()) }, radius, radius, paint)
         if (fraction > 0f) {
-            paint.color = fill
+            paint.color = fillColor
             canvas.drawRoundRect(rect.apply { set(0f, 0f, maxOf(height.toFloat(), width * fraction), height.toFloat()) }, radius, radius, paint)
         }
     }

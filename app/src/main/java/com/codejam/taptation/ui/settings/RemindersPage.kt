@@ -77,7 +77,7 @@ fun RemindersPage(contentPadding: PaddingValues, onBack: () -> Unit) {
         live = ReminderPermissions.read(context)
     }
 
-    TabScreen(contentPadding, "Catch reminders.", eyebrow = "Your rules, your pace") {
+    TabScreen(contentPadding, "Catch reminders.") {
         item { BackLink("Settings", onBack) }
         item {
             Text("When you're caught, a reminder shows what it cost and lets you choose where to go next.",
@@ -87,8 +87,7 @@ fun RemindersPage(contentPadding: PaddingValues, onBack: () -> Unit) {
             SectionCard("Show reminders over other apps", "Lets the reminder appear right away, on top of the app you opened.") {
                 PermissionStatus(live.overlay)
                 if (!live.overlay) Button(onClick = {
-                    context.startActivity(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                        Uri.fromParts("package", context.packageName, null)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                    com.codejam.taptation.ui.common.openOverlaySettings(context)
                 }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("Allow display over other apps") }
             }
         }

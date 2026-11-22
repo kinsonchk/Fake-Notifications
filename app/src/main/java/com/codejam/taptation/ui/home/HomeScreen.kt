@@ -52,7 +52,7 @@ import com.codejam.taptation.ui.settings.SettingsPages
 import com.codejam.taptation.ui.settings.rememberPauseFlow
 
 /**
- * Home: one status area, the tree (decorative until the team picks its metric), health, one
+ * Home: one status area, a health-driven meadow, health, one
  * recent-activity list and all-time totals. Incomplete setup always comes first.
  */
 @Composable
@@ -68,7 +68,7 @@ fun HomeScreen(contentPadding: PaddingValues, onOpenSettings: (String) -> Unit =
     var access by remember { mutableStateOf(PermissionHelper.isNotificationAccessGranted(context)) }
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { access = PermissionHelper.isNotificationAccessGranted(context) }
 
-    TabScreen(contentPadding, "Room to grow.", eyebrow = "Your little corner") {
+    TabScreen(contentPadding, "Home") {
         error?.let { message -> item { Text(message, color = MaterialTheme.colorScheme.error) } }
         val state = snapshot
         if (state == null) {
@@ -77,15 +77,9 @@ fun HomeScreen(contentPadding: PaddingValues, onOpenSettings: (String) -> Unit =
         }
         val status = MonitoringStatus.from(access, connected, state.config, now)
         item { StatusArea(status, pause) }
-        if (state.taps.isEmpty()) item { FirstUseCard(access, state.config.whitelistedPackages.isEmpty(), state.config.difficulty, onOpenSettings) }
-        item {
-            Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-                TreeIllustration(height = if (status == MonitoringStatus.SetupNeeded) 130.dp else 170.dp)
-                Text("Illustration only. It doesn't track health yet.", style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
-            }
-        }
-        if (status != MonitoringStatus.SetupNeeded || state.isDead) item { HealthCard(state, now, onReset = { repository.reset() }) }
+        item { GrassMeadow(health = state.health) }
+        item { HealthCard(state, now, onReset = { repository.reset() }) }
+        if (state.taps.isEmpty()) item { FirstUseCard(state.config.difficulty, onOpenSettings) }
         if (state.taps.isNotEmpty()) item { RecentActivity(state, labels) }
         if (state.totalCatches > 0 || state.tapsPerApp.isNotEmpty()) item { AllTimeCard(state, now) }
     }
@@ -126,7 +120,7 @@ private fun StatusArea(status: MonitoringStatus, pause: PauseFlow) {
 
 @Composable
 private fun NoticeCard(title: String, body: String, actions: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit) {
-    Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(22.dp),
+    Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer,
             contentColor = MaterialTheme.colorScheme.onTertiaryContainer)) {
         Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -138,18 +132,11 @@ private fun NoticeCard(title: String, body: String, actions: @Composable android
 }
 
 @Composable
-private fun FirstUseCard(access: Boolean, noSafeApps: Boolean, difficulty: com.codejam.taptation.logic.Difficulty, onOpenSettings: (String) -> Unit) {
-    val context = LocalContext.current
-    SectionCard("How Taptation works") {
-        Step("1", "Some distracting notification taps trigger a reminder and lower your tree's health.")
-        Step("2", "Important notifications are excluded: calls, alarms, always-safe apps and people you choose.")
-        Step("3", "${difficulty.name} means a ${(difficulty.probability * 100).toInt()}% chance on a distracting tap, " +
-            "so it won't happen on every notification.")
-        if (!access || noSafeApps) {
-            Text("Finish setup", style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(top = 4.dp))
-            if (!access) SetupRow("Allow notification access", "Required") { PermissionHelper.openNotificationAccessSettings(context) }
-            if (noSafeApps) SetupRow("Choose always-safe apps", "Recommended") { onOpenSettings(SettingsPages.SafeApps) }
-        }
+private fun FirstUseCard(difficulty: com.codejam.taptation.logic.Difficulty, onOpenSettings: (String) -> Unit) {
+    SectionCard("Notification rules", "Choose apps that should always get through, then tell us what matters to you.") {
+        Text("${difficulty.name}: ${(difficulty.probability * 100).toInt()}% catch chance on an eligible distracting tap.",
+            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        TextButton(onClick = { onOpenSettings(SettingsPages.Rules) }) { Text("Choose apps and preferences") }
     }
 }
 
@@ -178,25 +165,30 @@ private fun SetupRow(title: String, hint: String, onClick: () -> Unit) {
 @Composable
 private fun HealthCard(state: GameState, now: Long, onReset: () -> Unit) {
     val config = state.config
-    SectionCard("Health") {
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Bottom) {
-            Text(mood(state.health), style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Text("${state.health} / 100", style = MaterialTheme.typography.headlineSmall)
-        }
-        LinearProgressIndicator(
-            progress = { state.health / 100f },
-            modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Health ${state.health} out of 100" },
-            color = if (state.health < 30) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
-        )
-        LabelValue("Each catch", "−${config.damage(config.level)} health")
-        LabelValue("Recovery", "+${config.recoveryPerHour} per hour with no distracting taps")
-        LabelValue("At 0 health", "Start over at 100; history and settings stay")
-        val cooldown = (state.lockoutUntilMillis - now).coerceAtLeast(0)
-        if (cooldown > 0) Text("No additional penalty for ${(cooldown + 999) / 1000} s (cooldown after a catch).",
-            style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.error)
-        if (state.isDead) {
-            Text("Your tree died. Starting over keeps your history and settings.")
-            Button(onClick = onReset, modifier = Modifier.heightIn(min = 48.dp)) { Text("Reset tree") }
+    androidx.compose.material3.Surface(shape = RoundedCornerShape(20.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerLowest, contentColor = MaterialTheme.colorScheme.onSurface,
+        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) {
+        Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                Text("💚 Health", style = MaterialTheme.typography.titleMedium)
+                Text("${state.health} / 100", style = MaterialTheme.typography.headlineSmall)
+            }
+            LinearProgressIndicator(progress = { state.health / 100f },
+                modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Health ${state.health} out of 100" },
+                color = MaterialTheme.colorScheme.primary)
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text("Catch: −${config.damage(config.level)}", Modifier.weight(1f), style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("Recovery: +${config.recoveryAmount} / ${config.effectiveRecoveryIntervalMinutes(com.codejam.taptation.BuildConfig.DEBUG)} clean min",
+                    Modifier.weight(1f), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.End)
+            }
+            val cooldown = (state.lockoutUntilMillis - now).coerceAtLeast(0)
+            if (cooldown > 0) Text("No extra catch for ${(cooldown + 999) / 1000} s.", style = MaterialTheme.typography.bodySmall)
+            if (state.isDead) {
+                Text("Reset health to 100 to start growing again. History and settings stay.", style = MaterialTheme.typography.bodySmall)
+                Button(onClick = onReset) { Text("Reset health") }
+            }
         }
     }
 }

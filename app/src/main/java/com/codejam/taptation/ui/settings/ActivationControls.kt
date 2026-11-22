@@ -74,7 +74,7 @@ fun ActivationControls(repository: GameRepository, config: GameConfig) {
     val now = rememberNow(repository)
     val active = config.isActive(now)
     val flow = rememberPauseFlow(repository)
-    Surface(shape = RoundedCornerShape(22.dp), color = MaterialTheme.colorScheme.surfaceContainerLowest,
+    Surface(shape = RoundedCornerShape(20.dp), color = MaterialTheme.colorScheme.surfaceContainerLowest,
         contentColor = MaterialTheme.colorScheme.onSurface,
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) {
         Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {

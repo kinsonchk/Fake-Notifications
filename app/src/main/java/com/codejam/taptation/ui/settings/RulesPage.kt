@@ -1,4 +1,4 @@
-﻿package com.codejam.taptation.ui.settings
+package com.codejam.taptation.ui.settings
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
@@ -72,103 +72,7 @@ private fun behaviorHelp(behavior: RuleBehavior) = when (behavior) {
  */
 @Composable
 fun RulesPage(contentPadding: PaddingValues, repository: GameRepository, config: GameConfig, onBack: () -> Unit) {
-    val labels = rememberAppLabels()
-    val apps = rememberInstalledApps()
-    val observed by repository.observed.collectAsStateWithLifecycle()
-    var step by rememberSaveable { mutableIntStateOf(0) }
-    var pkg by rememberSaveable { mutableStateOf("") }
-    var wholeApp by rememberSaveable { mutableStateOf(true) }
-    var channel by rememberSaveable { mutableStateOf("") }
-    var behavior by rememberSaveable { mutableStateOf(RuleBehavior.Default.name) }
-    var query by rememberSaveable { mutableStateOf("") }
-    var removed by remember { mutableStateOf<SavedRule?>(null) }
-    var savedNote by remember { mutableStateOf<String?>(null) }
-    val now = System.currentTimeMillis()
-
-    BackHandler(enabled = step > 0) { step -= 1 }
-    LaunchedEffect(removed) { if (removed != null) { delay(6000); removed = null } }
-
-    val target = RuleTarget(pkg, if (wholeApp) null else channel)
-    val appName = if (pkg.isEmpty()) "" else labels.label(pkg)
-    val title = when (step) { 1 -> "Choose an app."; 2 -> "Choose a type."; 3 -> "Choose behavior."; else -> "Notification rules." }
-    val eyebrow = if (step == 0) "Your rules, your pace" else "Notification rules · step $step of 3"
-
-    fun startRule(app: String) {
-        pkg = app; wholeApp = true; channel = ""; query = ""; step = 2
-    }
-
-    TabScreen(contentPadding, title, eyebrow = eyebrow, itemSpacing = if (step == 1) 4.dp else 16.dp,
-        overlay = {
-            when {
-                step == 2 && observed.typesFor(pkg, now).isNotEmpty() -> StickyAction("Continue") {
-                    behavior = RuleChoices.behaviorOf(config, target).name; step = 3
-                }
-                step == 3 -> StickyAction("Save rule") {
-                    repository.applyRule(target, RuleBehavior.valueOf(behavior))
-                    savedNote = "Saved: ${ruleName(appName, target.channel)} is now ${behaviorLabel(RuleBehavior.valueOf(behavior)).lowercase()}."
-                    step = 0
-                }
-                step == 0 -> removed?.let { rule ->
-                    UndoBar("Removed rule for ${ruleName(labels.label(rule.target.packageName), rule.target.channel)}") {
-                        repository.applyRule(rule.target, rule.behavior); removed = null
-                    }
-                }
-            }
-        }) {
-        when (step) {
-            0 -> {
-                item { BackLink("Settings", onBack) }
-                item {
-                    Text("Taptation already knows many notifications are distracting and many are urgent. " +
-                        "Add a rule to change that for one app or one type of notification.",
-                        color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-                savedNote?.let { note -> item { Text(note, color = MaterialTheme.colorScheme.primary,
-                    style = MaterialTheme.typography.titleSmall) } }
-                item { Button(onClick = { query = ""; step = 1 }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
-                    shape = RoundedCornerShape(16.dp)) { Text("Add a rule") } }
-                val rules = RuleChoices.savedRules(config)
-                item {
-                    SectionCard("Your rules", if (rules.isEmpty()) "No rules yet. Taptation uses its built-in rules." else null) {
-                        rules.forEach { rule ->
-                            Row(Modifier.fillMaxWidth().heightIn(min = 56.dp), verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                                AppIcon(rule.target.packageName, labels, 40.dp)
-                                Column(Modifier.weight(1f)) {
-                                    Text(ruleName(labels.label(rule.target.packageName), rule.target.channel), style = MaterialTheme.typography.titleSmall)
-                                    Text(behaviorLabel(rule.behavior), style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                }
-                                TextButton(onClick = {
-                                    repository.applyRule(rule.target, RuleBehavior.Default); removed = rule; savedNote = null
-                                }) { Text("✕  Remove", color = MaterialTheme.colorScheme.error) }
-                            }
-                        }
-                    }
-                }
-                item { Spacer(Modifier.height(72.dp)) }
-            }
-            1 -> chooseAppStep(labels, observed, apps, query, { query = it }, ::startRule, { step = 0 })
-            2 -> chooseTypeStep(labels, observed, now, pkg, appName, wholeApp, channel,
-                onWhole = { wholeApp = true }, onChannel = { wholeApp = false; channel = it },
-                onChangeApp = { step = 1 },
-                onUseWholeApp = { wholeApp = true; behavior = RuleChoices.behaviorOf(config, RuleTarget(pkg)).name; step = 3 })
-            else -> {
-                item { SelectedTarget(pkg, labels, ruleName(appName, target.channel), "Change") { step = 2 } }
-                RuleBehavior.entries.forEach { option ->
-                    item { RadioOption(behavior == option.name, behaviorLabel(option), behaviorHelp(option)) { behavior = option.name } }
-                }
-                item {
-                    SectionCard("Important notifications still win") {
-                        Text("Calls, alarms, urgent words and people who always get through are never caught, " +
-                            "even from an app marked distracting.", style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                }
-                item { Spacer(Modifier.height(72.dp)) }
-            }
-        }
-    }
+    NotificationRulesScreen(contentPadding, repository, onBack)
 }
 
 internal fun ruleName(appName: String, channel: String?): String = if (channel == null) appName else "$appName · $channel"

@@ -22,6 +22,9 @@ class GameRepository(context: Context, private val stats: StatsRepository? = nul
     private val worker = Executors.newSingleThreadExecutor()
     private val store = PreferencesGameStore(context.applicationContext)
     private val debug = context.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0
+
+    /** True in debuggable builds, where debug overrides (catch chance, recovery interval) apply. */
+    val allowsDebugOverrides: Boolean get() = debug
     private val disableGate = DisableGate(android.os.SystemClock::elapsedRealtime)
     private lateinit var engine: GameEngine
     private val _state = MutableStateFlow<GameState?>(null)
@@ -30,35 +33,6 @@ class GameRepository(context: Context, private val stats: StatsRepository? = nul
     val error: StateFlow<String?> = _error.asStateFlow()
     private val _lastResult = MutableStateFlow<TapResult?>(null)
     val lastResult: StateFlow<TapResult?> = _lastResult.asStateFlow()
-
-    private val ownPackage = context.packageName
-    private val observedPrefs = context.applicationContext.getSharedPreferences("observed_types", Context.MODE_PRIVATE)
-    private val _observed = MutableStateFlow(ObservedTypes.decode(observedPrefs.getString(OBSERVED_KEY, null)))
-    /** Notification types seen per app (names only, never titles or text); drives the rule picker. */
-    val observed: StateFlow<ObservedTypes> = _observed.asStateFlow()
-    private var observedSinceSave = 0
-    private val catchChannels = java.util.concurrent.ConcurrentHashMap<String, String>()
-
-    /** Why and how much the pending catch cost, from the saved tap record. */
-    fun catchDetails(pending: PendingCatch): CatchDetails? =
-        state.value?.let { CatchDetails.from(it, pending, catchChannels[pending.id]) }
-
-    /** Applies a friendly rule choice to the saved settings. */
-    fun applyRule(target: RuleTarget, behavior: RuleBehavior): CompletableFuture<GameState> =
-        updateConfig { RuleChoices.apply(it, target, behavior) }
-
-    private fun noteObserved(context: NotificationContext) {
-        if (context.packageName == ownPackage) return
-        val before = _observed.value
-        val isNew = context.channelName?.trim()?.takeIf { it.isNotEmpty() }
-            ?.let { name -> before.typesFor(context.packageName, System.currentTimeMillis(), ObservedTypes.KEEP_DAYS).none { it.channel == name } }
-            ?: !before.hasSeen(context.packageName)
-        _observed.value = before.record(context.packageName, context.channelName, System.currentTimeMillis())
-        if (isNew || ++observedSinceSave >= 10) {
-            observedSinceSave = 0
-            observedPrefs.edit().putString(OBSERVED_KEY, _observed.value.encode()).apply()
-        }
-    }
 
     init {
         worker.execute {
@@ -77,7 +51,6 @@ class GameRepository(context: Context, private val stats: StatsRepository? = nul
     override fun onNotificationPosted(context: NotificationContext) {
         worker.execute {
             if (::engine.isInitialized && !engine.state.config.isActive(System.currentTimeMillis())) return@execute
-            noteObserved(context)
             context.key?.let { notificationContexts[it] = context }
             if (notificationContexts.size > 500) notificationContexts.remove(notificationContexts.keys.first())
         }
@@ -108,7 +81,7 @@ class GameRepository(context: Context, private val stats: StatsRepository? = nul
         submit {
             refresh()
             if (!state.config.isActive(System.currentTimeMillis())) return@submit
-            val assessment = NotificationClassifier.assess(withAppCategory(context), state.config)
+            val assessment = NotificationClassifier.assessTap(withAppCategory(context), state.config)
             stats.submit(StatsEvent(System.currentTimeMillis(), context.packageName, StatsEventType.DISMISS,
                 context.ageMillis, assessment.classification, category = context.category))
         }
@@ -136,8 +109,6 @@ class GameRepository(context: Context, private val stats: StatsRepository? = nul
             StatsEventType.TAP, context.ageMillis, it.classification,
             caught = it.outcome == TapOutcome.Caught, category = context.category))
         if (it.outcome == TapOutcome.Caught) it.state.pendingCatch?.let { pending ->
-            if (catchChannels.size >= 16) catchChannels.clear()
-            context.channelName?.takeIf { name -> name.isNotBlank() }?.let { name -> catchChannels[pending.id] = name }
             onCaught(pending, context.openOriginal)
         }
         Log.d("FakeNotifs", "tap pkg=${context.packageName} outcome=${it.outcome} " +
@@ -163,7 +134,7 @@ class GameRepository(context: Context, private val stats: StatsRepository? = nul
         require(changed.active == state.config.active && changed.disabledUntilMillis == state.config.disabledUntilMillis) {
             "Use the confirmed disable flow to change activation"
         }
-        updateConfig(if (debug) changed else changed.copy(debugCatchProbability = null))
+        updateConfig(if (debug) changed else changed.copy(debugCatchProbability = null, debugRecoveryIntervalMinutes = null))
     }
 
     fun beginDisable(): CompletableFuture<DisableGate.Challenge> = submit { disableGate.begin() }
@@ -174,10 +145,16 @@ class GameRepository(context: Context, private val stats: StatsRepository? = nul
         setActive(false, minutes?.let { System.currentTimeMillis() + it * 60_000L })
     }
     fun enable(): CompletableFuture<GameState> = submit { disableGate.cancel(); setActive(true) }
+    fun settleCatchChoice(id: String, continueOriginalApp: Boolean): CompletableFuture<GameState> =
+        submit { settleCatchChoice(id, continueOriginalApp) }
     fun dismissCatch(id: String): CompletableFuture<GameState> = submit { dismissCatch(id) }
     fun setDebugCatchProbability(value: Double?): CompletableFuture<GameState> = submit {
         check(debug) { "Debug overrides are disabled in release builds" }
         updateConfig(state.config.copy(debugCatchProbability = value))
+    }
+    fun setDebugRecoveryInterval(minutes: Int?): CompletableFuture<GameState> = submit {
+        check(debug) { "Debug overrides are disabled in release builds" }
+        this.setDebugRecoveryInterval(minutes)
     }
 
     /** Kept for callers of the old whitelist API: on = Always important, off = Let us decide. */
@@ -229,8 +206,6 @@ class GameRepository(context: Context, private val stats: StatsRepository? = nul
         _error.value = error.message ?: "Game operation failed"
         Log.e("FakeNotifs", "Game operation failed", error)
     }
-
-    private companion object { const val OBSERVED_KEY = "v1" }
 }
 
 

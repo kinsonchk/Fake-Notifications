@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Before creating or changing any UI, read [docs/UI_DESIGN_GUIDE.md](docs/UI_DESIGN_GUIDE.md)
 and the nearest existing screen. Follow its visual tokens, component recipes and definition
-of done unless the user explicitly requests a different design. Reuse the shared theme and
+of done unless the user explicitly requests a different design. No eyebrow labels; prioritize the supplied layouts and functional headings. Reuse the shared theme and
 layout components; inspect actual Android renders before claiming visual verification.
 The guide includes portable reference screenshots and a ready-to-use prompt for future agents.
 
@@ -17,7 +17,7 @@ working on settings, catch feedback, activation or statistics. It supersedes old
 and compulsory-lockout instructions here: public difficulties are Easy/Medium/Hard 20/40/70%,
 debug overrides are separate, activation has a repository-enforced 10-second confirmation,
 known stale taps skip classification/roll, and catches present two destination choices.
-Home's final visual metric remains undecided. The user authorized this revision across owners.
+Home now uses a grass meadow driven by health. Touch affects appearance only. The user authorized this frontend revision across owners.
 
 **Fake Notifications** (Gradle project `Taptation`, package `com.codejam.taptation`): 1-day hackathon Android app, team of 4. App watches other apps' notifications; tapping a "bait" notification (social, games) has a small random chance (5-10%) to "catch" the user, lowering a health state (tree/pet) and showing a short lockout. Urgent apps (family, work, rides, banking) are whitelisted and never penalized.
 
@@ -41,8 +41,11 @@ On Windows use `.\gradlew.bat` in PowerShell, or `./gradlew` in Git Bash.
 ./gradlew testDebugUnitTest --tests "com.codejam.taptation.service.TapDetectionTest"   # single test class
 ./gradlew connectedDebugAndroidTest     # instrumented tests (needs device)
 adb logcat -s FakeNotifs                # all app log lines use tag FakeNotifs
+./gradlew connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.package=com.codejam.taptation.ai   # live AI judge tests (need the keys below)
 adb shell cmd notification allow_listener com.codejam.taptation/com.codejam.taptation.service.TapListenerService   # grant notification access without UI
 ```
+
+AI judge keys: put `cloudflare.accountId` and `cloudflare.apiToken` (Workers AI Read + Edit) in the git-ignored `local.properties`; Gradle exposes them as `BuildConfig.CF_ACCOUNT_ID` / `CF_API_TOKEN`. Without them the app builds and "Let us decide" stays bait. The token ships inside the APK (fine for the demo; free plan can't be billed). Model comparison (opt-in, spends quota): `JudgeModelComparisonTest` with `-Pandroid.testInstrumentationRunnerArguments.judgeBenchmark=true`.
 
 Real verification needs a phone: see README "Verify" steps (post test notification, tap vs swipe, simulate tap).
 
@@ -52,9 +55,11 @@ Tap pipeline:
 
 ```
 system -> TapListenerService.onNotificationPosted   (cache NotificationContext by key, 500-entry in-memory LRU)
+       -> JudgeQueue.onPosted                       ("Let us decide" apps only: Clef verdict on its own thread, memory-only by key)
        -> TapListenerService.onNotificationRemoved(sbn, rankingMap, reason)
        -> TapDetection.shouldDispatch(...)          (pure filter)
        -> TapLog.record(pkg)                        (in-memory last 20, StateFlow, debug screen)
+       -> context.judged = JudgeQueue.classificationFor(context)
        -> TapDispatcher.dispatch(NotificationContext) -> TapDispatcher.handler.onTap(context)
           (swipe / clear-all: TapDispatcher.dispatchDismiss -> handler.onDismiss, stats only)
        -> GameRepository (installed by TaptationApplication.onCreate)
@@ -65,21 +70,26 @@ system -> TapListenerService.onNotificationPosted   (cache NotificationContext b
 - `logic/TapHandler.kt`: the **shared contract**. `TapHandler.onTap(packageName)` plus `onTap(context: NotificationContext)` (defaults to the package-only one); `TapDispatcher` holds a `@Volatile` handler with both `dispatch` overloads. Package-only calls stay supported.
 - `logic/NotificationContext.kt`: `NotificationContext` (packageName, key, title, text, notification category, appCategory, isConversation, channelName, ageMillis, firstSeenAgeMillis, action button titles). Transient: never persisted or logged.
 - `logic/GameModels.kt`: `GameConfig`, `GameState`, `TapOutcome` (`Bypass` / `NoPenalty` / `Caught`), `CatchLevel`, `AppRule`, `Strictness`.
-- Per-app rules (`feature-per-app-rules.md`, mockup `notification-settings.html`): `GameConfig.appRules` stores only changed apps; `ruleFor(pkg)` defaults to `LetUsDecide`. `NotificationClassifier.assess` is the tap path: `AlwaysImportant` -> Important (`app_always_important`), `AlwaysBait` -> Bait (`app_always_bait`), `LetUsDecide` -> placeholder judge that **always returns Bait** (`let_us_decide`) until Person 2 builds it from `essentialCriteria` / `nonEssentialCriteria` / `strictness`. The old ordered rules (whitelist, category, VIP, keywords, channels, profiles) are kept as `assessByRules`, off the tap path. Codec v6 migrates old `whitelistedPackages` / `baitPackages` into `appRules`. UI: Settings > Notification rules (`ui/settings/NotificationRulesScreen.kt`, installed apps from `ui/common/InstalledApps.kt`).
+- Per-app rules (`feature-per-app-rules.md`, mockup `notification-settings.html`): `GameConfig.appRules` stores only changed apps; `ruleFor(pkg)` defaults to `LetUsDecide`. `NotificationClassifier.assess` is the tap path: `AlwaysImportant` -> Important (`app_always_important`), `AlwaysBait` -> Bait (`app_always_bait`), `LetUsDecide` -> the AI verdict in `NotificationContext.judged`: Important (`ai_important`), Bait (`ai_bait`), Unknown when unsure, pending or failed (`ai_unsure`, no penalty); without an API key `judged` is null and it stays Bait (`let_us_decide`). The old ordered rules (whitelist, category, VIP, keywords, channels, profiles) are kept as `assessByRules`, off the tap path. Codec v6 migrates old `whitelistedPackages` / `baitPackages` into `appRules`. UI: Settings > Notification rules (`ui/settings/NotificationRulesScreen.kt`, installed apps from `ui/common/InstalledApps.kt`; on Android 13+ only apps whose POST_NOTIFICATIONS permission is granted, i.e. notifications on in system settings; apps with notifications off are hidden even if they have a rule).
+- `ai/`: the "Let us decide" judge. `ClefJudge` (default) asks Cloudflare Workers AI's Clef decision model one typed choice question (`ClefQuestion`: important vs bait, the user's essential / non-essential answers appended to each option) and maps the bait probability to a verdict with strictness thresholds (Relaxed 0.85, Balanced 0.7, Strict 0.55; <= 0.4 Important; between = Unsure). `ChatJudge` (Llama 3.1 8B, one-word answer, `JudgePrompt`) is the alternative behind the same `NotificationJudge` interface. `WorkersAi` is the HTTP client (`HttpURLConnection`, no extra dependency). `JudgeQueue` (in `TaptationApplication.judges`) keeps countable notifications as candidates (memory only, by key) and judges "Let us decide" ones; it re-judges when title/text change or when app rules, criteria or strictness change (`TaptationApplication` forwards config changes to `onConfigChanged`, which also judges notifications posted while the game was loading), skips queued requests that became outdated before calling the network, drops late answers, and re-judges active notifications after the listener reconnects. `judgeNow` judges synchronously for the debug "Simulate tap". Sends package, title, text (each clipped to 300 chars), channel, category, conversation flag and button titles to Cloudflare; never logs or stores them. Notifications with no title and no text are Unsure without a call. Free plan: 10,000 Neurons/day, about 1,100 Clef calls; beyond that calls fail and verdicts are Unsure.
 - `logic/GameEngine.kt`: pure, single-thread-confined rules (classification, roll, damage, recovery, lockout, death/reset). Clock and random are injected, so it's JVM unit-testable.
 - `logic/GameRepository.kt`: the real `TapHandler`. Serializes every operation on one worker thread (no disk I/O on listener callbacks), resolves `ApplicationInfo.category`, exposes `state` / `error` / `lastResult` StateFlows and `CompletableFuture` mutations. Never `.get()`/`.join()` on the UI thread.
-- `logic/PreferencesGameStore.kt`, `logic/GameStateCodec.kt`: versioned, atomic local snapshots.
+- `logic/PreferencesGameStore.kt`, `logic/GameStateCodec.kt`: versioned, atomic local snapshots. `GameStateCodec.Layout` lists which optional parts each version has; v6 was written in three layouts by parallel branches (`V6_RULES`, `V6_PENALTY`, `V6_MERGED`) and all are tried on load. **Never reuse a version number across branches**: bump it, add a `Layout`, and test old snapshots with `GameStateCodec.encode(state, Layout.X)` (no byte-cutting). An unreadable snapshot no longer bricks the engine: `PreferencesGameStore.load` keeps it under `snapshot_unreadable` and starts a fresh game.
+- Debug-only config fields (`debugCatchProbability`, `debugRecoveryIntervalMinutes`) are stripped in release by `GameRepository.updateConfig`; add any new debug field there too. Forced (debug) catches and tap catches build the same `PendingCatch` (same id scheme and `CONTINUE_EXTRA_DAMAGE`).
+- Stale notifications: `NotificationClassifier.assessTap` (Unknown `stale` when older than the freshness window, else `assess`) is used for both taps and dismissals so stats compare like with like; don't call `assess` directly on the tap/dismiss path.
 - `TaptationApplication.kt`: creates the single `GameRepository` and sets `TapDispatcher.handler`, so it works even when only the service process starts. UI gets it via `(context.applicationContext as TaptationApplication).game`.
-- `service/TapDetection.kt`: pure filter logic, framework constants only, so it runs in plain JVM tests. Keep new decision logic here, not in the service.
+- `service/TapDetection.kt`: pure filter logic, framework constants only, so it runs in plain JVM tests. Keep new decision logic here, not in the service. `isCountable` (no group summary, no ongoing, own package only on the debug test channel) is shared by removals and by AI judging, so ongoing/summary/own notifications never spend judge quota.
+- `TapListenerService`: `skipWhileDisabled` skips only when a loaded config says the app is disabled; while the game is still loading (state null) callbacks go through and `GameRepository` queues taps behind its load. The context/first-seen caches are access-ordered (`LinkedHashMap(…, true)`), so long-lived notifications aren't evicted first.
 - `service/NotificationSignals.kt`: builds the metadata in the `posted`/`removed` Logcat lines (category, channel, importance, conversation flags, auto-cancel, postTime/age). Logging only; never title/text.
 - `service/PermissionHelper.kt`: notification-access check/settings intents and battery-optimization helpers; reuse for onboarding UI.
+- Onboarding (`ui/OnboardingScreen.kt`): the tutorial shows once; only notification access is required to reach the tabs. "Display over other apps" is recommended but optional (`CatchFeedback` falls back to a notification). Open that settings page only through `ui/common/openOverlaySettings` (some ROMs lack the screen; raw `startActivity` crashes).
 - `ui/TaptationApp.kt`: bottom tabs Home · Stats · Notifications · Settings · Debug (Notifications and Debug only in debug builds); `rememberSaveableStateHolder` keeps each tab's state. `ui/home`, `ui/stats`, `ui/settings` read/write `GameRepository`; `ui/common` holds layout helpers, `rememberNow` (lockout ticker + periodic `refresh`) and `TapExplanations` (rule/outcome codes → text).
 - `debug/`: `DebugScreen` (system status, `DemoControlsPanel` backed by `RepositoryDemoControls`), `NotificationsScreen` (composer, saved `NotificationPreset`s with an image in `NotificationIcons`, last 20 taps with reasons, observed notifications with a live classifier preview), `TestNotification` posts an auto-cancel notification with a contentIntent so tapping it yields `REASON_CLICK`. Presets hold only user-typed values; observed notifications stay memory-only.
 - `stats/`: `StatsRepository` (built in `TaptationApplication`, `app.stats`) records taps and dismissals with classification, caught and age in `SqliteStatsStore`; `weekly()` / `monthly()` return a precomputed `StatsSummary` (`StatsCalculator`: tap rate %, medians, averages capped at 1 h, bait only by default). See `docs/decision-stats-handler.md`. Debug tab > Stats harness generates fake history.
 - `TapRecord.rule` / `TapResult.rule`: the classifier rule behind the classification (`vip_title`, `bait_category`…); `reason` is the final decision (`caught`, `roll_passed`…). Taps stored before codec v3 have an empty rule for bait.
 - `service/DebugSimulation.kt`: package/channel name/conversation/app category overrides carried in the extras of our test-channel notification. The listener applies them only in debuggable builds and only on `OWN_TEST_CHANNEL_ID`, so a debug notification can stand in for another app.
 
-Full rules, defaults and the Person 3 API are in `docs/person-2/PERSON_2_INTEGRATION.md`. Key gotchas from it (some superseded by per-app rules: every app now starts on "Let us decide", which is bait for now); `Caught` already applied damage, so UI must not call `applyCatch` again; notification title/text are transient and must never be persisted or logged.
+Full rules, defaults and the Person 3 API are in `docs/person-2/PERSON_2_INTEGRATION.md`. Key gotchas from it (some superseded by per-app rules: every app now starts on "Let us decide", which the AI judge decides, or bait when no API key is set); `Caught` already applied damage, so UI must not call `applyCatch` again; notification title/text are transient and must never be persisted or logged.
 
 ## Shared interfaces (agreed between teammates)
 
@@ -98,8 +108,8 @@ Full rules, defaults and the Person 3 API are in `docs/person-2/PERSON_2_INTEGRA
 | Default level | Medium | Mild |
 | Bypass rules | whitelist, call/alarm/reminder/event, VIP title, urgent keyword | only apps set to Always important (`appRules`); the old rules live in `assessByRules`, off the tap path |
 | Urgent keywords default | urgent, emergency, code, verification | urgent, code, meeting invite, meeting invitation |
-| Unmatched notification | bait (A3 rule 6) | bait: every app on "Let us decide" (the default) is bait until the judge exists |
-| Missing title or text | not covered | no special case on the tap path (Let us decide = bait); `assessByRules` still returns `Unknown` |
+| Unmatched notification | bait (A3 rule 6) | apps on "Let us decide" (the default) follow the Clef verdict; bait without an API key |
+| Missing title or text | not covered | "Let us decide" with no title and no text is Unsure (no penalty) when the judge is set up; `assessByRules` still returns `Unknown` |
 | Freshness window | 10 min, no roll if older | `freshnessSeconds` default 600 (0 = off); stale ages skip classification/roll. Optional `freshnessFromFirstSeen` uses the original observation instead of latest update |
 | Health at 0 | patch resets | stays dead until UI calls `reset()` |
 | Tap interface | `onTap(packageName, ageMillis)` | `onTap(NotificationContext)` with `ageMillis` set by the service; `ResultTapHandler.onTap(packageName, ageMillis)` also exists |
@@ -124,14 +134,18 @@ Brief C2 asks Person 1 to "log" titles: show them on the debug screen from memor
 - Notification access can't be granted from code (settings toggle or the adb command above).
 - Android 13+ sideloaded APKs: access toggle may be greyed out until App info > ⋮ > Allow restricted settings.
 - Battery optimization can kill the listener (non-Pixel especially): app should be set to Unrestricted.
+- Instrumented UI tests that render `TaptationApp` must get past onboarding first: call `completeTutorial(context)` and grant the listener with `cmd notification allow_listener …` (read the shell output so it finishes) in `@Before`, and wait for Home (`waitUntil`) since the first test after a cold start renders while the game loads. Look up UI text through string resources (`R.string.caught_*`), not literals; the copy changes.
+- `am instrument` (and `connectedDebugAndroidTest`) kills the app process when it ends; the listener reconnects only when something starts the app again, and notifications already in the shade are judged on reconnect.
+- Git Bash on Windows rewrites Unix-looking paths in arguments (`adb shell cat /sdcard/x` becomes `C:/Program Files/Git/sdcard/x`): set `MSYS_NO_PATHCONV=1` for adb commands with device paths. To tap a notification from adb: `cmd statusbar expand-notifications`, `uiautomator dump /sdcard/ui.xml`, read the node bounds, `input tap x y`. Several notifications from one app get auto-grouped and a tap may hit the group summary (`GROUP_SUMMARY_CANCELED`, not a click), so post one at a time.
 
 ## Team ownership
 
-Each person works on their own branch and merges into `main` via PR.
+Each person works on their own branch. The user requested direct pushes/merges without PRs.
 
 | Area | Owner |
 |---|---|
 | `service/`, `debug/DebugScreen.kt`, `debug/NotificationsScreen.kt`, `debug/TestNotification.kt` | Person 1 (notification service) |
+| `ai/`: "Let us decide" AI judge (Cloudflare Clef) | Person 1 |
 | `logic/`, `TaptationApplication.kt`: whitelist, classification, roll, health, storage | Person 2 |
 | `ui/`: onboarding, tree/pet visuals, lockout, stats, real navigation in `MainActivity` | Person 3 |
 | `debug/` extensions, adb scripts, demo | Person 4 |

@@ -64,6 +64,8 @@ class CatchFeedback(private val context: Context) {
     /** Set when the user taps "This should be important"; Taptation then offers a rule choice. */
     val corrections = _corrections.asStateFlow()
     private val animators = mutableListOf<ValueAnimator>()
+    private var animatedCatchId: String? = null
+    private var animateCurrentCatch = false
 
     fun attach(repository: GameRepository) {
         this.repository = repository
@@ -97,7 +99,7 @@ class CatchFeedback(private val context: Context) {
         if (lastChosenId == pending.id) return
         lastChosenId = pending.id
         val target = targets[pending.id]
-        repository.dismissCatch(pending.id).whenComplete { _, failure -> main.post {
+        repository.settleCatchChoice(pending.id, continueOriginalApp = !ourApp).whenComplete { _, failure -> main.post {
             if (failure != null) {
                 lastChosenId = null
                 Toast.makeText(context, "Could not save your choice. Please try again.", Toast.LENGTH_LONG).show()
@@ -130,7 +132,7 @@ class CatchFeedback(private val context: Context) {
 
     /** Opens Taptation with the rule choice for the notification that just caught the user. */
     fun requestCorrection(pending: PendingCatch) {
-        val details = repository.catchDetails(pending)
+        val details = repository.state.value?.let { com.codejam.taptation.ui.common.catchDetailsForUi(it, pending) }
         val pkg = pending.packageName ?: details?.packageName
         if (pkg != null) _corrections.value = CorrectionRequest(pkg, details?.channel)
         choose(pending, true)
@@ -150,6 +152,8 @@ class CatchFeedback(private val context: Context) {
     }
 
     private fun showOverlay(pending: PendingCatch) {
+        animateCurrentCatch = animatedCatchId != pending.id
+        animatedCatchId = pending.id
         val density = context.resources.displayMetrics.density
         fun dp(value: Int) = (value * density).toInt()
         val dark = context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK == Configuration.UI_MODE_NIGHT_YES
@@ -163,7 +167,7 @@ class CatchFeedback(private val context: Context) {
         val warmInk = (if (dark) NightInk.toArgb() else 0xFF723B2C.toInt())
         val danger = (if (dark) 0xFFEFAAAA.toInt() else 0xFFA23D3D.toInt())
         val earth = (if (dark) 0xFFC3A575.toInt() else Earth.toArgb())
-        val details = repository.catchDetails(pending)
+        val details = repository.state.value?.let { com.codejam.taptation.ui.common.catchDetailsForUi(it, pending) }
         val pkg = pending.packageName ?: details?.packageName
         val appLabel = pkg?.let { AppLabels(context).label(it) }
         val panel = LinearLayout(context).apply {
@@ -174,28 +178,27 @@ class CatchFeedback(private val context: Context) {
             }
             elevation = dp(8).toFloat()
         }
-        val top = LinearLayout(context).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.TOP }
-        top.addView(TextView(context).apply {
-            setText(R.string.caught_overlay_label); textSize = 11f; setTextColor(green)
-            letterSpacing = 0.1f; setPadding(0, dp(4), 0, dp(16))
-        }, LinearLayout.LayoutParams(0, -2, 1f))
-        val badge = if (details != null) LeafBadgeView(context, green, earth) else null
-        badge?.let { top.addView(it, LinearLayout.LayoutParams(dp(92), dp(84))) }
-        panel.addView(top)
+        val badge: LeafBadgeView? = null
+        animateCurrentCatch = animatedCatchId != pending.id
+        animatedCatchId = pending.id
         panel.addView(TextView(context).apply {
             setText(R.string.caught_title); textSize = 34f; setTextColor(ink); typeface = Typeface.SERIF
         })
         if (details != null && appLabel != null) {
             panel.addView(TextView(context).apply {
-                text = "Why  " + com.codejam.taptation.ui.common.TapExplanations.catchReason(details.rule, appLabel, details.channel)
+                text = com.codejam.taptation.ui.common.TapExplanations.catchReason(details.rule, appLabel, details.channel)
                 textSize = 14f; setTextColor(ink); setPadding(0, dp(12), 0, dp(4))
             })
         } else {
             panel.addView(TextView(context).apply {
-                setText(R.string.caught_message); textSize = 14f; setTextColor(muted); setPadding(0, dp(12), 0, dp(4))
+                setText(R.string.caught_message_no_extra); textSize = 14f; setTextColor(muted); setPadding(0, dp(12), 0, dp(4))
             })
         }
         if (details != null && details.damage > 0) panel.addView(healthBlock(details, badge, ink, muted, green, danger, warm, warmInk, border) { dp(it) })
+        if (pending.continueExtraDamage > 0) panel.addView(TextView(context).apply {
+            text = context.getString(R.string.caught_message, pending.continueExtraDamage)
+            textSize = 14f; setTextColor(muted); setPadding(0, dp(8), 0, dp(8))
+        })
         fun choice(label: String, primary: Boolean, action: () -> Unit) = Button(context).apply {
             text = label; isAllCaps = false; textSize = 14f
             setTextColor(if (primary) onGreen else green)
@@ -212,8 +215,12 @@ class CatchFeedback(private val context: Context) {
             (last.layoutParams as? LinearLayout.LayoutParams)?.bottomMargin = dp(8)
         }
         panel.addView(choice(context.getString(R.string.caught_our_app), true) { choose(pending, true) })
-        panel.addView(choice(if (appLabel != null) context.getString(R.string.caught_original_app, appLabel)
-            else context.getString(R.string.caught_original_fallback), false) { choose(pending, false) })
+        val destination = appLabel ?: "the original app"
+        val continueLabel = if (pending.continueExtraDamage > 0)
+            context.getString(R.string.caught_original_app_with_penalty, destination, pending.continueExtraDamage)
+        else context.getString(R.string.caught_original_app, destination)
+        panel.addView(choice(continueLabel, false) { choose(pending, false) })
+        panel.addView(choice(context.getString(R.string.caught_later), false) { removeOverlay() })
         if (pkg != null) panel.addView(Button(context).apply {
             setText(R.string.caught_correct); isAllCaps = false; textSize = 14f; setTextColor(green)
             backgroundTintList = null; stateListAnimator = null; this.background = null
@@ -227,8 +234,12 @@ class CatchFeedback(private val context: Context) {
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_DIM_BEHIND,
             PixelFormat.TRANSLUCENT,
         ).apply { gravity = Gravity.CENTER; dimAmount = 0.45f }
-        windows.addView(panel, params)
-        overlay = panel
+        val scroll = android.widget.ScrollView(context).apply {
+            isFillViewport = false
+            addView(panel)
+        }
+        windows.addView(scroll, params)
+        overlay = scroll
     }
 
     /** "Tree health 90 -> 80" with a shrinking bar, a floating "-10" and a falling leaf; final values when animations are off. */
@@ -246,23 +257,23 @@ class CatchFeedback(private val context: Context) {
             text = "−$lost"; textSize = 14f; setTextColor(danger); typeface = Typeface.DEFAULT_BOLD; alpha = 0f
         }
         val row = LinearLayout(context).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.BOTTOM }
-        row.addView(TextView(context).apply { text = "Tree health"; textSize = 14f; setTextColor(ink); typeface = Typeface.DEFAULT_BOLD })
+        row.addView(TextView(context).apply { text = "💚 Health"; textSize = 14f; setTextColor(ink); typeface = Typeface.DEFAULT_BOLD })
         row.addView(chip, LinearLayout.LayoutParams(-2, -2).apply { marginStart = dp(8) })
         row.addView(View(context), LinearLayout.LayoutParams(0, 1, 1f))
         row.addView(number)
         row.addView(TextView(context).apply { text = " / 100"; textSize = 12f; setTextColor(muted) })
         val frame = FrameLayout(context).apply {
-            contentDescription = "Tree health ${details.healthAfter} out of 100, down $lost"
+            contentDescription = "Health ${details.healthAfter} out of 100, down $lost"
             addView(row, FrameLayout.LayoutParams(-1, -2))
             addView(floating, FrameLayout.LayoutParams(-2, -2, Gravity.TOP or Gravity.END))
         }
-        val bar = HealthBarView(context, track, if (details.healthAfter < 30) danger else green)
+        val bar = HealthBarView(context, track, green)
         fun setValue(k: Float) {
             val value = details.healthBefore + (details.healthAfter - details.healthBefore) * k
             number.text = Math.round(value).toString(); bar.fraction = value / 100f; chip.alpha = k
         }
         setValue(0f)
-        if (ValueAnimator.areAnimatorsEnabled()) {
+        if (animateCurrentCatch && ValueAnimator.areAnimatorsEnabled()) {
             fun run(duration: Long, delay: Long, interpolator: android.animation.TimeInterpolator, update: (Float) -> Unit) {
                 animators += ValueAnimator.ofFloat(0f, 1f).apply {
                     this.duration = duration; startDelay = delay; this.interpolator = interpolator
@@ -270,7 +281,11 @@ class CatchFeedback(private val context: Context) {
                     start()
                 }
             }
-            run(600, 150, DecelerateInterpolator()) { setValue(it) }
+            run(1150, 0, android.view.animation.LinearInterpolator()) {
+                setValue(com.codejam.taptation.ui.common.damageDropProgress(it))
+                bar.fillColor = androidx.core.graphics.ColorUtils.blendARGB(green, danger,
+                    com.codejam.taptation.ui.common.damageFlashMix(it))
+            }
             run(550, 120, DecelerateInterpolator()) { badge?.fall = it }
             run(900, 150, android.view.animation.LinearInterpolator()) {
                 floating.alpha = (if (it < .25f) it / .25f else 1f - (it - .25f) / .75f).coerceIn(0f, 1f)
@@ -281,9 +296,16 @@ class CatchFeedback(private val context: Context) {
         }
         return LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(0, dp(14), 0, dp(6))
+            setPadding(dp(14), dp(14), dp(14), dp(14))
+            val dark = context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK == Configuration.UI_MODE_NIGHT_YES
+            background = GradientDrawable().apply {
+                setColor((if (dark) Night else Cream).toArgb())
+                cornerRadius = dp(16).toFloat()
+                setStroke(dp(1), track)
+            }
+            layoutParams = LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(12); bottomMargin = dp(8) }
             addView(frame, LinearLayout.LayoutParams(-1, -2))
-            addView(bar, LinearLayout.LayoutParams(-1, dp(12)).apply { topMargin = dp(8) })
+            addView(bar, LinearLayout.LayoutParams(-1, dp(8)).apply { topMargin = dp(8) })
         }
     }
 
@@ -306,7 +328,7 @@ class CatchFeedback(private val context: Context) {
         try {
             notifications.notify(NOTIFICATION_ID, NotificationCompat.Builder(context, CHANNEL)
                 .setSmallIcon(R.drawable.ic_stat_debug).setContentTitle("Caught you")
-                .setContentText("That one cost your tree a leaf. Open Taptation to choose where to go next.")
+                .setContentText("A distracting notification reduced your health. Open Taptation to choose what to do next.")
                 .setContentIntent(open).setAutoCancel(true).build())
         } catch (error: SecurityException) { Log.w("FakeNotifs", "Catch notification permission unavailable", error) }
     }

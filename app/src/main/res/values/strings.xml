@@ -1,10 +1,13 @@
 <resources>
     <string name="app_name">Taptation</string>
-    <string name="caught_overlay_label">TAPTATION · CAUGHT</string>
-    <string name="caught_title">Caught you.</string>
-    <string name="caught_message">That one cost your tree a leaf. Where to next?</string>
+    <string name="caught_overlay_label">Caught</string>
+    <string name="caught_title">Caught</string>
+    <string name="caught_message">Continuing adds %1$d more health loss. The initial catch is already recorded.</string>
+    <string name="caught_message_no_extra">The catch is already recorded. Choose where to go next.</string>
     <string name="caught_our_app">Go to Taptation</string>
     <string name="caught_original_app">Continue to %1$s</string>
-    <string name="caught_original_fallback">Continue to the app</string>
+    <string name="caught_original_app_with_penalty">Continue to %1$s · −%2$d health</string>
+    <string name="caught_original_fallback">Continue to the original app</string>
     <string name="caught_correct">This should be important</string>
+    <string name="caught_later">Not now</string>
 </resources>

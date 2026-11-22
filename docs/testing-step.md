@@ -40,11 +40,11 @@ The work in this project gives you a debug screen, a test notification, and chec
 
 ### 1. A panel for setting up a demo
 
-The **Debug** tab has a **Demo controls** panel. It sets catch chance to 0% or 100%, sets health, forces a catch, fast-forwards one clean hour, and resets demo data.
+The **Debug** tab has a **Demo controls** panel. It sets catch chance to 0% or 100%, sets health, chooses a debug recovery interval, forces a catch, fast-forwards one clean hour, and resets demo data.
 
 The buttons call a shared Kotlin interface named `DemoControls`. This is like a set of agreed buttons that Person 2's real health and catch code can connect to. The screen does not change the database by itself.
 
-**Right now, those buttons are not connected to real health/catch logic.** The app shows “Not connected yet” because Person 2's logic and shared store are not in this project yet. This is expected. It prevents the demo from pretending a catch happened when it did not.
+The demo controls are connected to the real `GameRepository` and game store. The interval selector is debug-only: choose 1, 5, or 15 clean minutes for a quick demo, or **60 min · normal** for production timing. A successful catch resets clean-time progress; an uncaught Bait tap does not.
 
 ### 2. A better repeatable test notification
 
@@ -232,16 +232,17 @@ For a quick check without the real app, post a **Custom notification** with the 
 
 This check needs a phone or emulator with the latest debug app. Enable **Notification access** and open **Settings > Caught feedback**. Tap **Allow caught overlay** and grant Android's **Display over other apps** access. Also enable **notification fallback** (Android 13+ asks for notification permission).
 
-Set the debug catch probability to 100% and configure an app/package as bait. For a real background-overlay check, use a notification from that actual app while Taptation is not in the foreground. Tap it; Android opens the source app, then Taptation should show the two-choice overlay:
+Set the debug catch probability to 100%, set health to 100, and configure an app/package as bait. For a real background-overlay check, use a notification from that actual app while Taptation is not in the foreground. Tap it; Android opens the source app, then Taptation should show the caught overlay. The normal catch damage (based on the selected catch level) is already applied before the choices appear. The second button should clearly show the additional **5 health** cost:
 
-- **Go to Taptation** acknowledges the saved catch and brings Taptation to Home.
-- **Go to original app** acknowledges the catch and invokes the notification's original action when it is still available. If it is unavailable, Taptation falls back to opening the source app or reports that it is no longer available.
+- **Go to Taptation** saves the choice and brings Taptation Home. Health should reflect only the normal catch damage.
+- **Continue in the original app · −5 health** saves the choice, removes 5 more health once, and invokes the notification's original action when available. If unavailable, Taptation falls back to opening the source app or reports that it is no longer available.
+There is no dismiss/skip choice. Leaving without choosing does not add the extra damage; only the explicit continue choice does.
 
 For a custom notification posted by Taptation, expect the two-choice Compose dialog in Taptation, because tapping the test notification opens Taptation itself. This checks the foreground path, not the background overlay.
 
-To check the fallback, turn off overlay access in Android Settings, trigger another catch, and tap the **A moment to choose** notification. The same choices should appear in Taptation. If Android suppresses an overlay or notification, the catch remains saved and should be presented when Taptation is opened.
+To check the fallback, turn off overlay access in Android Settings, trigger another catch, and tap the **A moment to choose** notification. The same two choices should appear in Taptation. Dismissing the fallback notification does not select either choice or add the extra damage. If Android suppresses an overlay or notification, the catch remains saved and should be presented through the existing feedback flow when Taptation opens.
 
-Repeat with the package whitelisted: no pending catch choice should appear. Swipe a bait notification away: it should not create a catch choice. A catch is applied once before presentation; neither button should reduce health a second time.
+Reset health and repeat both choices to compare the results. Rapidly tap the continue choice twice; health must lose only 5 extra points once. Repeat with the package whitelisted: no pending catch choice should appear. Swipe a bait notification away: it should not create a catch choice. Closing Taptation or leaving the source app is not treated as a continue choice; only the explicit **Continue in the original app** button adds the extra damage.
 ### D. Check the release build
 
 Run:
@@ -269,6 +270,7 @@ The instrumentation tests have now run successfully on the API 37 emulator. The 
 - **Set 0% / Set 100%**: catch chance (`updateConfig`).
 - **Set health**: `setHealthForDebug` (values outside 0-100 are clamped).
 - **Force catch**: `applyCatch` at the current level. Ignored while dead or locked out, like a real catch.
+- **Health recovery interval**: selects +5 health every 1, 5, 15, or 60 clean minutes. The 60-minute choice clears the debug override and restores normal timing. Only successful catches reset clean-time progress; missed rolls preserve it.
 - **Fast-forward 1 clean hour**: `advanceTimeForDebug`. Recovery and the lockout deadline move forward one hour.
 - **Reset demo data**: `resetDemoDataForDebug`. Health 100, no lockout, empty history and stats. Settings (whitelist, chance, level, VIPs) are kept.
 

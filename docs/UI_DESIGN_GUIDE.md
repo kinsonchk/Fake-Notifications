@@ -3,6 +3,7 @@
 Use this guide for every new screen, component, dialog, chart and visual change. The goal is
 to extend the existing app with consistent, finished UI, even when the task prompt only says
 "add this feature." Keep these defaults unless the user explicitly requests a different design.
+Do not add eyebrow labels, uppercase section slogans or decorative subtitles above page headings. Use functional titles.
 This guide governs presentation; [revised catch flow](revised-catch-flow.md) governs behavior.
 
 ## 1. Start here: the minimum recipe
@@ -22,16 +23,15 @@ or duplicate a shared component to make one screen look different.
 
 These are real Android renders of the implemented design, captured at 360dp width with 115%
 text size. They are visual baselines, not pixel-perfect specifications or sample product data.
-Below-the-fold content remains scrollable. Dark references show app content with the theme
-forced by a test; system-bar icon colors in those images are not a dark-mode specification.
+Below-the-fold content remains scrollable. Home references include actual Android light/dark system modes.
 
 | Home | Settings | Statistics |
 |---|---|---|
 | ![Home](design-reference/home-light.png) | ![Settings](design-reference/settings-light.png) | ![Statistics](design-reference/stats-light.png) |
 
-| Caught choice | Safe apps | Dark theme |
+| Caught choice | Notification rules | Dark theme |
 |---|---|---|
-| ![Caught choice](design-reference/caught-light.png) | ![Safe apps](design-reference/safe-apps-light.png) | ![Dark Home](design-reference/home-dark.png) |
+| ![Caught choice](design-reference/caught-light.png) | ![Notification rules](design-reference/app-rules-light.png) | ![Dark Home](design-reference/home-dark.png) |
 
 The character is calm, botanical and spacious: cream background, forest-green emphasis,
 serif page headings, simple sans-serif controls, white rounded cards and subtle borders.
@@ -71,10 +71,9 @@ there when an intentional app-wide design change is requested. Avoid hard-coded 
 | Explanation | `bodyMedium` | Sans, normal, 14sp / 21sp |
 | Caption / supporting metadata | `bodySmall` | Sans, normal, 12sp / 18sp |
 | Buttons | `labelLarge` | Sans, medium, 14sp / 20sp |
-| Optional eyebrow | `labelSmall` | Sans, medium, 11sp / 15sp |
 
 Use one serif page heading. Keep card headings and controls sans-serif. Use short sentence-case
-labels. Uppercase is reserved for the small eyebrow/badge. Allow text to wrap before shrinking it.
+labels. Do not add eyebrow text above headings. Allow text to wrap before shrinking it.
 
 ## 4. Layout and components
 
@@ -83,7 +82,7 @@ labels. Uppercase is reserved for the small eyebrow/badge. Allow text to wrap be
 | Page content width | Centered, maximum 560dp |
 | Page padding | 24dp horizontally and vertically, inside system/navigation insets |
 | Gap between sections | 20dp |
-| Card | 22dp corners, 1dp `outlineVariant` border, no decorative shadow |
+| Card | 20dp corners, 1dp `outlineVariant` border, no decorative shadow |
 | Card padding / internal gap | 18dp / 12dp |
 | Related text or controls | 4–8dp for tight relationships; 12–16dp for groups |
 | Main button | At least 48dp tall; 16dp corners for prominent full-width actions |
@@ -107,14 +106,14 @@ Existing building blocks, relative to `app/src/main/java/com/codejam/taptation/`
 | `ui/stats/StatsScreen.kt` | Metric cards, filters, real category and daily charts |
 | `ui/common/CatchChoiceDialog.kt` | Foreground caught presentation |
 | `service/CatchFeedback.kt` | Native overlay; keep its appearance aligned with the Compose dialog |
-| `ui/home/TreeIllustration.kt` | Existing botanical illustration |
+| `ui/home/GrassMeadow.kt` | Interactive meadow driven by health |
 
 Example page structure (imports omitted; callbacks and data come from the actual feature):
 
 ```kotlin
 @Composable
 fun ExampleScreen(padding: PaddingValues, safeAppCount: Int, onChooseApps: () -> Unit) {
-    TabScreen(padding, title = "Keep what matters.", eyebrow = "Your notification rules") {
+    TabScreen(padding, title = "Notification rules") {
         item {
             SectionCard("Always-safe apps", "Every notification from these apps bypasses catches.") {
                 LabelValue("Protected apps", safeAppCount.toString())
@@ -127,8 +126,8 @@ fun ExampleScreen(padding: PaddingValues, safeAppCount: Int, onChooseApps: () ->
 
 ## 5. Screen and interaction recipes
 
-- **Home:** one welcoming heading, activity status and the existing tree. Put setup actions
-  and real progress below. The tree remains decorative until its driving metric is agreed.
+- **Home:** functional Home heading, actual monitoring status, then a seamless meadow driven by health.
+  Use a heart beside Health. Setup comes first when needed; touch bends grass without changing health.
 - **Stats:** period selector, a small set of prominent metrics, then supporting charts.
   Keep adjacent metric cards equal height. Show units and denominators close to values.
   A missing denominator is a dash. Empty history gets an explanation, never fabricated trends.
@@ -197,10 +196,12 @@ and existing patterns. Use semantic theme colors, established typography and spa
 Keep the cream/forest/sage appearance and support dark mode, narrow screens and larger text.
 
 Wire real data and actions. Handle loading, empty, error and disabled states. Preserve the
-current behavior and debug tools. Keep the tree decorative unless I explicitly choose its metric.
+current behavior and debug tools. Use health to drive the meadow; touch must not change it.
 Do not add placeholders, invented statistics, new visual styles or unrelated dependencies.
 
 Render and inspect every changed screen. Check navigation, scrolling, keyboard behavior and
 light/dark mode. Fix clipping, overflow and inconsistent hierarchy. Run relevant checks and
 report the result honestly; say explicitly if device rendering was unavailable.
 ```
+
+The [native overlay reference](design-reference/caught-native.png) shows the same caught layout over another Android screen.

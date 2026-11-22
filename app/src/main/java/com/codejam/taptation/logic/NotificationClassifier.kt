@@ -9,6 +9,14 @@ object NotificationClassifier {
     private fun bait(reason: String) = Assessment(Classification.Bait, reason)
     private fun unknown(reason: String) = Assessment(Classification.Unknown, reason)
 
+    /**
+     * What a tap or dismissal of [context] counts as: stale notifications (older than the freshness
+     * window) are Unknown without classification; otherwise [assess]. Taps and dismissals share it
+     * so the stats compare like with like.
+     */
+    fun assessTap(context: NotificationContext, config: GameConfig): Assessment =
+        if (config.isStale(context)) unknown("stale") else assess(context, config)
+
     /** The tap path's entry point: the user's choice for the app (Settings > Notification rules) decides first. */
     fun assess(context: NotificationContext, config: GameConfig): Assessment =
         when (config.ruleFor(context.packageName)) {
@@ -18,12 +26,18 @@ object NotificationClassifier {
         }
 
     /**
-     * Placeholder judge for apps left on "Let us decide": for now every notification is non-essential.
-     * TODO(Person 2): judge with config.essentialCriteria / nonEssentialCriteria / strictness (and
-     * [assessByRules] or a model for unclear cases), returning Unknown (NoPenalty) when unsure.
+     * Apps left on "Let us decide" follow the AI judge's verdict ([NotificationContext.judged], made
+     * when the notification was posted from the user's criteria and strictness). Without a judge
+     * (no API key) every notification stays non-essential, as before.
      */
     @Suppress("UNUSED_PARAMETER")
-    private fun letUsDecide(context: NotificationContext, config: GameConfig): Assessment = bait("let_us_decide")
+    private fun letUsDecide(context: NotificationContext, config: GameConfig): Assessment =
+        when (context.judged) {
+            null -> bait("let_us_decide")
+            Classification.Important -> important("ai_important")
+            Classification.Bait -> bait("ai_bait")
+            Classification.Unknown -> unknown("ai_unsure")
+        }
 
     /**
      * The earlier ordered rules (whitelist, categories, VIP, keywords, channels, app profiles). Not on the

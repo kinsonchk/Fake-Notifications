@@ -29,7 +29,7 @@ import androidx.compose.ui.unit.sp
 
 /** Scrolling tab body: a title, then [content] items, padded around the bottom bar. */
 @Composable
-fun TabScreen(contentPadding: PaddingValues, title: String, eyebrow: String? = null,
+fun TabScreen(contentPadding: PaddingValues, title: String,
     subtitle: String? = null, itemSpacing: androidx.compose.ui.unit.Dp = 20.dp,
     overlay: @Composable BoxScope.() -> Unit = {},
     content: LazyListScope.() -> Unit) {
@@ -48,9 +48,7 @@ fun TabScreen(contentPadding: PaddingValues, title: String, eyebrow: String? = n
     ) {
         item {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                eyebrow?.let { Text(it.uppercase(), style = MaterialTheme.typography.labelSmall.copy(letterSpacing = 1.6.sp),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant) }
-                Text(title, style = MaterialTheme.typography.headlineLarge)
+                Text(title, modifier = Modifier.testTag("screen-title"), style = MaterialTheme.typography.headlineLarge)
                 subtitle?.let { Text(it, color = MaterialTheme.colorScheme.onSurfaceVariant) }
             }
         }
@@ -69,7 +67,7 @@ fun SectionCard(
     subtitle: String? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(22.dp),
+    Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLowest,
             contentColor = MaterialTheme.colorScheme.onSurface),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) {

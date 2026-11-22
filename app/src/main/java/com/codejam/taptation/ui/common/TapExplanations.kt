@@ -9,7 +9,11 @@ object TapExplanations {
     fun rule(code: String): String = when (code) {
         "app_always_important" -> "App set to Always important"
         "app_always_bait" -> "App set to Always distracting"
-        "let_us_decide" -> "Let us decide: counted as non-essential for now"
+        "let_us_decide" -> "Let us decide: AI is not configured in this build"
+        "ai_important" -> "AI judged this important"
+        "ai_bait" -> "AI judged this distracting"
+        "ai_unsure" -> "AI was unsure or unavailable; no penalty"
+        "ai_pending" -> "Waiting for an AI decision"
         "whitelisted" -> "Always-safe app"
         "important_category" -> "Call, alarm, reminder or event"
         "vip_title" -> "From someone on your always-get-through list"
@@ -63,7 +67,7 @@ object TapExplanations {
         TapOutcome.NoPenalty -> when (reason) {
             "roll_passed" -> "No catch this time"
             "lockout" -> "No additional penalty during the cooldown"
-            "dead" -> "Tree is already dead"
+            "dead" -> "Health is already at zero"
             "stale" -> "Too old: opened after your time limit, so it can't catch you"
             "disabled" -> "Taptation was paused: nothing was checked"
             else -> "Not penalized: unsure notifications are never penalized"

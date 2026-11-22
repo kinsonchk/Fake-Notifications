@@ -8,10 +8,40 @@ import java.util.Base64
 
 /** Versioned snapshot, containing no raw notification content. Pure JVM for round-trip tests. */
 object GameStateCodec {
-    fun encode(state: GameState): String {
+    /**
+     * Which optional parts a snapshot has. Version 6 was written in three different layouts by
+     * parallel branches (per-app rules, catch penalty, and their merge), so a v6 snapshot is tried
+     * against each of them; from v7 on every version has exactly one layout.
+     */
+    internal data class Layout(
+        val version: Int,
+        val pendingExtraDamage: Boolean,
+        val rulesTail: Boolean,
+        val recoveryTail: Boolean,
+    ) {
+        companion object {
+            val V5 = Layout(5, pendingExtraDamage = false, rulesTail = false, recoveryTail = false)
+            val V6_RULES = Layout(6, pendingExtraDamage = false, rulesTail = true, recoveryTail = false)
+            val V6_PENALTY = Layout(6, pendingExtraDamage = true, rulesTail = false, recoveryTail = false)
+            val V6_MERGED = Layout(6, pendingExtraDamage = true, rulesTail = true, recoveryTail = false)
+            val CURRENT = Layout(7, pendingExtraDamage = true, rulesTail = true, recoveryTail = true)
+
+            fun candidates(version: Int): List<Layout> = when (version) {
+                CURRENT.version -> listOf(CURRENT)
+                6 -> listOf(V6_MERGED, V6_RULES, V6_PENALTY)
+                else -> listOf(Layout(version, pendingExtraDamage = false, rulesTail = false, recoveryTail = false))
+            }
+        }
+    }
+
+    fun encode(state: GameState): String = encode(state, Layout.CURRENT)
+
+    /** [layout] other than [Layout.CURRENT] only exists so tests can build older snapshots. */
+    internal fun encode(state: GameState, layout: Layout): String {
+        require(layout.version >= 5) { "Snapshots before v5 can't be written" }
         val buffer = ByteArrayOutputStream()
         DataOutputStream(buffer).use { out ->
-            out.writeInt(6)
+            out.writeInt(layout.version)
             out.writeInt(state.health)
             out.writeLong(state.recoveryAnchorMillis)
             out.writeLong(state.lastObservedMillis)
@@ -68,7 +98,7 @@ object GameStateCodec {
                 out.writeUTF(it.reason)
                 out.writeUTF(it.level?.name.orEmpty())
             }
-            // Keep main's v4 freshness tail intact; v5 appends the revised-flow fields.
+            // Keep the existing field order; see Layout for which optional parts each version has.
             out.writeInt(state.config.freshnessSeconds)
             out.writeBoolean(state.config.freshnessFromFirstSeen)
             out.writeUTF(state.config.difficulty.name)
@@ -82,22 +112,45 @@ object GameStateCodec {
                 out.writeUTF(it.id)
                 out.writeBoolean(it.packageName != null)
                 it.packageName?.let(out::writeUTF)
+                if (layout.pendingExtraDamage) out.writeInt(it.continueExtraDamage)
             }
             with(state.config) {
-                out.writeInt(appRules.size)
-                appRules.toSortedMap().forEach { (pkg, rule) -> out.writeUTF(pkg); out.writeUTF(rule.name) }
-                out.writeUTF(essentialCriteria)
-                out.writeUTF(nonEssentialCriteria)
-                out.writeUTF(strictness.name)
+                if (layout.rulesTail) {
+                    out.writeInt(appRules.size)
+                    appRules.toSortedMap().forEach { (pkg, rule) -> out.writeUTF(pkg); out.writeUTF(rule.name) }
+                    out.writeUTF(essentialCriteria)
+                    out.writeUTF(nonEssentialCriteria)
+                    out.writeUTF(strictness.name)
+                }
+                if (layout.recoveryTail) {
+                    out.writeInt(recoveryIntervalMinutes)
+                    out.writeBoolean(debugRecoveryIntervalMinutes != null)
+                    debugRecoveryIntervalMinutes?.let(out::writeInt)
+                }
             }
         }
         return Base64.getEncoder().encodeToString(buffer.toByteArray())
     }
 
-    fun decode(encoded: String): GameState =
-        DataInputStream(ByteArrayInputStream(Base64.getDecoder().decode(encoded))).use { input ->
+    /** Throws when [encoded] matches no known layout; the first layout's error is reported. */
+    fun decode(encoded: String): GameState {
+        val bytes = Base64.getDecoder().decode(encoded)
+        val version = DataInputStream(ByteArrayInputStream(bytes)).use { it.readInt() }
+        require(version in 1..Layout.CURRENT.version) { "Unsupported game store version" }
+        var firstError: Exception? = null
+        for (layout in Layout.candidates(version)) {
+            try {
+                return decode(bytes, layout)
+            } catch (e: Exception) {
+                if (firstError == null) firstError = e
+            }
+        }
+        throw firstError!!
+    }
+
+    private fun decode(bytes: ByteArray, layout: Layout): GameState =
+        DataInputStream(ByteArrayInputStream(bytes)).use { input ->
             val version = input.readInt()
-            require(version in 1..6) { "Unsupported game store version" }
             val health = input.readInt().also { require(it in 0..100) }
             val anchor = input.readLong()
             val observed = input.readLong()
@@ -165,13 +218,18 @@ object GameStateCodec {
                 disabledUntilMillis = if (input.readBoolean()) input.readLong() else null,
             )
             val pending = if (version >= 5 && input.readBoolean()) PendingCatch(input.readUTF(),
-                if (input.readBoolean()) input.readUTF() else null) else null
-            config = if (version >= 6) config.copy(
+                if (input.readBoolean()) input.readUTF() else null,
+                if (layout.pendingExtraDamage) input.readInt() else 0) else null
+            config = if (layout.rulesTail) config.copy(
                 appRules = buildMap { repeat(input.count()) { put(input.readUTF(), AppRule.valueOf(input.readUTF())) } },
                 essentialCriteria = input.readUTF(),
                 nonEssentialCriteria = input.readUTF(),
                 strictness = Strictness.valueOf(input.readUTF()),
             ) else config.withLegacyAppLists()
+            if (layout.recoveryTail) config = config.copy(
+                recoveryIntervalMinutes = input.readInt(),
+                debugRecoveryIntervalMinutes = if (input.readBoolean()) input.readInt() else null,
+            )
             require(input.available() == 0) { "Trailing game store data" }
             GameState(health, config, anchor, observed, lockout, lastCatch, catches, counts, taps, history, pending)
         }

@@ -14,6 +14,8 @@ import androidx.compose.ui.platform.LocalContext
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 
 /** Loading, loaded, or failed; [reload] queries the package manager again. */
 data class InstalledAppsState(val apps: List<InstalledApp>?, val error: String?, val reload: () -> Unit)
@@ -28,6 +30,7 @@ fun rememberInstalledAppsState(): InstalledAppsState {
     var apps by remember { mutableStateOf<List<InstalledApp>?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
     var version by remember { mutableStateOf(0) }
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { version++ }
     LaunchedEffect(context.packageManager, version) {
         apps = null
         error = null

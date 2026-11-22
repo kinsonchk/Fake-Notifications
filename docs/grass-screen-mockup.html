@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Taptation — Functional Screen Mockup</title>
+  <script src="https://www.gstatic.com/antigravity/web/dev/tailwindcss.min.js"></script>
+  <style>
+    @keyframes bladeDrift {
+      0% { transform: translate(0, 0) rotate(0deg); opacity: 1; }
+      100% { transform: translate(22px, 46px) rotate(130deg); opacity: 0; }
+    }
+    .drift-blade { animation: bladeDrift 1.2s ease-in forwards; }
+  </style>
+</head>
+<body class="bg-[var(--background)] text-[var(--foreground)] antialiased min-h-screen p-4 md:p-6">
+  <div class="max-w-6xl mx-auto space-y-5">
+    <!-- Controls -->
+    <div class="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-[var(--border)]">
+      <div>
+        <h1 class="text-lg font-semibold">Taptation — Revised Screen Mockup</h1>
+        <p class="text-xs text-[var(--muted-foreground)] mt-0.5">Standard palette &amp; corner radii, seamless interactive grass on Home, heart health indicator, and functional titles.</p>
+      </div>
+      <div class="flex flex-wrap items-center gap-2">
+        <label class="flex items-center gap-2 text-xs text-[var(--muted-foreground)] bg-[var(--card)] border border-[var(--border)] px-3 py-1.5 rounded-lg">
+          Health
+          <input id="lifeSlider" type="range" min="0" max="100" value="80" class="w-24 accent-[var(--primary)]" />
+          <span id="lifeReadout" class="font-mono font-semibold text-[var(--foreground)] tabular-nums">80</span>
+        </label>
+        <button id="btnMode" class="px-3.5 py-1.5 rounded-lg text-xs font-medium border border-[var(--border)] bg-[var(--card)] hover:opacity-90 transition">
+          Theme: <span id="modeText">Light</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- 3 Phone Mockups -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start justify-items-center">
+
+      <!-- PHONE 1: HOME -->
+      <div class="w-full max-w-[340px] space-y-2">
+        <div class="text-xs font-medium text-[var(--muted-foreground)] text-center">Home (brush the grass)</div>
+        <div id="phone1" class="rounded-[24px] border overflow-hidden shadow-lg transition-colors flex flex-col justify-between min-h-[620px]">
+          <div class="pt-4 space-y-3">
+            <!-- Status bar + Title -->
+            <div class="px-4 space-y-2">
+              <div class="flex items-center justify-between text-[11px] font-medium opacity-70">
+                <span>9:41</span>
+                <span>Monitoring</span>
+              </div>
+              <div class="flex items-center justify-between">
+                <h2 class="text-2xl font-bold tracking-tight">Home</h2>
+                <div class="flex items-center gap-2">
+                  <span id="homePill" class="px-2.5 py-1 rounded-full text-[11px] font-medium">Active</span>
+                  <button id="btnPause" class="px-2.5 py-1 rounded-lg text-[11px] font-medium border transition">Pause</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Seamless Interactive Grass (no box border, blends directly into background) -->
+            <div class="relative h-[165px] select-none touch-none">
+              <canvas id="grassCanvas" class="w-full h-full block cursor-pointer"></canvas>
+            </div>
+
+            <!-- Health & Recent Activity -->
+            <div class="px-4 pb-4 space-y-3">
+              <!-- Health Card -->
+              <div id="healthCard" class="rounded-[20px] p-4 border space-y-2.5">
+                <div class="flex items-center justify-between">
+                  <div class="flex items-center gap-2">
+                    <span class="text-base leading-none" aria-hidden="true">💚</span>
+                    <span class="text-sm font-semibold">Health</span>
+                  </div>
+                  <span class="text-xl font-bold tabular-nums"><span id="hNum">80</span> <span class="text-xs font-normal opacity-60">/ 100</span></span>
+                </div>
+                <div id="hTrack" class="h-2 rounded-full overflow-hidden">
+                  <div id="hFill" class="h-full rounded-full transition-all duration-300" style="width:80%"></div>
+                </div>
+                <div class="flex items-center justify-between text-[11px] pt-0.5">
+                  <span class="opacity-70">Catch: −10 (Easy)</span>
+                  <span class="opacity-70">Recovery: +5 / hr</span>
+                </div>
+              </div>
+
+              <!-- Recent Activity -->
+              <div id="recentCard" class="rounded-[20px] p-4 border space-y-2">
+                <div class="flex items-center justify-between">
+                  <span class="text-sm font-semibold">Recent activity</span>
+                  <span class="text-[11px] opacity-60">Today</span>
+                </div>
+                <div class="flex items-center justify-between text-xs pt-0.5">
+                  <div>
+                    <div class="font-medium">Instagram</div>
+                    <div class="text-[11px] opacity-65">Suggested for you · 4m ago</div>
+                  </div>
+                  <span class="text-[11px] font-semibold px-2 py-0.5 rounded-full" id="recentBadge">−10</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Bottom Nav (3 release tabs) -->
+          <div id="nav1" class="px-3 py-2 border-t grid grid-cols-3 gap-1 text-center text-[11px] font-medium">
+            <div class="py-1.5 rounded-[14px] font-semibold" id="nav1Home">Home</div>
+            <div class="py-1.5 rounded-[14px] opacity-65">Stats</div>
+            <div class="py-1.5 rounded-[14px] opacity-65">Settings</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- PHONE 2: CAUGHT POP-UP -->
+      <div class="w-full max-w-[340px] space-y-2">
+        <div class="text-xs font-medium text-[var(--muted-foreground)] text-center">Caught pop-up</div>
+        <div id="phone2" class="rounded-[24px] border overflow-hidden shadow-lg transition-colors relative min-h-[620px] flex flex-col justify-between">
+          <div class="p-4 opacity-25 pointer-events-none space-y-3">
+            <div class="text-[11px] font-medium">9:41</div>
+            <div class="text-2xl font-bold">Home</div>
+          </div>
+
+          <!-- Caught Overlay Dialog -->
+          <div class="absolute inset-0 flex items-center justify-center p-4" style="background:rgba(16,22,18,0.52);">
+            <div id="caughtCard" class="w-full rounded-[24px] p-5 border shadow-xl space-y-3.5">
+              <div class="flex items-start justify-between gap-2">
+                <span id="caughtEyebrow" class="text-[11px] font-semibold px-2.5 py-1 rounded-full">Notification caught</span>
+                <div class="w-14 h-12 relative flex items-center justify-center">
+                  <svg viewBox="0 0 64 56" class="w-14 h-12 overflow-visible">
+                    <path d="M22 47 Q18 28 14 18 Q24 28 26 47Z" fill="#2E6447"/>
+                    <path d="M31 47 Q32 22 35 12 Q38 26 35 47Z" fill="#2E6447"/>
+                    <path d="M40 47 Q46 28 52 20 Q46 32 43 47Z" fill="#637467"/>
+                    <path id="flyingBlade" d="M35 14 Q42 8 44 16 Q38 20 35 14Z" fill="#A18357" class="drift-blade"/>
+                  </svg>
+                </div>
+              </div>
+
+              <div>
+                <h3 class="text-2xl font-bold tracking-tight">Caught</h3>
+                <p class="text-xs opacity-75 mt-1">Instagram · Suggested for you is set as distracting</p>
+              </div>
+
+              <div id="caughtHealthBox" class="rounded-[16px] p-3 border space-y-2">
+                <div class="flex items-center justify-between text-xs font-medium">
+                  <span class="flex items-center gap-1.5"><span>💚</span><span>Health</span></span>
+                  <div class="flex items-center gap-2">
+                    <span id="caughtDelta" class="text-[11px] font-bold px-2 py-0.5 rounded-full">−10</span>
+                    <span class="font-bold text-sm tabular-nums"><span id="caughtNum">80</span> <span class="text-[11px] font-normal opacity-60">/ 100</span></span>
+                  </div>
+                </div>
+                <div id="caughtTrack" class="h-2 rounded-full overflow-hidden">
+                  <div id="caughtFill" class="h-full rounded-full transition-all duration-700" style="width:90%"></div>
+                </div>
+              </div>
+
+              <div class="space-y-2 pt-1">
+                <button id="replayCaught" class="w-full py-3 rounded-[16px] text-xs font-semibold text-white transition active:scale-95">Go to Taptation (Replay)</button>
+                <button id="caughtSecBtn" class="w-full py-3 rounded-[16px] text-xs font-medium border">Continue to Instagram</button>
+                <div class="text-center text-[11px] font-medium opacity-75 pt-0.5">This should be important</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- PHONE 3: STATS -->
+      <div class="w-full max-w-[340px] space-y-2">
+        <div class="text-xs font-medium text-[var(--muted-foreground)] text-center">Stats</div>
+        <div id="phone3" class="rounded-[24px] border overflow-hidden shadow-lg transition-colors flex flex-col justify-between min-h-[620px]">
+          <div class="p-4 space-y-3.5">
+            <div class="flex items-center justify-between text-[11px] font-medium opacity-70">
+              <span>9:41</span>
+              <span>Nov 15 – Nov 21</span>
+            </div>
+
+            <h2 class="text-2xl font-bold tracking-tight">Stats</h2>
+
+            <!-- Segmented Pill -->
+            <div id="segWrap" class="p-1 rounded-[16px] grid grid-cols-2 text-xs font-medium">
+              <div id="segActive" class="py-2 rounded-[12px] text-center font-semibold">Last 7 days</div>
+              <div class="py-2 rounded-[12px] text-center opacity-65">Last 30 days</div>
+            </div>
+
+            <!-- Metric Pair -->
+            <div class="grid grid-cols-2 gap-2.5">
+              <div id="statCard1" class="rounded-[20px] p-3.5 border space-y-1.5">
+                <div class="text-[11px] opacity-70">Opened vs. swiped</div>
+                <div class="text-xl font-bold tabular-nums">2 : 1</div>
+                <div class="h-2 rounded-full overflow-hidden flex gap-0.5">
+                  <div id="ratioOpen" class="h-full rounded-l-full" style="width:67%"></div>
+                  <div id="ratioSwipe" class="h-full rounded-r-full" style="width:33%"></div>
+                </div>
+                <div class="text-[10px] opacity-65">16 opened · 8 swiped</div>
+              </div>
+              <div id="statCard2" class="rounded-[20px] p-3.5 border space-y-1.5">
+                <div class="text-[11px] opacity-70">Catches</div>
+                <div class="text-xl font-bold tabular-nums">3</div>
+                <div class="text-[10px] opacity-65">in 24 opened (13%)</div>
+              </div>
+            </div>
+
+            <!-- Weekly Bars -->
+            <div id="chartCard" class="rounded-[20px] p-3.5 border space-y-2.5">
+              <div class="flex items-center justify-between text-xs font-semibold">
+                <span>Daily catches</span>
+                <span id="dayInspect" class="text-[11px] opacity-70 font-normal">Thu · 4 catches</span>
+              </div>
+              <div id="dailyBars" class="flex items-end justify-between gap-2 h-24 pt-2"></div>
+            </div>
+
+            <!-- Category row -->
+            <div id="catCard" class="rounded-[20px] p-3.5 border space-y-2">
+              <div class="text-xs font-semibold">By notification type</div>
+              <div class="space-y-1">
+                <div class="flex justify-between text-[11px]"><span>Social</span><span class="opacity-65">14 opened · 6 swiped</span></div>
+                <div id="catTrack" class="h-1.5 rounded-full overflow-hidden"><div id="catFill" class="h-full rounded-full" style="width:70%"></div></div>
+              </div>
+            </div>
+          </div>
+
+          <div id="nav3" class="px-3 py-2 border-t grid grid-cols-3 gap-1 text-center text-[11px] font-medium">
+            <div class="py-1.5 rounded-[14px] opacity-65">Home</div>
+            <div class="py-1.5 rounded-[14px] font-semibold" id="nav3Stats">Stats</div>
+            <div class="py-1.5 rounded-[14px] opacity-65">Settings</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    let dark = false;
+    let life = 80;
+    let t = 0;
+    let gust = 0;
+    const pointer = { x: -999, y: -999, active: false };
+
+    // Taptation's actual palette (from Color.kt / UI_DESIGN_GUIDE.md) + crisp dark surfaces
+    const themes = {
+      light: {
+        bg: '#FAFAF5', card: '#FFFFFF', soft: '#EAF0DF', border: '#E1E7DB',
+        ink: '#203B2C', muted: '#637467', primary: '#2E6447', primaryBtn: '#2E6447',
+        accent: '#A18357', accentSoft: '#FCF0DF',
+        blade1: '#2E6447', blade2: '#4A7C59', dry: '#A18357', soil: '#E6E1D3'
+      },
+      dark: {
+        bg: '#161816', card: '#202420', soft: '#2A332B', border: '#323832',
+        ink: '#E7EDE6', muted: '#9DA79D', primary: '#78B88C', primaryBtn: '#2E6447',
+        accent: '#D2A66E', accentSoft: '#352B1E',
+        blade1: '#4D9468', blade2: '#78B88C', dry: '#B89566', soil: '#28251F'
+      }
+    };
+
+    const blades = Array.from({ length: 78 }, (_, i) => ({
+      u: (i + 0.3 + ((i * 37) % 10) * 0.05) / 78,
+      hFactor: 0.55 + ((i * 53) % 100) / 210,
+      lean: (((i * 29) % 100) / 100 - 0.5) * 0.24,
+      phase: i * 0.42,
+      layer: i % 3,
+      bendVel: 0,
+      bend: 0
+    }));
+
+    let selectedDay = 3;
+    const weekData = [
+      { d: 'M', full: 'Mon', c: 1 },
+      { d: 'T', full: 'Tue', c: 2 },
+      { d: 'W', full: 'Wed', c: 0 },
+      { d: 'T', full: 'Thu', c: 4 },
+      { d: 'F', full: 'Fri', c: 1 },
+      { d: 'S', full: 'Sat', c: 0 },
+      { d: 'S', full: 'Sun', c: 2 },
+    ];
+
+    function renderBars(p) {
+      const wrap = document.getElementById('dailyBars');
+      const maxC = 4;
+      wrap.innerHTML = weekData.map((item, idx) => {
+        const pct = item.c === 0 ? 8 : Math.round((item.c / maxC) * 100);
+        const active = idx === selectedDay;
+        return `<button onclick="pickDay(${idx})" class="flex-1 flex flex-col items-center gap-1 h-full justify-end cursor-pointer">
+          <div class="w-full rounded-t-md transition-all" style="height:${pct}%; background:${active ? p.primary : p.soft}; border:1px solid ${active ? p.primary : p.border}"></div>
+          <span class="text-[10px] ${active ? 'font-bold' : 'opacity-65'}">${item.d}</span>
+        </button>`;
+      }).join('');
+      const sel = weekData[selectedDay];
+      document.getElementById('dayInspect').textContent = `${sel.full} · ${sel.c} ${sel.c === 1 ? 'catch' : 'catches'}`;
+    }
+
+    function pickDay(idx) {
+      selectedDay = idx;
+      renderBars(dark ? themes.dark : themes.light);
+    }
+
+    function applyTheme() {
+      const p = dark ? themes.dark : themes.light;
+      document.getElementById('modeText').textContent = dark ? 'Dark' : 'Light';
+
+      [document.getElementById('phone1'), document.getElementById('phone2'), document.getElementById('phone3')].forEach(el => {
+        el.style.background = p.bg;
+        el.style.color = p.ink;
+        el.style.borderColor = p.border;
+      });
+
+      [document.getElementById('healthCard'), document.getElementById('recentCard'),
+       document.getElementById('caughtCard'), document.getElementById('statCard1'), document.getElementById('statCard2'),
+       document.getElementById('chartCard'), document.getElementById('catCard')].forEach(c => {
+        c.style.background = p.card;
+        c.style.borderColor = p.border;
+      });
+
+      document.getElementById('caughtHealthBox').style.background = p.bg;
+      document.getElementById('caughtHealthBox').style.borderColor = p.border;
+
+      document.getElementById('homePill').style.background = p.soft;
+      document.getElementById('homePill').style.color = p.primary;
+      document.getElementById('btnPause').style.borderColor = p.border;
+
+      document.getElementById('hTrack').style.background = p.soft;
+      document.getElementById('hFill').style.background = life >= 40 ? p.primary : p.accent;
+      document.getElementById('recentBadge').style.background = p.accentSoft;
+      document.getElementById('recentBadge').style.color = p.ink;
+
+      document.getElementById('caughtEyebrow').style.background = p.soft;
+      document.getElementById('caughtEyebrow').style.color = p.primary;
+      document.getElementById('caughtDelta').style.background = p.accentSoft;
+      document.getElementById('caughtDelta').style.color = p.ink;
+      document.getElementById('caughtTrack').style.background = p.soft;
+      document.getElementById('caughtFill').style.background = p.primary;
+      document.getElementById('replayCaught').style.background = p.primaryBtn;
+      document.getElementById('caughtSecBtn').style.borderColor = p.border;
+
+      document.getElementById('segWrap').style.background = p.soft;
+      document.getElementById('segActive').style.background = p.card;
+      document.getElementById('ratioOpen').style.background = p.accent;
+      document.getElementById('ratioSwipe').style.background = p.primary;
+      document.getElementById('catTrack').style.background = p.soft;
+      document.getElementById('catFill').style.background = p.primary;
+      renderBars(p);
+
+      document.getElementById('nav1').style.background = p.card;
+      document.getElementById('nav1').style.borderColor = p.border;
+      document.getElementById('nav1Home').style.background = p.soft;
+      document.getElementById('nav1Home').style.color = p.primary;
+
+      document.getElementById('nav3').style.background = p.card;
+      document.getElementById('nav3').style.borderColor = p.border;
+      document.getElementById('nav3Stats').style.background = p.soft;
+      document.getElementById('nav3Stats').style.color = p.primary;
+    }
+
+    const canvas = document.getElementById('grassCanvas');
+    const ctx = canvas.getContext('2d');
+
+    function resize() {
+      const rect = canvas.getBoundingClientRect();
+      const dpr = Math.min(window.devicePixelRatio || 1, 3);
+      const tw = Math.max(1, Math.round(rect.width * dpr));
+      const th = Math.max(1, Math.round(rect.height * dpr));
+      if (canvas.width !== tw || canvas.height !== th) {
+        canvas.width = tw; canvas.height = th;
+      }
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      return { w: rect.width, h: rect.height };
+    }
+
+    function drawLoop() {
+      t++;
+      gust *= 0.94;
+      const { w, h } = resize();
+      const p = dark ? themes.dark : themes.light;
+      const f = life / 100;
+
+      ctx.clearRect(0, 0, w, h);
+
+      // Subtle curved meadow mound fading seamlessly into page bg
+      const groundY = h * 0.86;
+      const hillGrad = ctx.createLinearGradient(0, groundY - 14, 0, h);
+      hillGrad.addColorStop(0, p.soil);
+      hillGrad.addColorStop(1, p.bg);
+      ctx.fillStyle = hillGrad;
+      ctx.beginPath();
+      ctx.moveTo(0, groundY + 6);
+      ctx.quadraticCurveTo(w * 0.5, groundY - 12, w, groundY + 6);
+      ctx.lineTo(w, h); ctx.lineTo(0, h); ctx.closePath();
+      ctx.fill();
+
+      const activeCount = Math.max(8, Math.round(8 + f * (blades.length - 8)));
+      for (let i = 0; i < activeCount; i++) {
+        const b = blades[i];
+        const bx = b.u * w;
+        const by = groundY + 4 - Math.sin(b.u * Math.PI) * 8 + b.layer * 2.0;
+        const bladeH = (16 + f * 90) * b.hFactor;
+        const wind = Math.sin(t * 0.032 + b.phase + b.u * 4) * (2.5 + f * 5) + gust * 20;
+        let targetBend = wind + b.lean * 18;
+
+        if (pointer.active) {
+          const dx = bx - pointer.x;
+          const dy = (by - bladeH * 0.5) - pointer.y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist < 58) targetBend += (dx >= 0 ? 1 : -1) * (1 - dist / 58) * 34;
+        }
+
+        b.bendVel = (b.bendVel + (targetBend - b.bend) * 0.14) * 0.78;
+        b.bend += b.bendVel;
+
+        const tipX = bx + b.bend, tipY = by - bladeH;
+        const ctrlX = bx + b.bend * 0.35, ctrlY = by - bladeH * 0.55;
+        const baseW = 2.4 + (1 - b.layer * 0.25) * 2.0;
+
+        ctx.beginPath();
+        ctx.moveTo(bx - baseW * 0.5, by);
+        ctx.quadraticCurveTo(ctrlX - baseW * 0.2, ctrlY, tipX, tipY);
+        ctx.quadraticCurveTo(ctrlX + baseW * 0.2, ctrlY, bx + baseW * 0.5, by);
+        ctx.closePath();
+        ctx.fillStyle = f < 0.25 ? p.dry : (b.layer === 0 ? p.blade1 : p.blade2);
+        ctx.globalAlpha = b.layer === 2 ? 0.72 : 0.95;
+        ctx.fill();
+      }
+      ctx.globalAlpha = 1;
+      requestAnimationFrame(drawLoop);
+    }
+
+    function updatePointer(e) {
+      const rect = canvas.getBoundingClientRect();
+      const pt = e.touches ? e.touches[0] : e;
+      pointer.x = pt.clientX - rect.left;
+      pointer.y = pt.clientY - rect.top;
+      pointer.active = true;
+    }
+
+    canvas.addEventListener('mousemove', updatePointer);
+    canvas.addEventListener('touchmove', (e) => { e.preventDefault(); updatePointer(e); }, { passive: false });
+    canvas.addEventListener('mousedown', updatePointer);
+    canvas.addEventListener('mouseleave', () => { pointer.active = false; });
+    canvas.addEventListener('touchend', () => { pointer.active = false; });
+
+    function syncLife() {
+      document.getElementById('lifeReadout').textContent = life;
+      document.getElementById('hNum').textContent = life;
+      document.getElementById('hFill').style.width = `${life}%`;
+      applyTheme();
+    }
+
+    document.getElementById('lifeSlider').addEventListener('input', (e) => {
+      life = Number(e.target.value);
+      syncLife();
+    });
+
+    document.getElementById('btnMode').addEventListener('click', () => {
+      dark = !dark;
+      applyTheme();
+    });
+
+    let caughtAnimId = null;
+    function hexToRgb(hex) {
+      const n = parseInt(hex.slice(1), 16);
+      return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+    }
+    function lerpColor(c1, c2, u) {
+      const r = Math.round(c1[0] + (c2[0] - c1[0]) * u);
+      const g = Math.round(c1[1] + (c2[1] - c1[1]) * u);
+      const b = Math.round(c1[2] + (c2[2] - c1[2]) * u);
+      return `rgb(${r}, ${g}, ${b})`;
+    }
+
+    document.getElementById('replayCaught').addEventListener('click', () => {
+      if (caughtAnimId) cancelAnimationFrame(caughtAnimId);
+      const p = dark ? themes.dark : themes.light;
+      const greenRgb = hexToRgb(p.primary);
+      const redRgb = hexToRgb(dark ? '#E05A52' : '#C93B3B');
+
+      const before = Math.max(10, life);
+      const after = Math.max(0, before - 10);
+      const fill = document.getElementById('caughtFill');
+      const num = document.getElementById('caughtNum');
+      const blade = document.getElementById('flyingBlade');
+      blade.classList.remove('drift-blade');
+      void blade.offsetWidth;
+      blade.classList.add('drift-blade');
+      fill.style.transition = 'none';
+      fill.style.width = `${before}%`;
+      fill.style.backgroundColor = p.primary;
+      num.textContent = before;
+      gust = 1.0;
+
+      const start = performance.now();
+      const totalMs = 1150;
+      function step(now) {
+        const u = Math.min(1, (now - start) / totalMs);
+        // Width eases smoothly from before -> after over first 65%
+        const wU = Math.min(1, u / 0.65);
+        const wEase = 1 - Math.pow(1 - wU, 3);
+        fill.style.width = `${before + (after - before) * wEase}%`;
+        num.textContent = Math.round(before + (after - before) * wEase);
+
+        // Seamless color curve: green (0) -> red peak (0.28) -> smooth return to green (1.0)
+        const redMix = u < 0.28
+          ? Math.sin((u / 0.28) * (Math.PI / 2))
+          : 0.5 * (1 + Math.cos(((u - 0.28) / 0.72) * Math.PI));
+        fill.style.backgroundColor = lerpColor(greenRgb, redRgb, Math.max(0, Math.min(1, redMix)));
+
+        if (u < 1) caughtAnimId = requestAnimationFrame(step);
+      }
+      caughtAnimId = requestAnimationFrame(step);
+    });
+
+    applyTheme();
+    syncLife();
+    drawLoop();
+  </script>
+</body>
+</html>

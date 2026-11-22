@@ -8,10 +8,12 @@ enum class AppProfile { Outlook, Instagram, Discord }
 /** The user's choice for one app on the Notification rules page. Apps not in [GameConfig.appRules] are LetUsDecide. */
 enum class AppRule { AlwaysBait, AlwaysImportant, LetUsDecide }
 
-/** How readily "Let us decide" marks an unclear notification as bait. Saved, not used yet. */
+/** How readily "Let us decide" marks an unclear notification as bait (AI judge thresholds, see ai/ClefQuestion). */
 enum class Strictness { Relaxed, Balanced, Strict }
 enum class Difficulty(val probability: Double) { Easy(0.20), Medium(0.40), Hard(0.70) }
-data class PendingCatch(val id: String, val packageName: String?)
+data class PendingCatch(val id: String, val packageName: String?, val continueExtraDamage: Int = 0) {
+    init { require(continueExtraDamage in 0..100) }
+}
 
 data class GameConfig(
     val difficulty: Difficulty = Difficulty.Easy,
@@ -41,7 +43,13 @@ data class GameConfig(
     val essentialCriteria: String = "",
     val nonEssentialCriteria: String = "",
     val strictness: Strictness = Strictness.Balanced,
+    val recoveryIntervalMinutes: Int = 60,
+    val debugRecoveryIntervalMinutes: Int? = null,
 ) {
+    /** Existing field name is kept for save/API compatibility; it is the amount per interval. */
+    val recoveryAmount: Int get() = recoveryPerHour
+    fun effectiveRecoveryIntervalMinutes(debugBuild: Boolean): Int =
+        if (debugBuild) debugRecoveryIntervalMinutes ?: recoveryIntervalMinutes else recoveryIntervalMinutes
     fun ruleFor(packageName: String): AppRule = appRules[packageName] ?: AppRule.LetUsDecide
 
     val catchProbability: Double get() = debugCatchProbability ?: difficulty.probability
@@ -51,6 +59,8 @@ data class GameConfig(
         require(catchProbability.isFinite() && catchProbability in 0.0..1.0)
         require(listOf(mildDamage, mediumDamage, savageDamage).all { it in 1..100 })
         require(recoveryPerHour in 0..100)
+        require(recoveryIntervalMinutes in 1..1440)
+        require(debugRecoveryIntervalMinutes == null || debugRecoveryIntervalMinutes in setOf(1, 5, 15))
         require(lockoutSeconds in 1..3600)
         require(freshnessSeconds in 0..MAX_FRESHNESS_SECONDS)
         require(essentialCriteria.length <= MAX_CRITERIA_LENGTH && nonEssentialCriteria.length <= MAX_CRITERIA_LENGTH)

@@ -10,9 +10,12 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -48,7 +51,7 @@ fun StatsScreen(contentPadding: PaddingValues) {
             error = null
         } catch (failure: Exception) { error = failure.localizedMessage ?: "Couldn't load your history" }
     }
-    TabScreen(contentPadding, "Your attention,\nin perspective.", eyebrow = "Understand the pattern") {
+    TabScreen(contentPadding, "Stats") {
         item {
             Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 SegmentedChoice(listOf("Last 7 days", "Last 30 days"), if (month) 1 else 0, { month = it == 1 })
@@ -66,9 +69,10 @@ fun StatsScreen(contentPadding: PaddingValues) {
             item { Text(periodLabel(current, month), style = MaterialTheme.typography.titleSmall) }
             item {
                 Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    MetricCard("Opened vs. swiped away", StatsText.ratioHeadline(current.taps, current.dismissals),
-                        StatsText.openedPerSwiped(current.taps, current.dismissals) ?: "No notifications swiped away yet",
-                        Modifier.weight(1f))
+                    MetricCard("Opened vs. swiped", StatsText.ratioHeadline(current.taps, current.dismissals),
+                        "${current.taps} opened · ${current.dismissals} swiped", Modifier.weight(1f)) {
+                        OpenedSplitBar(current.taps, current.dismissals)
+                    }
                     MetricCard("Catches", current.caught.toString(),
                         if (current.taps == 0) "No notifications opened" else
                             "in ${current.taps} opened" + (current.caughtPerTapPercent?.let { " (${it.roundToInt()}%)" } ?: ""),
@@ -81,7 +85,7 @@ fun StatsScreen(contentPadding: PaddingValues) {
                         "Keep monitoring on and check back.") {}
                 }
                 StatsText.Emptiness.NoCatches -> item {
-                    SectionCard("No catches this period", "You opened ${current.taps} distracting notification${if (current.taps == 1) "" else "s"} " +
+                    SectionCard("No catches this period", "You opened ${current.taps} ${if (includeImportant) "" else "distracting "}notification${if (current.taps == 1) "" else "s"} " +
                         "and none caught you.") {
                         StatusChip("0 caught · ${current.taps} opened")
                     }
@@ -108,7 +112,7 @@ fun StatsScreen(contentPadding: PaddingValues) {
                 }
             }
             item {
-                SectionCard("Catches per day") {
+                SectionCard("Daily catches") {
                     DailyChart(current.dailyCatches, current.caught == 0 && current.taps == 0, month)
                     Text("Average ${"%.2f".format(current.averageCatchesPerDay)} a day, counting days with none.",
                         style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -135,22 +139,39 @@ private fun StatusChip(text: String) {
 }
 
 @Composable
-private fun MetricCard(label: String, value: String, context: String, modifier: Modifier) {
-    Surface(modifier.fillMaxHeight().heightIn(min = 148.dp), shape = RoundedCornerShape(22.dp),
+private fun MetricCard(label: String, value: String, context: String, modifier: Modifier,
+    chart: @Composable () -> Unit = {},
+) {
+    Surface(modifier.fillMaxHeight().heightIn(min = 148.dp), shape = RoundedCornerShape(20.dp),
         color = MaterialTheme.colorScheme.surfaceContainerLowest,
         contentColor = MaterialTheme.colorScheme.onSurface,
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(label, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Text(value, style = MaterialTheme.typography.headlineMedium)
+            chart()
             Text(context, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurface)
         }
     }
 }
 
+@Composable
+internal fun OpenedSplitBar(opened: Int, swiped: Int) {
+    val total = opened.toLong() + swiped
+    val fraction = if (total > 0) opened.toFloat() / total else 0f
+    val description = if (total == 0L) "No opens or swipes recorded"
+        else "$opened opened, $swiped swiped. ${(fraction * 100).roundToInt()} percent opened."
+    Row(Modifier.fillMaxWidth().height(8.dp).semantics { contentDescription = description }
+        .then(Modifier.background(MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(4.dp)))
+        .then(Modifier.clip(RoundedCornerShape(4.dp)))) {
+        if (opened > 0) Box(Modifier.weight(opened.toFloat()).fillMaxHeight().background(MaterialTheme.colorScheme.primary))
+        if (swiped > 0) Box(Modifier.weight(swiped.toFloat()).fillMaxHeight().background(MaterialTheme.colorScheme.tertiary))
+    }
+}
+
 /** Bars with counts. Tap a bar (or use the arrows) to see that day's catches and notifications opened. */
 @Composable
-private fun DailyChart(days: List<DailyCatches>, noActivity: Boolean, month: Boolean) {
+internal fun DailyChart(days: List<DailyCatches>, noActivity: Boolean, month: Boolean) {
     if (days.isEmpty()) return
     var selected by rememberSaveable(month, days.size) { mutableIntStateOf(days.lastIndex) }
     val index = selected.coerceIn(0, days.lastIndex)
@@ -159,9 +180,13 @@ private fun DailyChart(days: List<DailyCatches>, noActivity: Boolean, month: Boo
     val color = MaterialTheme.colorScheme.primary
     val faded = MaterialTheme.colorScheme.primary.copy(alpha = .45f)
     val summary = days.joinToString { "${LocalDate.parse(it.date).format(dayFormat)}: ${it.count} catches" }
-    Row(Modifier.fillMaxWidth().height(140.dp).semantics { contentDescription = summary }
-        .pointerInput(days.size) {
-            detectTapGestures { offset -> selected = (offset.x / size.width * days.size).toInt().coerceIn(0, days.lastIndex) }
+    Row(Modifier.fillMaxWidth().height(140.dp).then(Modifier.testTag("daily-chart")).semantics { contentDescription = summary }
+        .pointerInput(days.size, weekly) {
+            detectTapGestures { offset ->
+                val gap = (if (weekly) 6.dp else 2.dp).toPx()
+                val cell = (size.width - gap * (days.size - 1)) / days.size
+                selected = ((offset.x + gap / 2) / (cell + gap)).toInt().coerceIn(0, days.lastIndex)
+            }
         }, horizontalArrangement = Arrangement.spacedBy(if (weekly) 6.dp else 2.dp)) {
         days.forEachIndexed { i, day ->
             Column(Modifier.weight(1f).fillMaxHeight(), verticalArrangement = Arrangement.Bottom, horizontalAlignment = Alignment.CenterHorizontally) {
@@ -178,9 +203,10 @@ private fun DailyChart(days: List<DailyCatches>, noActivity: Boolean, month: Boo
     val day = days[index]
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         TextButton(enabled = index > 0, onClick = { selected = index - 1 }) { Text("‹ Earlier") }
-        Text(if (noActivity) "No activity recorded in this period."
-            else "${LocalDate.parse(day.date).format(dayFormat)} · ${day.count} catch${if (day.count == 1) "" else "es"} out of ${day.taps} opened",
-            Modifier.weight(1f), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurface,
+        Text("${LocalDate.parse(day.date).format(dayFormat)} · ${day.count} catch${if (day.count == 1) "" else "es"}" +
+            if (noActivity) " · no activity" else "",
+            Modifier.weight(1f).semantics { liveRegion = androidx.compose.ui.semantics.LiveRegionMode.Polite },
+            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurface,
             textAlign = androidx.compose.ui.text.style.TextAlign.Center)
         TextButton(enabled = index < days.lastIndex, onClick = { selected = index + 1 }) { Text("Later ›") }
     }

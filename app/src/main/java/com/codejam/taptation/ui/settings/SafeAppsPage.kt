@@ -63,7 +63,7 @@ fun SafeAppsPage(contentPadding: PaddingValues, repository: GameRepository, conf
         }
     }
 
-    TabScreen(contentPadding, "Always-safe apps.", eyebrow = "Your rules, your pace", itemSpacing = 4.dp) {
+    TabScreen(contentPadding, "Always-safe apps.", itemSpacing = 4.dp) {
         item { BackLink("Settings", onBack) }
         item {
             Text("You won't be caught when opening notifications from these apps.",

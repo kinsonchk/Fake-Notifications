@@ -9,6 +9,7 @@ import android.service.notification.StatusBarNotification
 import android.util.Log
 import com.codejam.taptation.logic.TapDispatcher
 import com.codejam.taptation.logic.NotificationContext
+import com.codejam.taptation.logic.GameConfig
 import com.codejam.taptation.TaptationApplication
 import android.app.ActivityOptions
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -24,15 +25,16 @@ import kotlinx.coroutines.flow.asStateFlow
  * Callbacks arrive on the main thread. Keep them to filter + log + dispatch.
  */
 class TapListenerService : NotificationListenerService() {
-    // Text stays in memory only; bound the cache even if removal callbacks are missed.
-    private val contexts = object : LinkedHashMap<String, NotificationContext>() {
+    // Text stays in memory only; bound the cache even if removal callbacks are missed. Access order
+    // (true): an updated key moves to the end, so long-lived notifications aren't evicted first.
+    private val contexts = object : LinkedHashMap<String, NotificationContext>(16, 0.75f, true) {
         override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, NotificationContext>?): Boolean =
             size > 500
     }
 
     // When each key was first posted. Updates re-post the same key with a new postTime, so this keeps
-    // the original time. Same bound as contexts.
-    private val firstSeen = object : LinkedHashMap<String, Long>() {
+    // the original time (putIfAbsent still refreshes its access order). Same bound as contexts.
+    private val firstSeen = object : LinkedHashMap<String, Long>(16, 0.75f, true) {
         override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, Long>?): Boolean = size > 500
     }
 
@@ -44,10 +46,28 @@ class TapListenerService : NotificationListenerService() {
         super.onListenerConnected()
         Log.d(TAG, "onListenerConnected")
         _connected.value = true
+        judgeActiveNotifications()
+    }
+
+    /**
+     * After a (re)connect, notifications already in the shade got no posted callback. Hand them to
+     * the judge now so "Let us decide" has a verdict for them too. If the game is still loading, the
+     * judge waits for the first config (TaptationApplication forwards it).
+     */
+    private fun judgeActiveNotifications() {
+        if (skipWhileDisabled()) return
+        val active = try { activeNotifications.orEmpty() } catch (e: RuntimeException) {
+            Log.w(TAG, "activeNotifications failed", e); return
+        }
+        val ranking = currentRanking
+        val countable = active.filter(::isCountable)
+        countable.forEach { sbn -> judges().onPosted(contextFor(sbn, ranking), currentConfig()) }
+        Log.d(TAG, "judging ${countable.size} active notifications after connect")
     }
 
     override fun onListenerDisconnected() {
         super.onListenerDisconnected()
+        judges().clear()
         contexts.clear()
         firstSeen.clear()
         simulations.clear()
@@ -69,6 +89,7 @@ class TapListenerService : NotificationListenerService() {
     }
 
     override fun onDestroy() {
+        judges().clear()
         contexts.clear()
         firstSeen.clear()
         simulations.clear()
@@ -86,6 +107,9 @@ class TapListenerService : NotificationListenerService() {
         val context = contextFor(sbn, rankingMap)
         contexts[sbn.key] = context
         TapDispatcher.handler.onNotificationPosted(context)
+        // "Let us decide": ask the AI judge now (off this thread) so the verdict is ready at tap time.
+        // Only notifications that could ever count as a tap: no ongoing/summary/own alerts.
+        if (isCountable(sbn)) judges().onPosted(context, currentConfig())
         if (isDebugBuild()) {
             _observations.value = (listOf(context) + _observations.value.filter { it.key != context.key }).take(10)
         }
@@ -120,8 +144,9 @@ class TapListenerService : NotificationListenerService() {
         if (skipWhileDisabled()) return
         val now = System.currentTimeMillis()
         val firstSeenAt = firstSeen.remove(sbn.key) ?: sbn.postTime
-        val context = withRanking(contexts.remove(sbn.key) ?: contextFor(sbn, rankingMap), rankingMap)
-            .copy(ageMillis = now - sbn.postTime, firstSeenAgeMillis = now - minOf(firstSeenAt, sbn.postTime))
+        val removed = withRanking(contexts.remove(sbn.key) ?: contextFor(sbn, rankingMap), rankingMap)
+        val context = removed.copy(ageMillis = now - sbn.postTime, firstSeenAgeMillis = now - minOf(firstSeenAt, sbn.postTime),
+            judged = judges().classificationFor(removed))
         simulations.remove(sbn.key)
         // Simulated package for our debug notifications, the real one otherwise.
         val pkg = context.packageName
@@ -153,6 +178,7 @@ class TapListenerService : NotificationListenerService() {
             // A bug in the handler must not take down the listener.
             Log.e(TAG, "TapHandler threw for $pkg ($kind)", e)
         } finally {
+            judges().onRemoved(sbn.key)
             TapDispatcher.handler.onNotificationRemoved(sbn.key)
         }
     }
@@ -182,10 +208,15 @@ class TapListenerService : NotificationListenerService() {
         ), rankingMap)
     }
 
+    /**
+     * True (and caches cleared) only when a loaded config says the app is disabled. While the game is
+     * still loading the config is null: keep going, GameRepository queues taps behind its load.
+     */
     private fun skipWhileDisabled(): Boolean {
-        val config = (application as TaptationApplication).game.state.value?.config
-        if (config?.isActive(System.currentTimeMillis()) == true) return false
+        val config = currentConfig()
+        if (config == null || config.isActive(System.currentTimeMillis())) return false
         contexts.clear(); firstSeen.clear(); simulations.clear(); _observations.value = emptyList()
+        judges().clear()
         TapDispatcher.handler.onListenerReset()
         return true
     }
@@ -208,6 +239,18 @@ class TapListenerService : NotificationListenerService() {
         val extras = sbn.notification?.extras ?: return null
         return DebugSimulation.from(extras::getString)
     }
+
+    private fun judges() = (application as TaptationApplication).judges
+
+    private fun currentConfig(): GameConfig? = (application as TaptationApplication).game.state.value?.config
+
+    private fun isCountable(sbn: StatusBarNotification): Boolean = TapDetection.isCountable(
+        flags = sbn.notification?.flags ?: 0,
+        channelId = sbn.notification?.channelId,
+        packageName = sbn.packageName,
+        ownPackageName = packageName,
+        includeOwnPackage = isDebugBuild(),
+    )
 
     private fun isDebugBuild(): Boolean =
         applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0

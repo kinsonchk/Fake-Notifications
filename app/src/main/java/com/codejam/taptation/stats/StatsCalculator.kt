@@ -1,4 +1,4 @@
-﻿package com.codejam.taptation.stats
+package com.codejam.taptation.stats
 
 import com.codejam.taptation.logic.Classification
 import kotlin.math.roundToInt
@@ -33,9 +33,6 @@ object StatsCalculator {
         val caughtByDay = taps.filter { it.caught }.groupingBy {
             Instant.ofEpochMilli(it.timestampMillis).atZone(zone).toLocalDate()
         }.eachCount()
-        val tapsByDay = taps.groupingBy {
-            Instant.ofEpochMilli(it.timestampMillis).atZone(zone).toLocalDate()
-        }.eachCount()
         return StatsSummary(
             fromMillis = fromMillis,
             toMillis = toMillis,
@@ -58,7 +55,7 @@ object StatsCalculator {
                     events.count { it.type == StatsEventType.TAP },
                     events.count { it.type == StatsEventType.DISMISS }, events.count { it.caught }) },
             dailyCatches = List(days.toInt()) { index -> firstDay.plusDays(index.toLong()).let {
-                DailyCatches(it.toString(), caughtByDay[it] ?: 0, tapsByDay[it] ?: 0)
+                DailyCatches(it.toString(), caughtByDay[it] ?: 0)
             } },
         )
     }

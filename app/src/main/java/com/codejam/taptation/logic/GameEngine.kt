@@ -16,7 +16,7 @@ class GameEngine(
     fun getHealth(): Int = refresh().health
 
     fun classify(context: NotificationContext): Classification =
-        NotificationClassifier.assess(context, state.config).classification
+        NotificationClassifier.assessTap(context, state.config).classification
 
     fun onTap(context: NotificationContext): TapResult {
         require(context.packageName.isNotBlank())
@@ -26,9 +26,7 @@ class GameEngine(
             commit(next)
             return TapResult(TapOutcome.NoPenalty, state, "disabled")
         }
-        val assessment = if (next.config.isStale(context))
-            Assessment(Classification.Unknown, "stale")
-        else NotificationClassifier.assess(context, next.config)
+        val assessment = NotificationClassifier.assessTap(context, next.config)
         val classification = assessment.classification
         val before = next.health
         val outcome: TapOutcome
@@ -43,7 +41,6 @@ class GameEngine(
                 reason = assessment.reason
             }
             else -> {
-                next = next.copy(recoveryAnchorMillis = now)
                 when {
                     next.isDead -> {
                         outcome = TapOutcome.NoPenalty
@@ -54,8 +51,9 @@ class GameEngine(
                         reason = "lockout"
                     }
                     random() < (if (allowDebugOverrides) next.config.catchProbability else next.config.difficulty.probability) -> {
-                        next = caught(next, next.config.level, now)
-                            .copy(pendingCatch = PendingCatch("$now-${next.totalCatches + 1}", context.packageName))
+                        next = caught(next, next.config.level, now).let {
+                            it.copy(pendingCatch = it.pendingCatch?.copy(packageName = context.packageName))
+                        }
                         outcome = TapOutcome.Caught
                         reason = "caught"
                     }
@@ -94,9 +92,17 @@ class GameEngine(
         val now = now()
         // Settle recovery under the old rate; don't apply a new rate to old partial hours.
         val next = recovered(state, now)
+        val rateChanged = config.recoveryAmount != state.config.recoveryAmount ||
+            config.effectiveRecoveryIntervalMinutes(allowDebugOverrides) !=
+            state.config.effectiveRecoveryIntervalMinutes(allowDebugOverrides)
         return commit(next.copy(config = config,
-            recoveryAnchorMillis = if (config.recoveryPerHour != state.config.recoveryPerHour)
-                now else next.recoveryAnchorMillis))
+            recoveryAnchorMillis = if (rateChanged) now else next.recoveryAnchorMillis))
+    }
+
+    fun setDebugRecoveryInterval(minutes: Int?): GameState {
+        check(allowDebugOverrides) { "Debug recovery overrides are disabled" }
+        require(minutes == null || minutes in setOf(1, 5, 15))
+        return updateConfig(state.config.copy(debugRecoveryIntervalMinutes = minutes))
     }
 
     fun setActive(active: Boolean, disabledUntilMillis: Long? = null): GameState {
@@ -105,6 +111,18 @@ class GameEngine(
         return commit(next.copy(config = next.config.copy(active = active,
             disabledUntilMillis = if (active) null else disabledUntilMillis),
             recoveryAnchorMillis = now, pendingCatch = if (active) next.pendingCatch else null))
+    }
+
+    /** Settles a displayed catch once; continuing adds its saved extra penalty. */
+    fun settleCatchChoice(id: String, continueOriginalApp: Boolean): GameState {
+        val pending = state.pendingCatch?.takeIf { it.id == id } ?: return state
+        val now = now()
+        var next = recovered(state, now)
+        val extra = if (continueOriginalApp) pending.continueExtraDamage else 0
+        if (extra > 0 && next.health > 0) {
+            next = withHealth(next, (next.health - extra).coerceAtLeast(0), now, "continue_after_catch")
+        }
+        return commit(next.copy(pendingCatch = null))
     }
 
     fun dismissCatch(id: String): GameState =
@@ -152,7 +170,8 @@ class GameEngine(
             lastCatchMillis = now,
             lockoutUntilMillis = now + source.config.lockoutSeconds * 1000L,
             recoveryAnchorMillis = now,
-            pendingCatch = PendingCatch("$now-${source.totalCatches + 1}", null),
+            // Same choice and extra penalty for tap catches and forced (debug) catches.
+            pendingCatch = PendingCatch("$now-${source.totalCatches + 1}", null, CONTINUE_EXTRA_DAMAGE),
         )
 
     private fun recovered(source: GameState, now: Long): GameState {
@@ -162,15 +181,16 @@ class GameEngine(
             return recovered(source.copy(config = source.config.copy(active = true, disabledUntilMillis = null),
                 recoveryAnchorMillis = maxOf(source.recoveryAnchorMillis, until)), now)
         }
-        val hours = (now - source.recoveryAnchorMillis).coerceAtLeast(0) / HOUR_MILLIS
+        val intervalMillis = source.config.effectiveRecoveryIntervalMinutes(allowDebugOverrides) * MINUTE_MILLIS
+        val intervals = (now - source.recoveryAnchorMillis).coerceAtLeast(0) / intervalMillis
         var next = source.copy(lastObservedMillis = now)
-        if (hours > 0) {
+        if (intervals > 0) {
             if (!source.isDead) {
-                val health = (source.health.toLong() + hours * source.config.recoveryPerHour)
+                val health = (source.health.toLong() + intervals * source.config.recoveryAmount)
                     .coerceAtMost(100).toInt()
                 if (health != source.health) next = withHealth(next, health, now, "recovery")
             }
-            next = next.copy(recoveryAnchorMillis = source.recoveryAnchorMillis + hours * HOUR_MILLIS)
+            next = next.copy(recoveryAnchorMillis = source.recoveryAnchorMillis + intervals * intervalMillis)
         }
         return next
     }
@@ -194,7 +214,9 @@ class GameEngine(
     }
 
     companion object {
+        const val CONTINUE_EXTRA_DAMAGE = 5
         const val HISTORY_LIMIT = 1000
         const val HOUR_MILLIS = 3_600_000L
+        const val MINUTE_MILLIS = 60_000L
     }
 }

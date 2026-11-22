@@ -6,8 +6,9 @@ settings and lockout instructions in the older briefs.
 ## User-facing behavior
 
 - Settings offers **Easy 20%, Medium 40%, Hard 70%**. No probability slider is shown there.
-  Difficulty changes catch probability only. Existing health/damage rules remain unchanged;
-  a graphic driven by time since catch, taps or dismissals has not been selected.
+  Difficulty changes catch probability only. Catch damage is unchanged. Health regenerates at
+  +5 per 60 clean minutes; only a successful Bait catch resets the timer. A missed Bait roll
+  preserves partial progress. The debug panel can use 1/5/15-minute intervals; release uses 60.
 - A caught notification creates one persistent pending choice: **Go to Taptation** or
   **Go to original app**. The choice acknowledges an already-applied catch and never applies
   damage again. The internal 30-second catch cooldown prevents repeated penalties; it is not
@@ -61,8 +62,8 @@ illustration. Dark mode uses the same green palette. Android wallpaper colors no
 the design. Home, Stats, Settings and both caught presentations use this styling; settings
 sections open at the top and support Android Back. Debug controls remain accessible in debug builds.
 
-The Home tree is decorative while the team chooses its final metric. Health and actual activity
-remain available below it. Stats continue to display real SQLite history and honest empty states.
+Home now shows a seamless grass meadow whose height and density represent health. Brushing bends
+the grass without changing game state. Health and actual activity remain below it. Stats continue to display real SQLite history and honest empty states.
 `MockupScreensTest` exercises navigation and exports light/dark device screenshots into the test
 app's external-files `ui-previews` directory (collect before the test APK is uninstalled).
 
@@ -74,10 +75,10 @@ The debug tab adds a 0–100% probability override, a clear-override action, and
 scenario. Release GameEngine ignores debug probability overrides, even if one remains in
 local storage after installing a different build. Selecting difficulty clears the override.
 
-Game snapshot format v5 reads v1–v4, preserves health/history/rules/freshness, and maps old arbitrary
-probabilities to the closest fixed difficulty. New activation, freshness, debug override and
-pending-choice fields are saved atomically with game state. Main's v4 first-seen freshness
-layout is kept intact as the prefix, with new fields appended in v5. Notification actions/title/text
+Game snapshot format v7 reads v1–v6, preserves health/history/rules/freshness, and maps old arbitrary
+probabilities to the closest fixed difficulty. New activation, freshness, debug overrides,
+pending-choice fields and recovery intervals are saved atomically with game state. Existing
+v6 fields remain in their original order; v7 appends recovery interval and debug override fields. Notification actions/title/text
 remain transient. SQLite v2 adds the category column with ALTER TABLE and preserves old rows.
 
 ## Verification
@@ -97,3 +98,22 @@ destinations, inactive behavior, stale-tap skip, and stats. Real-app notificatio
 OEM/background behavior still require the existing phone checklist.
 
 User-authorized cross-area work includes logic, service feedback, UI, debug support and tests.
+
+## Meadow and notification-rule layout revision
+
+The frontend uses functional Home / Health / Caught / Stats headings without eyebrow labels.
+App rules follow the supplied notification-settings HTML layout: real launchable apps with a
+three-choice selector on each row, followed by essential/non-essential fields and strictness.
+Narrow layouts stack each selector below its app name; names and icons replace package IDs.
+Changes use the existing GameRepository API and save automatically. Existing AI behavior is retained;
+the attached feature brief's older judge fallback does not replace the backend.
+
+The Home meadow uses stable blade positions, gentle sway and non-consuming brush gestures.
+Height and density transition with health; animation pauses offscreen/in background and respects
+Android's animation setting. Caught health uses a shared 1.15-second green/red/green event flash,
+settling at recorded reduced health. Both Compose and native overlays retain the continuing penalty,
+correction action and Not now. Deferred choices remain available without blocking navigation.
+Statistics add a two-color opened/swiped split and inspectable daily counts, including zero days.
+
+No engine, classifier, AI judge, persistence or statistics-calculation changes are part of this
+frontend revision. Older branch controls for retired channel/keyword rules are no longer exposed.

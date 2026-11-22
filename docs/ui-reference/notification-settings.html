@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Notification rules</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@500;700&family=Figtree:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#eef3e6; --card:#f9fbf5; --ink:#1b2a17; --muted:#586a51; --line:#cddcc0;
+  --bait:#a4552b; --important:#2f7d32; --decide:#7d8878; --accent:#3d8b37;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){
+  :root{
+    --bg:#121a10; --card:#1a2417; --ink:#e6efdf; --muted:#9db094; --line:#2b3b27;
+    --bait:#d98a5c; --important:#6fc275; --decide:#8f9c8a; --accent:#6fc275;
+    color-scheme:dark;
+  }
+}
+*{box-sizing:border-box}
+html{height:100%}
+body{
+  margin:0; background:var(--bg); color:var(--ink);
+  font:400 16px/1.5 Figtree,system-ui,sans-serif;
+  padding:24px 16px 64px;
+}
+main{max-width:640px; margin:0 auto}
+h1,h2{font-family:"Bricolage Grotesque",Figtree,system-ui,sans-serif; line-height:1.15; margin:0}
+h1{font-size:2rem; font-weight:700}
+h2{font-size:1.25rem; font-weight:700; margin-bottom:4px}
+.lede{color:var(--muted); margin:8px 0 28px; max-width:56ch}
+section{margin-top:36px}
+.hint{color:var(--muted); font-size:.9rem; margin:0 0 14px; max-width:60ch}
+
+/* App rows: the left edge color encodes the current choice */
+.apps{list-style:none; margin:0; padding:0; display:grid; gap:8px}
+.app{
+  display:flex; align-items:center; justify-content:space-between; gap:12px;
+  background:var(--card); border:1px solid var(--line); border-left:6px solid var(--decide);
+  border-radius:10px; padding:10px 12px 10px 14px;
+}
+.app[data-choice="bait"]{border-left-color:var(--bait)}
+.app[data-choice="important"]{border-left-color:var(--important)}
+.app[data-choice="decide"]{border-left-color:var(--decide)}
+.app-name{font-weight:500}
+select{
+  font:inherit; color:var(--ink); background:var(--bg);
+  border:1px solid var(--line); border-radius:8px; padding:8px 10px; min-width:11.5rem;
+}
+select:focus-visible,textarea:focus-visible,input[type=range]:focus-visible{
+  outline:3px solid var(--accent); outline-offset:2px;
+}
+
+/* Text fields */
+label.field{display:block; margin-top:18px; font-weight:500}
+textarea{
+  display:block; width:100%; margin-top:6px; min-height:96px; resize:vertical;
+  font:inherit; color:var(--ink); background:var(--card);
+  border:1px solid var(--line); border-radius:10px; padding:10px 12px;
+}
+
+/* Strictness slider */
+.slider-wrap{background:var(--card); border:1px solid var(--line); border-radius:10px; padding:16px}
+input[type=range]{width:100%; accent-color:var(--accent); margin:6px 0}
+.ticks{display:flex; justify-content:space-between; font-size:.9rem; color:var(--muted)}
+.ticks span.on{color:var(--ink); font-weight:500}
+.slider-desc{margin:12px 0 0; min-height:3em}
+
+details{margin-top:36px}
+summary{cursor:pointer; color:var(--muted)}
+pre{
+  background:var(--card); border:1px solid var(--line); border-radius:10px;
+  padding:12px; overflow-x:auto; font-size:.8rem; margin-top:10px;
+}
+.saved{color:var(--muted); font-size:.85rem; margin-top:20px; min-height:1.2em}
+
+@media (max-width:480px){
+  .app{flex-direction:column; align-items:stretch}
+  select{min-width:0; width:100%}
+}
+@media (prefers-reduced-motion:no-preference){
+  .app{transition:border-color .15s}
+}
+</style>
+</head>
+<body>
+<main>
+  <h1>Notification rules</h1>
+  <p class="lede">Tell the app which notifications are bait and which ones always get through. Anything you leave on “Let us decide” is judged by your answers below.</p>
+
+  <section aria-labelledby="apps-h">
+    <h2 id="apps-h">Your apps</h2>
+    <p class="hint">“Always important” notifications are never penalized. “Always bait” notifications can get you caught if you tap them quickly.</p>
+    <ul class="apps" id="apps"></ul>
+  </section>
+
+  <section aria-labelledby="ai-h">
+    <h2 id="ai-h">How should we judge the rest?</h2>
+    <p class="hint">These answers guide the AI for apps set to “Let us decide.”</p>
+
+    <label class="field" for="essential">What makes a message essential for you?</label>
+    <textarea id="essential" placeholder="Example: messages from my family, anything about my shifts, delivery codes, and meeting changes."></textarea>
+
+    <label class="field" for="nonessential">What makes a message non-essential for you?</label>
+    <textarea id="nonessential" placeholder="Example: likes, follows, game rewards, sales, and group chats I’m not mentioned in."></textarea>
+  </section>
+
+  <section aria-labelledby="strict-h">
+    <h2 id="strict-h">How strict should the AI be?</h2>
+    <p class="hint">This sets how readily a message is marked as bait when it isn’t clear.</p>
+    <div class="slider-wrap">
+      <input type="range" id="strictness" min="0" max="2" step="1" value="1" aria-describedby="strict-desc">
+      <div class="ticks" aria-hidden="true">
+        <span data-i="0">Relaxed</span><span data-i="1">Balanced</span><span data-i="2">Strict</span>
+      </div>
+      <p class="slider-desc" id="strict-desc"></p>
+    </div>
+  </section>
+
+  <p class="saved" id="saved" role="status"></p>
+
+  <details>
+    <summary>Current settings (JSON)</summary>
+    <pre id="json"></pre>
+  </details>
+</main>
+
+<script>
+// Placeholder apps. The real list comes from the installed launchable apps.
+const APPS = [
+  {id:"com.instagram.android", name:"Instagram", choice:"bait"},
+  {id:"com.discord", name:"Discord", choice:"decide"},
+  {id:"com.microsoft.office.outlook", name:"Outlook", choice:"decide"},
+  {id:"com.google.android.gm", name:"Gmail", choice:"decide"},
+  {id:"com.whatsapp", name:"WhatsApp", choice:"decide"},
+  {id:"com.zhiliaoapp.musically", name:"TikTok", choice:"bait"},
+  {id:"com.google.android.apps.messaging", name:"Messages", choice:"important"},
+  {id:"com.google.android.calendar", name:"Calendar", choice:"important"}
+];
+const OPTIONS = [["bait","Always bait"],["important","Always important"],["decide","Let us decide"]];
+const STRICT = [
+  {label:"Relaxed", text:"Relaxed: only clear bait is marked as bait. When unsure, the message is treated as important, so few messages count as bait."},
+  {label:"Balanced", text:"Balanced: obvious bait is marked as bait, obvious important messages get through, and unclear ones are left alone."},
+  {label:"Strict", text:"Strict: anything that isn’t clearly important is marked as bait, so more messages count as bait."}
+];
+const KEY = "notification-rules-v1";
+let state = {apps:{}, essential:"", nonessential:"", strictness:1};
+APPS.forEach(a => state.apps[a.id] = a.choice);
+
+try { const s = JSON.parse(localStorage.getItem(KEY)); if (s) state = {...state, ...s, apps:{...state.apps, ...s.apps}}; } catch(e){}
+
+const list = document.getElementById("apps");
+APPS.forEach(a => {
+  const li = document.createElement("li");
+  li.className = "app"; li.dataset.choice = state.apps[a.id];
+  const name = document.createElement("span"); name.className = "app-name"; name.textContent = a.name;
+  const sel = document.createElement("select"); sel.setAttribute("aria-label", a.name + " notifications");
+  OPTIONS.forEach(([v,t]) => { const o = document.createElement("option"); o.value = v; o.textContent = t; sel.appendChild(o); });
+  sel.value = state.apps[a.id];
+  sel.addEventListener("change", () => { state.apps[a.id] = sel.value; li.dataset.choice = sel.value; save(); });
+  li.append(name, sel); list.appendChild(li);
+});
+
+const ess = document.getElementById("essential"), non = document.getElementById("nonessential");
+const range = document.getElementById("strictness");
+ess.value = state.essential; non.value = state.nonessential; range.value = state.strictness;
+ess.addEventListener("input", () => { state.essential = ess.value; save(); });
+non.addEventListener("input", () => { state.nonessential = non.value; save(); });
+range.addEventListener("input", () => { state.strictness = +range.value; save(); });
+
+function render(){
+  const i = state.strictness;
+  document.getElementById("strict-desc").textContent = STRICT[i].text;
+  document.querySelectorAll(".ticks span").forEach(s => s.classList.toggle("on", +s.dataset.i === i));
+  document.getElementById("json").textContent = JSON.stringify({
+    apps: state.apps,
+    essentialCriteria: state.essential,
+    nonEssentialCriteria: state.nonessential,
+    strictness: STRICT[i].label.toLowerCase()
+  }, null, 2);
+}
+function save(){
+  render();
+  let ok = true;
+  try { localStorage.setItem(KEY, JSON.stringify(state)); } catch(e){ ok = false; }
+  document.getElementById("saved").textContent = ok ? "Changes saved." : "Changes apply for this session only.";
+}
+render();
+</script>
+</body>
+</html>

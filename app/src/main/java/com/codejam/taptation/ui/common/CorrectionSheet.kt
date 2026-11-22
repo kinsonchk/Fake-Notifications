@@ -15,6 +15,8 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import kotlinx.coroutines.launch
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -23,6 +25,8 @@ import androidx.compose.ui.unit.dp
 import com.codejam.taptation.logic.RuleBehavior
 import com.codejam.taptation.logic.RuleTarget
 import com.codejam.taptation.service.CorrectionRequest
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import kotlinx.coroutines.launch
 
 /**
  * "This should be important" after a catch: pick how far the rule reaches (this notification type,
@@ -34,22 +38,27 @@ fun CorrectionSheet(request: CorrectionRequest, onDone: () -> Unit) {
     val repository = rememberGameRepository()
     val labels = rememberAppLabels()
     val app = labels.label(request.packageName)
-    val channel = request.channel
-    var wholeApp by remember { mutableStateOf(channel == null) }
-    ModalBottomSheet(onDismissRequest = onDone) {
+    var saving by remember { mutableStateOf(false) }
+    val error by repository.error.collectAsStateWithLifecycle()
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
+    ModalBottomSheet(onDismissRequest = { if (!saving) onDone() }) {
         Column(Modifier.padding(horizontal = 24.dp).padding(bottom = 16.dp).navigationBarsPadding(),
             verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text("Treat this as important?", style = MaterialTheme.typography.headlineSmall)
-            Text("Pick how far the rule should reach.", color = MaterialTheme.colorScheme.onSurfaceVariant)
-            if (channel != null) RadioOption(!wholeApp, "Only “$channel”", "Other $app notifications still count.") { wholeApp = false }
-            RadioOption(wholeApp, "Everything from $app", "Adds $app to your always-safe apps.") { wholeApp = true }
+            Text("Set notifications from $app to Always important?", color = MaterialTheme.colorScheme.onSurfaceVariant)
             Text("Applies to future notifications. This catch stays in your history.", style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Button(onClick = {
-                repository.applyRule(RuleTarget(request.packageName, if (wholeApp) null else channel), RuleBehavior.AlwaysSafe)
-                onDone()
-            }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp), shape = RoundedCornerShape(16.dp)) { Text("Save rule") }
-            TextButton(onClick = onDone, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("Cancel") }
+            error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+            Button(enabled = !saving, onClick = {
+                saving = true
+                repository.setAppRule(request.packageName, com.codejam.taptation.logic.AppRule.AlwaysImportant).whenComplete { _, failure ->
+                    scope.launch {
+                        saving = false
+                        if (failure == null) onDone()
+                    }
+                }
+            }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp), shape = RoundedCornerShape(16.dp)) { Text(if (saving) "Saving…" else "Save rule") }
+            TextButton(enabled = !saving, onClick = onDone, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("Cancel") }
         }
     }
 }

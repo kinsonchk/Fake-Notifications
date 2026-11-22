@@ -80,48 +80,33 @@ fun LeafBadge(fall: Float, modifier: Modifier = Modifier) {
  * straight away when animations are off, and always states the loss in text.
  */
 @Composable
-fun HealthLossBlock(healthBefore: Int, healthAfter: Int, onFall: (Float) -> Unit = {}) {
-    val animate = remember { animationsEnabled() }
-    val drop = remember { Animatable(if (animate) 0f else 1f) }
-    val rise = remember { Animatable(if (animate) 0f else 1f) }
-    val fall = remember { Animatable(if (animate) 0f else 1f) }
-    LaunchedEffect(Unit) {
-        if (animate) {
-            coroutineScope {
-                launch { drop.animateTo(1f, tween(600, delayMillis = 150, easing = FastOutSlowInEasing)) }
-                launch { rise.animateTo(1f, tween(900, delayMillis = 150, easing = LinearEasing)) }
-                launch { fall.animateTo(1f, tween(550, delayMillis = 120, easing = FastOutSlowInEasing)) }
-            }
-        }
+fun HealthLossBlock(healthBefore: Int, healthAfter: Int, animateDamage: Boolean = true) {
+    val motion = rememberMotionEnabled()
+    val progress = remember(healthBefore, healthAfter) { Animatable(if (animateDamage && motion) 0f else 1f) }
+    LaunchedEffect(motion) {
+        if (animateDamage && motion && progress.value < 1f) progress.animateTo(1f, tween(1150, easing = LinearEasing))
+        else progress.snapTo(1f)
     }
-    LaunchedEffect(fall.value) { onFall(fall.value) }
     val lost = (healthBefore - healthAfter).coerceAtLeast(0)
-    val shown = healthBefore + ((healthAfter - healthBefore) * drop.value).roundToInt()
-    val bar = (healthBefore + (healthAfter - healthBefore) * drop.value) / 100f
-    Column(Modifier.fillMaxWidth().semantics { contentDescription = "Tree health $healthAfter out of 100, down $lost" },
-        verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Box {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Bottom) {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Text("Tree health", style = MaterialTheme.typography.titleSmall)
-                    if (lost > 0) Surface(Modifier.alpha(drop.value), shape = RoundedCornerShape(50),
-                        color = MaterialTheme.colorScheme.tertiaryContainer, contentColor = MaterialTheme.colorScheme.onTertiaryContainer) {
-                        Text("−$lost", Modifier.padding(horizontal = 10.dp, vertical = 3.dp), style = MaterialTheme.typography.labelMedium)
-                    }
-                }
-                Row(verticalAlignment = Alignment.Bottom) {
-                    Text("$shown", style = MaterialTheme.typography.headlineSmall)
-                    Text(" / 100", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(bottom = 4.dp))
-                }
+    val drop = damageDropProgress(progress.value)
+    val shown = healthBefore + ((healthAfter - healthBefore) * drop).roundToInt()
+    val bar = (healthBefore + (healthAfter - healthBefore) * drop) / 100f
+    val color = androidx.compose.ui.graphics.lerp(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.error,
+        damageFlashMix(progress.value))
+    Surface(shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.surface,
+        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) {
+        Column(Modifier.fillMaxWidth().padding(14.dp).semantics {
+            contentDescription = "Health $healthAfter out of 100, down $lost"
+        }, verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                Text("💚 Health", style = MaterialTheme.typography.titleSmall)
+                Text("$shown / 100", style = MaterialTheme.typography.titleMedium)
             }
-            if (lost > 0 && animate && rise.value in 0.01f..0.99f) Text("−$lost", Modifier.align(Alignment.TopEnd)
-                .offset { androidx.compose.ui.unit.IntOffset(0, (-18.dp * rise.value).roundToPx()) }.alpha(1f - rise.value),
-                style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.error)
-        }
-        Box(Modifier.fillMaxWidth().height(12.dp).clip(RoundedCornerShape(6.dp)).background(MaterialTheme.colorScheme.outlineVariant)) {
-            Box(Modifier.fillMaxWidth(bar.coerceIn(0f, 1f)).height(12.dp).clip(RoundedCornerShape(6.dp))
-                .background(if (healthAfter < 30) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary))
+            Box(Modifier.fillMaxWidth().height(8.dp).clip(RoundedCornerShape(6.dp)).background(MaterialTheme.colorScheme.outlineVariant)) {
+                Box(Modifier.fillMaxWidth(bar.coerceIn(0f, 1f)).height(8.dp).background(color))
+            }
+            Text("−$lost health from this catch", style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }

@@ -1,5 +1,8 @@
 package com.codejam.taptation.debug
 
+import com.codejam.taptation.logic.Assessment
+import com.codejam.taptation.logic.AppRule
+import com.codejam.taptation.logic.Classification
 import android.Manifest
 import android.content.Context
 import android.graphics.Bitmap
@@ -40,6 +43,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.codejam.taptation.TaptationApplication
 import com.codejam.taptation.logic.GameConfig
 import com.codejam.taptation.logic.NotificationClassifier
 import com.codejam.taptation.logic.NotificationContext
@@ -79,6 +83,8 @@ fun NotificationsScreen(contentPadding: PaddingValues) {
     val snapshot by repository.state.collectAsStateWithLifecycle()
     val presets by presetStore.presets.collectAsStateWithLifecycle()
     val observations by TapListenerService.observations.collectAsStateWithLifecycle()
+    val judges = remember(context) { (context.applicationContext as TaptationApplication).judges }
+    val verdicts by judges.verdicts.collectAsStateWithLifecycle()
     val config = snapshot?.config ?: GameConfig()
 
     var draft by rememberSaveable(stateSaver = DraftSaver) { mutableStateOf(NotificationPreset()) }
@@ -161,7 +167,7 @@ fun NotificationsScreen(contentPadding: PaddingValues) {
                     onClear = { draft = draft.copy(iconFile = null) },
                 )
                 val current = draft.copy(actions = parseActions(actionsText))
-                val preview = NotificationClassifier.assess(current.toContext(context.packageName), config)
+                val preview = previewOf(current.toContext(context.packageName), config, judges.isConfigured)
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text("Would be:", style = MaterialTheme.typography.bodyMedium)
                     ClassificationBadge(preview.classification)
@@ -173,8 +179,12 @@ fun NotificationsScreen(contentPadding: PaddingValues) {
                 OutlinedButton(
                     onClick = {
                         val tapped = current.toContext(context.packageName).copy(ageMillis = 0)
-                        TapLog.record(tapped.packageName)
-                        TapDispatcher.dispatch(tapped)
+                        // Judge it like a posted notification first (network, off the main thread).
+                        scope.launch {
+                            val judged = withContext(Dispatchers.IO) { judges.judgeNow(tapped, config) }
+                            TapLog.record(tapped.packageName)
+                            TapDispatcher.dispatch(tapped.copy(judged = judged))
+                        }
                     },
                     modifier = Modifier.fillMaxWidth(),
                 ) { Text("Simulate tap (no notification)") }
@@ -231,7 +241,8 @@ fun NotificationsScreen(contentPadding: PaddingValues) {
                 style = MaterialTheme.typography.bodySmall)
         }
         if (observations.isEmpty()) item { Text("Nothing observed since the listener connected.") }
-        items(observations) { ObservedRow(it, config) }
+        // Live AI verdicts for "Let us decide" apps, as the tap would see them.
+        items(observations) { ObservedRow(it.copy(judged = judges.classificationFor(it, verdicts)), config) }
     }
 }
 
@@ -263,7 +274,8 @@ private fun PresetRow(
 ) {
     val context = LocalContext.current
     val icon by rememberIcon(context, preset.iconFile)
-    val preview = NotificationClassifier.assess(preset.toContext(context.packageName), config)
+    val judgeConfigured = remember(context) { (context.applicationContext as TaptationApplication).judges.isConfigured }
+    val preview = previewOf(preset.toContext(context.packageName), config, judgeConfigured)
     Surface(
         color = MaterialTheme.colorScheme.surfaceContainerHigh,
         shape = MaterialTheme.shapes.medium,
@@ -287,6 +299,15 @@ private fun PresetRow(
         }
     }
 }
+
+/**
+ * Classifier preview for a notification that hasn't been posted yet. With an AI judge, a "Let us
+ * decide" app has no verdict before posting, so say so instead of showing the no-key fallback.
+ */
+private fun previewOf(context: NotificationContext, config: GameConfig, judgeConfigured: Boolean): Assessment =
+    if (judgeConfigured && context.judged == null && config.ruleFor(context.packageName) == AppRule.LetUsDecide)
+        Assessment(Classification.Unknown, "ai_pending")
+    else NotificationClassifier.assess(context, config)
 
 @Composable
 private fun ObservedRow(context: NotificationContext, config: GameConfig) {

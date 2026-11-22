@@ -31,9 +31,9 @@ class RedesignUiTest {
             CatchChoiceDialog(CatchDetails("com.insta", 90, 80, 10, "bait_channel", "Suggested for you"), "Instagram",
                 onTaptation = {}, onOriginal = { original++ }, onCorrect = { corrected++ })
         } }
-        compose.onNodeWithText("Caught you.").assertIsDisplayed()
+        compose.onNodeWithText("Caught").assertIsDisplayed()
         compose.onNodeWithText("Instagram · Suggested for you is set as distracting").assertIsDisplayed()
-        compose.onNodeWithContentDescription("Tree health 80 out of 100, down 10").assertIsDisplayed()
+        compose.onNodeWithContentDescription("Health 80 out of 100, down 10").assertIsDisplayed()
         compose.onNodeWithText("This should be important").performClick()
         compose.onNodeWithText("Continue to Instagram").performClick()
         compose.runOnIdle { assertEquals(1, corrected); assertEquals(1, original) }
@@ -42,7 +42,7 @@ class RedesignUiTest {
     @Test fun caughtPopupWithoutDetailsHidesCorrectionAndKeepsTheTwoDestinations() {
         compose.setContent { MaterialTheme { CatchChoiceDialog(null, null, onTaptation = {}, onOriginal = {}) } }
         compose.onNodeWithText("Go to Taptation").assertIsDisplayed()
-        compose.onNodeWithText("Continue to the app").assertIsDisplayed()
+        compose.onNodeWithText("Continue to the original app").assertIsDisplayed()
         assertTrue(compose.onAllNodesWithTextCount("This should be important") == 0)
     }
 

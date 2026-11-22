@@ -41,9 +41,9 @@ class StatsTextTest {
         assertEquals(StatsText.Emptiness.HasCatches, StatsText.emptiness(summary(tap(10, caught = true))))
     }
 
-    @Test fun dailyBarsCarryTheNumberOfNotificationsOpened() {
+    @Test fun dailyBarsPreserveZeroCatchDays() {
         val s = summary(tap(10, caught = true), tap(20), tap(day + 5), swipe(day + 6))
         assertEquals(listOf(1, 0, 0), s.dailyCatches.map { it.count })
-        assertEquals(listOf(2, 1, 0), s.dailyCatches.map { it.taps })
+        assertEquals(listOf("1970-01-01", "1970-01-02", "1970-01-03"), s.dailyCatches.map { it.date })
     }
 }

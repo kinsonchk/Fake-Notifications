@@ -65,6 +65,8 @@ internal fun AppTabs(debug: Boolean) {
     val app = LocalContext.current.applicationContext as TaptationApplication
     val snapshot by app.game.state.collectAsStateWithLifecycle()
     val requests by app.feedback.homeRequests.collectAsStateWithLifecycle()
+    var postponedCatchId by rememberSaveable { mutableStateOf<String?>(null) }
+    var animatedCatchId by rememberSaveable { mutableStateOf<String?>(null) }
     var handledRequest by rememberSaveable { mutableStateOf(0L) }
     var settingsRequest by rememberSaveable { mutableStateOf<String?>(null) }
     val correction by app.feedback.corrections.collectAsStateWithLifecycle()
@@ -74,6 +76,17 @@ internal fun AppTabs(debug: Boolean) {
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
+        snackbarHost = {
+            if (snapshot?.pendingCatch != null && snapshot?.pendingCatch?.id == postponedCatchId) {
+                Surface(Modifier.padding(12.dp), shape = RoundedCornerShape(16.dp),
+                    color = MaterialTheme.colorScheme.tertiaryContainer) {
+                    Row(Modifier.padding(start = 16.dp, end = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Text("Your catch choice is waiting.", Modifier.weight(1f), style = MaterialTheme.typography.bodySmall)
+                        androidx.compose.material3.TextButton(onClick = { postponedCatchId = null }) { Text("Choose now") }
+                    }
+                }
+            }
+        },
         bottomBar = {
             Surface(color = MaterialTheme.colorScheme.surfaceContainerLowest, tonalElevation = 0.dp) {
             Column {
@@ -111,14 +124,19 @@ internal fun AppTabs(debug: Boolean) {
             }
         }
     }
-    snapshot?.pendingCatch?.let { pending ->
+    snapshot?.pendingCatch?.takeIf { it.id != postponedCatchId }?.let { pending ->
         val labels = rememberAppLabels()
-        val details = app.game.catchDetails(pending)
+        val details = snapshot?.let { com.codejam.taptation.ui.common.catchDetailsForUi(it, pending) }
         val pkg = pending.packageName ?: details?.packageName
-        CatchChoiceDialog(details, pkg?.let(labels::label),
+        val animateDamage = androidx.compose.runtime.remember(pending.id) { animatedCatchId != pending.id }
+        LaunchedEffect(pending.id) { animatedCatchId = pending.id }
+        androidx.compose.runtime.key(pending.id) {
+        CatchChoiceDialog(details, pkg?.let(labels::label), continueExtraDamage = pending.continueExtraDamage,
+            animateDamage = animateDamage, onLater = { postponedCatchId = pending.id },
             onTaptation = { app.feedback.choose(pending, true) },
             onOriginal = { app.feedback.choose(pending, false) },
             onCorrect = if (pkg != null) ({ app.feedback.requestCorrection(pending) }) else null)
+        }
     }
     correction?.let { request -> CorrectionSheet(request, onDone = { app.feedback.clearCorrection() }) }
 }

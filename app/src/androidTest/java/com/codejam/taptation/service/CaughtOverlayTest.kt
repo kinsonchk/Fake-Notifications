@@ -18,7 +18,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 
 /** Real TYPE_APPLICATION_OVERLAY, real saved catch, explicit original-action callback. */
 class CaughtOverlayTest {
-    @Test fun backgroundCatchShowsTwoButtonsAndOriginalChoiceDoesNotApplyDamageAgain() {
+    @Test fun backgroundCatchShowsChoicesAndAppliesOnlyTheSavedContinuingPenalty() {
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         val original = instrumentation.targetContext
         val prefix = "overlay-test-${java.util.UUID.randomUUID()}-"
@@ -66,15 +66,22 @@ class CaughtOverlayTest {
             }
             assertNotNull("Native caught overlay was not shown", originalButton)
             assertNotNull(node("Go to Taptation"))
-            assertNotNull("Caught heading missing", node("Caught you."))
+            assertNotNull("Caught heading missing", node("Caught"))
             assertNotNull("Correction action missing", node("This should be important"))
             assertNotNull("Cost should be stated in text", node("−10"))
+            automation.takeScreenshot()?.let { bitmap ->
+                val directory = java.io.File(original.getExternalFilesDir(null), "ui-previews").apply { mkdirs() }
+                java.io.File(directory, "caught-native.png").outputStream().use {
+                    bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it)
+                }
+                bitmap.recycle()
+            }
             assertTrue(originalButton!!.performAction(AccessibilityNodeInfo.ACTION_CLICK))
             val openedDeadline = SystemClock.elapsedRealtime() + 5_000
             while (!opened.get() && SystemClock.elapsedRealtime() < openedDeadline) SystemClock.sleep(50)
             assertTrue("Original action wasn't invoked", opened.get())
             assertNull(repository.state.value!!.pendingCatch)
-            assertEquals(90, repository.state.value!!.health)
+            assertEquals(85, repository.state.value!!.health)
             assertEquals(1L, repository.state.value!!.totalCatches)
         } finally {
             if (initialized) instrumentation.runOnMainSync { feedback.close() }
