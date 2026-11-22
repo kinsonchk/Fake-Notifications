@@ -44,7 +44,7 @@ this layer.
 | Timer reset | Any non-whitelisted bait tap, including a missed roll or tap during lockout/death |
 | Non-bait/whitelisted taps | Logged, without resetting recovery |
 | Full health | Completed clean hours are consumed; recovery is not banked above 100 |
-| Death | No further rolls or recovery until explicit reset |
+| Death | No recovery until explicit reset; every bait tap is caught without a roll (100%), with no further damage, and still starts the lockout and the choice overlay (continuing costs nothing extra) |
 | Reset | Only available when dead; health 100, clears lockout, restarts recovery, keeps statistics/settings |
 | Lockout | 30 seconds after a catch; taps are logged, with no extra rolls, damage or extension |
 | Catch ordering | One roll and one damage application per eligible tap |

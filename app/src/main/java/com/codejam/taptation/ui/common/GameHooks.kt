@@ -29,7 +29,8 @@ fun rememberGameRepository(): GameRepository {
 
 /**
  * Wall-clock time that ticks every second while the screen is started, for lockout countdowns.
- * Also refreshes [repository] on resume and once a minute, so clean-hour recovery shows up.
+ * Recovery doesn't depend on it: GameRepository refreshes itself when the next step is due. The
+ * on-resume refresh only catches up after the device slept (its timer pauses in deep sleep).
  */
 @Composable
 fun rememberNow(repository: GameRepository): Long {
@@ -38,12 +39,9 @@ fun rememberNow(repository: GameRepository): Long {
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { repository.refresh() }
     LaunchedEffect(repository, lifecycle) {
         lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
-            now = System.currentTimeMillis()
             while (true) {
+                now = System.currentTimeMillis()
                 delay(1000)
-                val updated = System.currentTimeMillis()
-                if (updated / 60_000 != now / 60_000) repository.refresh()
-                now = updated
             }
         }
     }

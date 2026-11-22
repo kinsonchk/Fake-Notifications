@@ -42,15 +42,13 @@ class GameEngine(
             }
             else -> {
                 when {
-                    next.isDead -> {
-                        outcome = TapOutcome.NoPenalty
-                        reason = "dead"
-                    }
                     next.isLockedOut(now) -> {
                         outcome = TapOutcome.NoPenalty
                         reason = "lockout"
                     }
-                    random() < (if (allowDebugOverrides) next.config.catchProbability else next.config.difficulty.probability) -> {
+                    // At 0 health every bait tap is caught (100%, no roll): no damage is left to
+                    // take, but the catch, lockout and choice overlay still happen.
+                    next.isDead || random() < (if (allowDebugOverrides) next.config.catchProbability else next.config.difficulty.probability) -> {
                         next = caught(next, next.config.level, now).let {
                             it.copy(pendingCatch = it.pendingCatch?.copy(packageName = context.packageName))
                         }
@@ -83,10 +81,22 @@ class GameEngine(
     fun applyCatch(level: CatchLevel): GameState {
         val now = now()
         val next = recovered(state, now)
-        return commit(if (!next.config.isActive(now) || next.isDead || next.isLockedOut(now)) next else caught(next, level, now))
+        return commit(if (!next.config.isActive(now) || next.isLockedOut(now)) next else caught(next, level, now))
     }
 
     fun refresh(): GameState = commit(recovered(state, now()))
+
+    /**
+     * When the state next changes on its own: the next recovery step, or the end of a timed
+     * disable. Null when nothing is due (full health, dead, no recovery, disabled indefinitely).
+     * Valid right after [refresh], which moves the recovery anchor up to the last finished step.
+     */
+    fun nextScheduledChangeMillis(): Long? {
+        val config = state.config
+        if (!config.active) return config.disabledUntilMillis
+        if (state.isDead || state.health >= 100 || config.recoveryAmount == 0) return null
+        return state.recoveryAnchorMillis + config.effectiveRecoveryIntervalMinutes(allowDebugOverrides) * MINUTE_MILLIS
+    }
 
     fun updateConfig(config: GameConfig): GameState {
         val now = now()
@@ -163,16 +173,18 @@ class GameEngine(
         return commit(GameState(config = state.config, recoveryAnchorMillis = now, lastObservedMillis = now))
     }
 
-    private fun caught(source: GameState, level: CatchLevel, now: Long): GameState =
-        withHealth(source, (source.health - source.config.damage(level)).coerceAtLeast(0),
-            now, "catch", level).copy(
+    private fun caught(source: GameState, level: CatchLevel, now: Long): GameState {
+        val health = (source.health - source.config.damage(level)).coerceAtLeast(0)
+        return withHealth(source, health, now, "catch", level).copy(
             totalCatches = source.totalCatches + 1,
             lastCatchMillis = now,
             lockoutUntilMillis = now + source.config.lockoutSeconds * 1000L,
             recoveryAnchorMillis = now,
-            // Same choice and extra penalty for tap catches and forced (debug) catches.
-            pendingCatch = PendingCatch("$now-${source.totalCatches + 1}", null, CONTINUE_EXTRA_DAMAGE),
+            // Same choice for tap catches and forced (debug) catches. Continuing can't cost more
+            // health than is left, so at 0 the overlay shows no extra penalty.
+            pendingCatch = PendingCatch("$now-${source.totalCatches + 1}", null, minOf(CONTINUE_EXTRA_DAMAGE, health)),
         )
+    }
 
     private fun recovered(source: GameState, now: Long): GameState {
         if (!source.config.active) {
