@@ -22,6 +22,9 @@ class GameRepository(context: Context, private val stats: StatsRepository? = nul
     private val worker = Executors.newSingleThreadExecutor()
     private val store = PreferencesGameStore(context.applicationContext)
     private val debug = context.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0
+
+    /** True in debuggable builds, where debug overrides (catch chance, recovery interval) apply. */
+    val allowsDebugOverrides: Boolean get() = debug
     private val disableGate = DisableGate(android.os.SystemClock::elapsedRealtime)
     private lateinit var engine: GameEngine
     private val _state = MutableStateFlow<GameState?>(null)
@@ -78,7 +81,7 @@ class GameRepository(context: Context, private val stats: StatsRepository? = nul
         submit {
             refresh()
             if (!state.config.isActive(System.currentTimeMillis())) return@submit
-            val assessment = NotificationClassifier.assess(withAppCategory(context), state.config)
+            val assessment = NotificationClassifier.assessTap(withAppCategory(context), state.config)
             stats.submit(StatsEvent(System.currentTimeMillis(), context.packageName, StatsEventType.DISMISS,
                 context.ageMillis, assessment.classification, category = context.category))
         }
@@ -131,7 +134,7 @@ class GameRepository(context: Context, private val stats: StatsRepository? = nul
         require(changed.active == state.config.active && changed.disabledUntilMillis == state.config.disabledUntilMillis) {
             "Use the confirmed disable flow to change activation"
         }
-        updateConfig(if (debug) changed else changed.copy(debugCatchProbability = null))
+        updateConfig(if (debug) changed else changed.copy(debugCatchProbability = null, debugRecoveryIntervalMinutes = null))
     }
 
     fun beginDisable(): CompletableFuture<DisableGate.Challenge> = submit { disableGate.begin() }

@@ -21,8 +21,8 @@ class RepositoryDemoControls(
     scope: CoroutineScope,
 ) : DemoControls {
     override val state: StateFlow<DemoControlState> = repository.state
-        .map { it.toDemoState() }
-        .stateIn(scope, SharingStarted.Eagerly, repository.state.value.toDemoState())
+        .map { it.toDemoState(repository.allowsDebugOverrides) }
+        .stateIn(scope, SharingStarted.Eagerly, repository.state.value.toDemoState(repository.allowsDebugOverrides))
 
     override fun setCatchProbability(percent: Int) {
         val probability = percent.coerceIn(0, 100) / 100.0
@@ -51,13 +51,13 @@ class RepositoryDemoControls(
     }
 }
 
-private fun GameState?.toDemoState(): DemoControlState {
+private fun GameState?.toDemoState(debugBuild: Boolean): DemoControlState {
     val state = this ?: GameState(config = GameConfig())
     return DemoControlState(
         health = state.health,
         catchProbabilityPercent = (state.config.catchProbability * 100).roundToInt(),
         catches = state.totalCatches.coerceAtMost(Int.MAX_VALUE.toLong()).toInt(),
         recoveryAmount = state.config.recoveryAmount,
-        recoveryIntervalMinutes = state.config.effectiveRecoveryIntervalMinutes(debugBuild = true),
+        recoveryIntervalMinutes = state.config.effectiveRecoveryIntervalMinutes(debugBuild),
     )
 }

@@ -16,7 +16,7 @@ class GameEngine(
     fun getHealth(): Int = refresh().health
 
     fun classify(context: NotificationContext): Classification =
-        NotificationClassifier.assess(context, state.config).classification
+        NotificationClassifier.assessTap(context, state.config).classification
 
     fun onTap(context: NotificationContext): TapResult {
         require(context.packageName.isNotBlank())
@@ -26,9 +26,7 @@ class GameEngine(
             commit(next)
             return TapResult(TapOutcome.NoPenalty, state, "disabled")
         }
-        val assessment = if (next.config.isStale(context))
-            Assessment(Classification.Unknown, "stale")
-        else NotificationClassifier.assess(context, next.config)
+        val assessment = NotificationClassifier.assessTap(context, next.config)
         val classification = assessment.classification
         val before = next.health
         val outcome: TapOutcome
@@ -53,8 +51,9 @@ class GameEngine(
                         reason = "lockout"
                     }
                     random() < (if (allowDebugOverrides) next.config.catchProbability else next.config.difficulty.probability) -> {
-                        next = caught(next, next.config.level, now)
-                            .copy(pendingCatch = PendingCatch("$now-${next.totalCatches + 1}", context.packageName, CONTINUE_EXTRA_DAMAGE))
+                        next = caught(next, next.config.level, now).let {
+                            it.copy(pendingCatch = it.pendingCatch?.copy(packageName = context.packageName))
+                        }
                         outcome = TapOutcome.Caught
                         reason = "caught"
                     }
@@ -93,9 +92,9 @@ class GameEngine(
         val now = now()
         // Settle recovery under the old rate; don't apply a new rate to old partial hours.
         val next = recovered(state, now)
-        val rateChanged = config.recoveryPerHour != state.config.recoveryPerHour ||
-            config.recoveryIntervalMinutes != state.config.recoveryIntervalMinutes ||
-            config.debugRecoveryIntervalMinutes != state.config.debugRecoveryIntervalMinutes
+        val rateChanged = config.recoveryAmount != state.config.recoveryAmount ||
+            config.effectiveRecoveryIntervalMinutes(allowDebugOverrides) !=
+            state.config.effectiveRecoveryIntervalMinutes(allowDebugOverrides)
         return commit(next.copy(config = config,
             recoveryAnchorMillis = if (rateChanged) now else next.recoveryAnchorMillis))
     }
@@ -171,7 +170,8 @@ class GameEngine(
             lastCatchMillis = now,
             lockoutUntilMillis = now + source.config.lockoutSeconds * 1000L,
             recoveryAnchorMillis = now,
-            pendingCatch = PendingCatch("$now-${source.totalCatches + 1}", null),
+            // Same choice and extra penalty for tap catches and forced (debug) catches.
+            pendingCatch = PendingCatch("$now-${source.totalCatches + 1}", null, CONTINUE_EXTRA_DAMAGE),
         )
 
     private fun recovered(source: GameState, now: Long): GameState {

@@ -9,6 +9,14 @@ object NotificationClassifier {
     private fun bait(reason: String) = Assessment(Classification.Bait, reason)
     private fun unknown(reason: String) = Assessment(Classification.Unknown, reason)
 
+    /**
+     * What a tap or dismissal of [context] counts as: stale notifications (older than the freshness
+     * window) are Unknown without classification; otherwise [assess]. Taps and dismissals share it
+     * so the stats compare like with like.
+     */
+    fun assessTap(context: NotificationContext, config: GameConfig): Assessment =
+        if (config.isStale(context)) unknown("stale") else assess(context, config)
+
     /** The tap path's entry point: the user's choice for the app (Settings > Notification rules) decides first. */
     fun assess(context: NotificationContext, config: GameConfig): Assessment =
         when (config.ruleFor(context.packageName)) {
