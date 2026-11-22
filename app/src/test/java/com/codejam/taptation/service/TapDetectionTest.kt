@@ -138,4 +138,40 @@ class TapDetectionTest {
         assertTrue(countable(pkg = own, channel = TapDetection.OWN_TEST_CHANNEL_ID, debug = true))
         assertFalse(countable(pkg = own, channel = TapDetection.OWN_TEST_CHANNEL_ID, debug = false))
     }
+
+    // Doubled listener connection: each event arrives twice and must be handled once.
+    @Test fun duplicateEventIsDroppedWithinTheWindow() {
+        val filter = DuplicateEventFilter(windowMillis = 2_000)
+        assertTrue(filter.isFirst(DuplicateEventFilter.Kind.Removed, "k", 100, 1_000))
+        assertFalse(filter.isFirst(DuplicateEventFilter.Kind.Removed, "k", 100, 1_000))
+        assertFalse(filter.isFirst(DuplicateEventFilter.Kind.Removed, "k", 100, 2_900))
+    }
+
+    @Test fun postedAndRemovedOfTheSameNotificationAreDifferentEvents() {
+        val filter = DuplicateEventFilter()
+        assertTrue(filter.isFirst(DuplicateEventFilter.Kind.Posted, "k", 100, 1_000))
+        assertTrue(filter.isFirst(DuplicateEventFilter.Kind.Removed, "k", 100, 1_005))
+    }
+
+    @Test fun aRealUpdateHasANewPostTimeAndIsNotADuplicate() {
+        val filter = DuplicateEventFilter()
+        assertTrue(filter.isFirst(DuplicateEventFilter.Kind.Posted, "chat", 100, 1_000))
+        assertTrue(filter.isFirst(DuplicateEventFilter.Kind.Posted, "chat", 900, 1_800))
+    }
+
+    @Test fun theSameEventAfterTheWindowCountsAgainAndClearForgetsEverything() {
+        val filter = DuplicateEventFilter(windowMillis = 2_000)
+        assertTrue(filter.isFirst(DuplicateEventFilter.Kind.Removed, "k", 100, 1_000))
+        assertTrue(filter.isFirst(DuplicateEventFilter.Kind.Removed, "k", 100, 3_500))
+        filter.clear()
+        assertTrue(filter.isFirst(DuplicateEventFilter.Kind.Removed, "k", 100, 3_501))
+    }
+
+    @Test fun oldEntriesAreEvictedPastCapacity() {
+        val filter = DuplicateEventFilter(capacity = 2)
+        filter.isFirst(DuplicateEventFilter.Kind.Removed, "a", 1, 0)
+        filter.isFirst(DuplicateEventFilter.Kind.Removed, "b", 1, 0)
+        filter.isFirst(DuplicateEventFilter.Kind.Removed, "c", 1, 0)
+        assertTrue(filter.isFirst(DuplicateEventFilter.Kind.Removed, "a", 1, 1))
+    }
 }

@@ -161,6 +161,7 @@ Brief C2 asks Person 1 to "log" titles: show them on the debug screen from memor
 - Skip notifications with `FLAG_GROUP_SUMMARY` or `FLAG_ONGOING_EVENT`.
 - Own package counts only in debuggable builds **and only on the test channel** (`TapDetection.OWN_TEST_CHANNEL_ID`, used by the in-app test notification); ignored in release. Any other notification we post (e.g. a "you got caught" alert) must never count, or tapping it would trigger another catch in a loop.
 - Override only the **three-argument** `onNotificationRemoved`. The base three-arg version forwards to the one-arg one, so overriding both double-handles.
+- Android can hold **two connections** to the listener (a rebind racing the system's own reconnect; seen on a Pixel 10: two `INotificationListener` proxies in `dumpsys notification`), delivering every callback twice. `DuplicateEventFilter` (in `TapDetection.kt`) drops a second posted/removed with the same key and postTime within 2 s; keep it first in both callbacks.
 - Listener callbacks run on the main thread: keep them to filter + log + dispatch. `TapHandler` implementations must move disk/network work off-thread (`GameRepository` does this with its worker).
 
 ## Platform gotchas
