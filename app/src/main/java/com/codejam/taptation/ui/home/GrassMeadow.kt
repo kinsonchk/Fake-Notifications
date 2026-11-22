@@ -14,24 +14,25 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.isSpecified
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.codejam.taptation.ui.common.rememberMotionEnabled
-import kotlin.math.*
-import kotlin.random.Random
+import com.codejam.taptation.ui.theme.*
 
-private data class Blade(val x: Float, val depth: Float, val height: Float, val phase: Float, val lean: Float)
-
-/** Display-only meadow: a stable seeded landscape whose height and density represent saved health. */
+/** Mockup meadow: curved blades on a fading mound, coherent wind and springy local brushing. */
 @Composable
 fun GrassMeadow(health: Int, modifier: Modifier = Modifier) {
     val motion = rememberMotionEnabled()
@@ -43,36 +44,56 @@ fun GrassMeadow(health: Int, modifier: Modifier = Modifier) {
         onDispose { lifecycle.removeObserver(observer) }
     }
     var visible by remember { mutableStateOf(false) }
-    var phase by remember { mutableFloatStateOf(0f) }
+    var canvasSize by remember { mutableStateOf(IntSize.Zero) }
+    var frame by remember { mutableIntStateOf(0) }
     var touch by remember { mutableStateOf(Offset.Unspecified) }
     var pressed by remember { mutableStateOf(false) }
-    val influence by animateFloatAsState(if (pressed && motion) 1f else 0f,
-        animationSpec = if (motion) tween(if (pressed) 90 else 650) else snap(), label = "Grass brush")
     val growth by animateFloatAsState(health.coerceIn(0, 100) / 100f,
         animationSpec = if (motion) tween(700) else snap(), label = "Meadow health")
-    val blades = remember {
-        val random = Random(42)
-        List(320) { Blade(random.nextFloat(), random.nextFloat(), random.nextFloat(), random.nextFloat() * 6.28f,
-            random.nextFloat() * 2f - 1f) }.sortedBy { it.depth }
+    val currentGrowth by rememberUpdatedState(growth)
+    val currentTouch by rememberUpdatedState(if (pressed) touch else Offset.Unspecified)
+    val field = remember { MeadowMotion() }
+    val bladePath = remember { Path() }
+    val background = MaterialTheme.colorScheme.background
+    val dark = background.luminance() < .5f
+    val bladeColor = if (dark) GrassDarkBlade else Forest
+    val highlight = if (dark) GrassDarkHighlight else GrassHighlight
+    val dry = if (dark) GrassDarkDry else Earth
+    val soil = if (dark) MeadowDarkSoil else MeadowSoil
+    val unit = canvasSize.height / MeadowMotion.HEIGHT
+    val groundY = canvasSize.height * .86f
+    val hillBrush = remember(canvasSize, soil, background) {
+        Brush.verticalGradient(listOf(soil, background), startY = groundY - 14f * unit,
+            endY = canvasSize.height.toFloat().coerceAtLeast(1f))
     }
-    val path = remember { Path() }
-    val green = MaterialTheme.colorScheme.primary
-    val pale = MaterialTheme.colorScheme.primaryContainer
-    val earth = MaterialTheme.colorScheme.tertiary
-    // Infinite-animation frames are skipped by Compose test clocks. Health transitions remain finite.
-    LaunchedEffect(started, visible, motion) {
-        if (started && visible && motion) {
+    val hillPath = remember(canvasSize) {
+        Path().apply {
+            moveTo(0f, groundY + 6f * unit)
+            quadraticTo(canvasSize.width * .5f, groundY - 12f * unit, canvasSize.width.toFloat(), groundY + 6f * unit)
+            lineTo(canvasSize.width.toFloat(), canvasSize.height.toFloat())
+            lineTo(0f, canvasSize.height.toFloat())
+            close()
+        }
+    }
+    // Read the clock only in drawing: wind does not recompose the surrounding screen every frame.
+    LaunchedEffect(started, visible, motion, canvasSize) {
+        if (started && visible && motion && unit > 0f) {
             var previous = 0L
             while (true) withInfiniteAnimationFrameNanos { now ->
-                if (previous != 0L) phase = (phase + ((now - previous) / 1_000_000_000f).coerceAtMost(.05f)) % 628f
+                val elapsed = if (previous == 0L) 1f / 60f else (now - previous) / 1_000_000_000f
                 previous = now
+                val pointer = currentTouch
+                field.advance(elapsed, currentGrowth, canvasSize.width / unit,
+                    if (pointer.isSpecified) pointer.x / unit else Float.NaN,
+                    if (pointer.isSpecified) pointer.y / unit else Float.NaN)
+                frame++
             }
         }
     }
-    Canvas(modifier.fillMaxWidth().height(180.dp)
-        .semantics { contentDescription = "Meadow health ${health.coerceIn(0, 100)} out of 100" }
+    Canvas(modifier.fillMaxWidth().height(165.dp)
+        .onSizeChanged { canvasSize = it }
         .onGloballyPositioned { visible = it.boundsInWindow().let { b -> b.width > 0 && b.height > 0 } }
-        .semantics { contentDescription = "Grass meadow, health ${health.coerceIn(0, 100)} out of 100" }
+        .semantics { contentDescription = "Meadow health ${health.coerceIn(0, 100)} out of 100" }
         .pointerInput(motion) {
             if (!motion) return@pointerInput
             awaitEachGesture {
@@ -81,37 +102,35 @@ fun GrassMeadow(health: Int, modifier: Modifier = Modifier) {
                 try {
                     do {
                         val change = awaitPointerEvent().changes.firstOrNull { it.id == down.id } ?: break
-                        if (change.isConsumed) break // Let the surrounding page take vertical drags.
+                        if (change.isConsumed) break // Keep vertical page scrolling available.
                         touch = change.position
                     } while (change.pressed)
                 } finally { pressed = false }
             }
         }) {
-        val densityCount = 35f + 285f * growth
-        blades.forEachIndexed { i, blade ->
-            // Stable positions, with a short fade at the density boundary instead of random popping.
-            val opacity = (densityCount - i).coerceIn(0f, 1f)
-            if (opacity == 0f) return@forEachIndexed
-            val x = blade.x * size.width
-            val y = size.height * (.57f + .36f * blade.depth)
-            val length = size.height * (.045f + .34f * growth) * (.45f + .55f * blade.height) * (.65f + .35f * blade.depth)
-            val sway = sin(phase * 1.2f + blade.phase + blade.x * 4f) * length * .12f
-            val distance = if (touch.isSpecified) abs(x - touch.x) else Float.MAX_VALUE
-            val bend = if (touch.isSpecified) {
-                val proximity = (1f - distance / (size.width * .24f)).coerceIn(0f, 1f)
-                proximity * influence * length * .8f * if (x < touch.x) -1f else 1f
-            } else 0f
-            val tipX = x + blade.lean * length * .2f + sway + bend
-            val tipY = y - length + abs(bend) * .22f
-            val halfWidth = (1.1f + blade.depth * 1.5f).dp.toPx()
-            path.reset()
-            path.moveTo(x - halfWidth, y)
-            path.quadraticTo(x + sway * .4f, y - length * .55f, tipX, tipY)
-            path.quadraticTo(x + halfWidth + bend * .3f, y - length * .35f, x + halfWidth, y)
-            path.close()
-            val color = if (growth < .15f) lerp(earth, green, growth / .15f)
-                else lerp(pale, green, .5f + blade.depth * .5f)
-            drawPath(path, color, alpha = opacity * (.6f + .4f * blade.depth))
+        @Suppress("UNUSED_VARIABLE") val drawFrame = frame
+        val scale = size.height / MeadowMotion.HEIGHT
+        drawPath(hillPath, hillBrush)
+        val activeCount = 8f + growth * (MeadowMotion.COUNT - 8)
+        // Healthy grass keeps the mockup's saturated greens, not the pale card/selection palette.
+        val greenAmount = ((growth - .15f) / .1f).coerceIn(0f, 1f)
+        field.blades.forEach { blade ->
+            val alpha = (activeCount - blade.activationRank).coerceIn(0f, 1f)
+            if (alpha == 0f) return@forEach
+            val x = blade.u * size.width
+            val y = blade.baseY * scale
+            val length = blade.height(growth) * scale
+            val bend = (if (motion) blade.bend else blade.restBend(growth)) * scale
+            val controlX = x + bend * .35f
+            val controlY = y - length * .55f
+            val baseWidth = (2.4f + (1f - blade.layer * .25f) * 2f) * scale
+            bladePath.reset()
+            bladePath.moveTo(x - baseWidth * .5f, y)
+            bladePath.quadraticTo(controlX - baseWidth * .2f, controlY, x + bend, y - length)
+            bladePath.quadraticTo(controlX + baseWidth * .2f, controlY, x + baseWidth * .5f, y)
+            bladePath.close()
+            drawPath(bladePath, lerp(dry, if (blade.layer == 0) bladeColor else highlight, greenAmount),
+                alpha = alpha * if (blade.layer == 2) .72f else .95f)
         }
     }
 }

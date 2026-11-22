@@ -41,8 +41,9 @@ class MockupScreensTest {
         val target = installed.first()
         val name = target.loadLabel(compose.activity.packageManager).toString()
         try {
-            compose.activity.setContent { TaptationTheme(darkTheme = false) { TaptationApp(debug = true) } }
-            compose.onNodeWithTag("screen-title").assertTextEquals("Home")
+            compose.activity.setContent { TaptationTheme(darkTheme = false) { AppTabs(debug = true) } }
+            compose.waitUntil(10_000) { compose.onAllNodesWithTag("screen-title").fetchSemanticsNodes().isNotEmpty() }
+            compose.onNodeWithTag("screen-title").assertTextEquals("Welcome to Taptation")
             capture("home-light")
             compose.onNodeWithText("Stats").performClick()
             compose.onNodeWithTag("screen-title").assertTextEquals("Stats")
@@ -56,6 +57,7 @@ class MockupScreensTest {
             compose.onNodeWithTag("tab-content").performScrollToNode(hasText("Notification rules"))
             compose.onNodeWithText("Notification rules").performClick()
             compose.onNodeWithTag("screen-title").assertTextEquals("Notification rules")
+            compose.onNodeWithText("Show apps").performClick()
             compose.waitUntil(10_000) { compose.onAllNodesWithContentDescription("$name notification rule").fetchSemanticsNodes().isNotEmpty() }
             if (android.os.Build.VERSION.SDK_INT >= 33) {
                 val blocked = compose.activity.packageManager.queryIntentActivities(
@@ -90,8 +92,9 @@ class MockupScreensTest {
     }
 
     @Test fun darkScreensAndCaughtChoicesRender() {
-        compose.activity.setContent { TaptationTheme(darkTheme = true) { TaptationApp(debug = true) } }
-        compose.onNodeWithTag("screen-title").assertTextEquals("Home")
+        compose.activity.setContent { TaptationTheme(darkTheme = true) { AppTabs(debug = true) } }
+        compose.waitUntil(10_000) { compose.onAllNodesWithTag("screen-title").fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithTag("screen-title").assertTextEquals("Welcome to Taptation")
         capture("home-dark")
         compose.onNodeWithText("Stats").performClick()
         compose.onNodeWithTag("screen-title").assertTextEquals("Stats")
@@ -126,6 +129,9 @@ class MockupScreensTest {
         compose.waitUntil(10_000) { compose.onAllNodes(hasText("Loading", substring = true)).fetchSemanticsNodes().isEmpty() }
         compose.waitForIdle()
         val instrumentation = InstrumentationRegistry.getInstrumentation()
+        // UiAutomation captures the display, whose render thread can trail Compose's semantics.
+        instrumentation.waitForIdleSync()
+        android.os.SystemClock.sleep(350)
         val directory = File(instrumentation.targetContext.getExternalFilesDir(null), "ui-previews").apply { mkdirs() }
         val bitmap = checkNotNull(instrumentation.uiAutomation.takeScreenshot())
         File(directory, "$name.png").outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }

@@ -69,43 +69,43 @@ fun NotificationRulesScreen(contentPadding: PaddingValues, repository: GameRepos
             }
         }
         if (appsExpanded) {
-        when {
-            picker.apps == null && picker.error != null -> item {
-                Text("Couldn’t load installed apps.", color = MaterialTheme.colorScheme.error)
-                OutlinedButton(onClick = app.apps::reload) { Text("Try again") }
+            when {
+                picker.apps == null && picker.error != null -> item {
+                    Text("Couldn’t load installed apps.", color = MaterialTheme.colorScheme.error)
+                    OutlinedButton(onClick = app.apps::reload) { Text("Try again") }
+                }
+                picker.apps == null -> item { Text("Loading installed apps…") }
+                matches.isEmpty() -> item { Text(if (search.isBlank()) "No apps with notification permission found."
+                    else "No matching apps with notification permission. Try a different name.",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant) }
             }
-            picker.apps == null -> item { Text("Loading installed apps…") }
-            matches.isEmpty() -> item { Text(if (search.isBlank()) "No apps with notification permission found."
-                else "No matching apps with notification permission. Try a different name.",
-                color = MaterialTheme.colorScheme.onSurfaceVariant) }
-        }
-        items(matches, key = { it.app.packageName }) { row ->
-            val pkg = row.app.packageName
-            AppRuleRow(row.app, row.rule, labels, pkg !in saving) { choice ->
-                saving = saving + pkg
-                repository.setAppRule(pkg, choice).whenComplete { _, failure -> scope.launch {
-                    saving = saving - pkg
-                    if (failure == null) saved = true
-                } }
-            }
-        }
-        val missing = if (search.isNotBlank()) emptyList() else picker.missingRules
-        if (missing.isNotEmpty()) item {
-            Text("Apps no longer installed", Modifier.padding(top = 14.dp), style = MaterialTheme.typography.titleSmall)
-            Text("Saved rules stay until you remove them.", style = MaterialTheme.typography.bodySmall)
-        }
-        items(missing, key = { "missing-$it" }) { pkg ->
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Text(labels.label(pkg), Modifier.weight(1f))
-                TextButton(enabled = pkg !in saving, onClick = {
+            items(matches, key = { it.app.packageName }) { row ->
+                val pkg = row.app.packageName
+                AppRuleRow(row.app, row.rule, labels, pkg !in saving) { choice ->
                     saving = saving + pkg
-                    repository.clearAppRule(pkg).whenComplete { _, failure -> scope.launch {
+                    repository.setAppRule(pkg, choice).whenComplete { _, failure -> scope.launch {
                         saving = saving - pkg
                         if (failure == null) saved = true
                     } }
-                }) { Text("Remove rule") }
+                }
             }
-        }
+            val missing = if (search.isNotBlank()) emptyList() else picker.missingRules
+            if (missing.isNotEmpty()) item {
+                Text("Apps no longer installed", Modifier.padding(top = 14.dp), style = MaterialTheme.typography.titleSmall)
+                Text("Saved rules stay until you remove them.", style = MaterialTheme.typography.bodySmall)
+            }
+            items(missing, key = { "missing-$it" }) { pkg ->
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Text(labels.label(pkg), Modifier.weight(1f))
+                    TextButton(enabled = pkg !in saving, onClick = {
+                        saving = saving + pkg
+                        repository.clearAppRule(pkg).whenComplete { _, failure -> scope.launch {
+                            saving = saving - pkg
+                            if (failure == null) saved = true
+                        } }
+                    }) { Text("Remove rule") }
+                }
+            }
         }
         item { CriteriaSection(config, repository) }
         item { StrictnessSection(config, repository) }
