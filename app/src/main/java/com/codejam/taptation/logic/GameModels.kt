@@ -11,8 +11,23 @@ enum class AppRule { AlwaysBait, AlwaysImportant, LetUsDecide }
 /** How readily "Let us decide" marks an unclear notification as bait (AI judge thresholds, see ai/ClefQuestion). */
 enum class Strictness { Relaxed, Balanced, Strict }
 enum class Difficulty(val probability: Double) { Easy(0.20), Medium(0.40), Hard(0.70) }
-data class PendingCatch(val id: String, val packageName: String?, val continueExtraDamage: Int = 0) {
+/**
+ * A committed catch waiting for the user's choice. The details are recorded at catch time so the
+ * caught screens never have to reconstruct them from history: [healthBefore]/[healthAfter] (null for
+ * catches saved before v8), the classifier [rule] behind it and the notification [channel] name
+ * (a type the app chose, not content). Forced debug catches have no package, rule or channel.
+ */
+data class PendingCatch(
+    val id: String,
+    val packageName: String?,
+    val continueExtraDamage: Int = 0,
+    val healthBefore: Int? = null,
+    val healthAfter: Int? = null,
+    val rule: String = "",
+    val channel: String? = null,
+) {
     init { require(continueExtraDamage in 0..100) }
+    val damage: Int get() = if (healthBefore != null && healthAfter != null) healthBefore - healthAfter else 0
 }
 
 data class GameConfig(
@@ -52,6 +67,14 @@ data class GameConfig(
         if (debugBuild) debugRecoveryIntervalMinutes ?: recoveryIntervalMinutes else recoveryIntervalMinutes
     fun ruleFor(packageName: String): AppRule = appRules[packageName] ?: AppRule.LetUsDecide
 
+    /** How many apps the user set to [rule] (for summaries like "3 always bait"). */
+    fun countOf(rule: AppRule): Int = appRules.values.count { it == rule }
+
+    /** Damage a catch does at the selected level. */
+    val currentDamage: Int get() = damage(level)
+
+    val freshnessEnabled: Boolean get() = freshnessSeconds > 0
+
     val catchProbability: Double get() = debugCatchProbability ?: difficulty.probability
     val freshnessWindowMillis: Long get() = freshnessSeconds * 1000L
     fun isActive(nowMillis: Long): Boolean = active || disabledUntilMillis?.let { nowMillis >= it } == true
@@ -78,6 +101,10 @@ data class GameConfig(
 
     companion object {
         const val MAX_FRESHNESS_SECONDS = 24 * 60 * 60
+        /** Default "ignore older notifications" window, restored when the user turns it back on. */
+        const val DEFAULT_FRESHNESS_SECONDS = 600
+        /** The time limits Settings offers (minutes). Debug demos may use shorter ones. */
+        val FRESHNESS_CHOICES_MINUTES = listOf(5, 10, 15, 30, 60)
         const val MAX_CRITERIA_LENGTH = 1000
     }
 

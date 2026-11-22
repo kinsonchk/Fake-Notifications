@@ -46,3 +46,9 @@ On `main`: `Unknown` -> no penalty, unless Discord's package is marked as bait. 
 ## AI classification
 
 Person 1 does not build the classifier, but feeds it: the signals in the log lines are what an AI step (or tuned rules) would use. See [person-2 README](../person-2/README.md#ai-classification-optional).
+
+## UI ↔ backend contract (done)
+
+Added the backend APIs the screens use (`service/AppDirectory`, `service/SystemStatus`,
+`logic/RulePicker`, `CatchFeedback.prompt` + `CatchSurface`, typed settings actions) and moved the
+caught overlay's drawing to `ui/overlay`. Details and remaining items: [docs/ui-backend-contract.md](../ui-backend-contract.md).

@@ -1,74 +1,22 @@
 package com.codejam.taptation.ui.common
 
-import android.content.Intent
-import android.Manifest
-import android.content.pm.PackageManager
-import android.content.pm.ResolveInfo
-import android.os.Build
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
-import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.compose.LifecycleEventEffect
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.codejam.taptation.TaptationApplication
 
-/** Loading, loaded, or failed; [reload] queries the package manager again. */
+/** Loading (null apps), loaded, or failed; [reload] asks the backend to read the apps again. */
 data class InstalledAppsState(val apps: List<InstalledApp>?, val error: String?, val reload: () -> Unit)
 
 /**
- * Launchable apps on the phone (not our own), sorted by name. The manifest's `<queries>` entry for
- * MAIN/LAUNCHER makes them visible on Android 11+. Loaded off the main thread.
+ * The backend's launchable-app list (service/AppDirectory: not Taptation, sorted by name, with the
+ * notification permission). Prefer [com.codejam.taptation.TaptationApplication.rulePicker] for the
+ * rules page: it already applies the eligibility rule.
  */
 @Composable
 fun rememberInstalledAppsState(): InstalledAppsState {
-    val context = LocalContext.current
-    var apps by remember { mutableStateOf<List<InstalledApp>?>(null) }
-    var error by remember { mutableStateOf<String?>(null) }
-    var version by remember { mutableStateOf(0) }
-    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { version++ }
-    LaunchedEffect(context.packageManager, version) {
-        apps = null
-        error = null
-        try {
-            apps = withContext(Dispatchers.IO) {
-                val intent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
-                queryLauncherApps(context.packageManager, intent).asSequence()
-                    .mapNotNull { info ->
-                        val app = info.activityInfo?.applicationInfo ?: return@mapNotNull null
-                        if (app.packageName == context.packageName) return@mapNotNull null
-                        InstalledApp(app.packageName, app.loadLabel(context.packageManager).toString(),
-                            notificationsAllowed(context.packageManager, app.packageName))
-                    }
-                    .distinctBy { it.packageName }
-                    .sortedBy { it.label.lowercase() }
-                    .toList()
-            }
-        } catch (cancelled: CancellationException) {
-            throw cancelled
-        } catch (failure: Exception) {
-            error = failure.localizedMessage ?: "Could not read installed apps."
-        }
-    }
-    return InstalledAppsState(apps, error) { version++ }
+    val directory = (LocalContext.current.applicationContext as TaptationApplication).apps
+    val list by directory.apps.collectAsStateWithLifecycle()
+    return InstalledAppsState(list.apps, list.error, directory::reload)
 }
-
-/** Restored from main. Before Android 13 the other app's notification switch isn't publicly queryable. */
-private fun notificationsAllowed(packageManager: PackageManager, packageName: String): Boolean {
-    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return true
-    return packageManager.checkPermission(Manifest.permission.POST_NOTIFICATIONS, packageName) ==
-        PackageManager.PERMISSION_GRANTED
-}
-
-@Suppress("DEPRECATION")
-private fun queryLauncherApps(packageManager: PackageManager, intent: Intent): List<ResolveInfo> =
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-        packageManager.queryIntentActivities(intent, PackageManager.ResolveInfoFlags.of(0L))
-    } else {
-        packageManager.queryIntentActivities(intent, 0)
-    }

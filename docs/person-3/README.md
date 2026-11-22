@@ -31,4 +31,8 @@ Plan:
 
 Needs Person 1's loop guard (branch `person1/signal-logging`) merged first.
 
+## Backend contract
 
+Screens only render backend state and send user intents; every decision (eligible apps, catch
+content, permissions, allowed values) comes from the backend. APIs to use and what is left:
+[docs/ui-backend-contract.md](../ui-backend-contract.md).

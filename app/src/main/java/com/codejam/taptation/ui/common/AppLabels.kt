@@ -1,10 +1,6 @@
 ﻿package com.codejam.taptation.ui.common
 
 import android.content.Context
-import android.content.Intent
-import android.content.pm.PackageManager
-import android.content.pm.ResolveInfo
-import android.os.Build
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
@@ -14,10 +10,8 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -27,56 +21,30 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.core.graphics.drawable.toBitmap
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.compose.LifecycleEventEffect
-import java.util.Locale
-import java.util.concurrent.ConcurrentHashMap
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.codejam.taptation.TaptationApplication
+import com.codejam.taptation.service.AppDirectory
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
-/** An app the user can pick: its package name stays internal, people see [label] and the icon. */
-data class InstalledApp(val packageName: String, val label: String, val notificationsEnabled: Boolean = true)
+/** The backend's app model (logic/InstalledApp); kept under this name so screens don't change imports. */
+typealias InstalledApp = com.codejam.taptation.logic.InstalledApp
 
-/** App names and icons from the phone, so no screen shows a package name. */
+/**
+ * App names and icons for screens, from the backend's [AppDirectory] (the only place that asks the
+ * package manager). No screen shows a package name.
+ */
 class AppLabels(context: Context) {
-    private val packageManager = context.applicationContext.packageManager
-    private val labels = ConcurrentHashMap<String, String>()
-    private val icons = ConcurrentHashMap<String, ImageBitmap>()
+    private val directory = (context.applicationContext as TaptationApplication).apps
 
-    fun label(packageName: String): String = labels.getOrPut(packageName) {
-        try {
-            packageManager.getApplicationLabel(packageManager.getApplicationInfo(packageName, 0)).toString()
-                .takeIf { it.isNotBlank() } ?: fallbackLabel(packageName)
-        } catch (_: PackageManager.NameNotFoundException) {
-            fallbackLabel(packageName)
-        } catch (_: SecurityException) {
-            fallbackLabel(packageName)
-        }
-    }
+    fun label(packageName: String): String = directory.label(packageName)
 
     /** Icon bitmap, or null when the app isn't visible or installed. Call off the main thread. */
-    fun icon(packageName: String): ImageBitmap? = icons[packageName] ?: try {
-        packageManager.getApplicationIcon(packageName).toBitmap(96, 96).asImageBitmap().also { icons[packageName] = it }
-    } catch (_: PackageManager.NameNotFoundException) {
-        null
-    } catch (_: RuntimeException) {
-        null
-    }
+    fun icon(packageName: String): ImageBitmap? = directory.icon(packageName)?.asImageBitmap()
 
     companion object {
-        /** Notification-rule picker only; disabled apps stay in the loaded list so saved rules aren't lost. */
-        fun notifyingApps(apps: List<InstalledApp>, query: String): List<InstalledApp> =
-            filter(apps.filter { it.notificationsEnabled }, query)
-
-        private val noise = setOf("android", "app", "apps", "mobile", "lite", "client", "release", "google", "com", "org", "net")
-
         /** Readable guess from a package name when the phone can't give the real label. */
-        fun fallbackLabel(packageName: String): String {
-            val parts = packageName.split('.').filter { it.isNotBlank() }
-            val pick = parts.asReversed().firstOrNull { it.lowercase(Locale.ROOT) !in noise } ?: parts.lastOrNull() ?: packageName
-            return pick.replace('_', ' ').replaceFirstChar { it.titlecase(Locale.ROOT) }
-        }
+        fun fallbackLabel(packageName: String): String = AppDirectory.fallbackLabel(packageName)
 
         /** Case-insensitive match on the app name only; blank query keeps everything. */
         fun filter(apps: List<InstalledApp>, query: String): List<InstalledApp> {
@@ -117,40 +85,22 @@ sealed interface AppListState {
     data class Failed(val message: String) : AppListState
 }
 
-/** Launchable apps, loaded off the main thread. Reloads each time the screen resumes; [retry] after a failure. */
+/** Launchable apps from the backend; [retry] asks it to read them again. */
 class AppListController internal constructor(private val reload: () -> Unit, val state: AppListState) {
     fun retry() = reload()
 }
 
+/** The backend's installed-app list as a screen state (the backend reloads it on every resume). */
 @Composable
 fun rememberInstalledApps(): AppListController {
-    val context = LocalContext.current
-    var version by remember { mutableStateOf(0) }
-    var state by remember { mutableStateOf<AppListState>(AppListState.Loading) }
-    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { version++ }
-    androidx.compose.runtime.LaunchedEffect(version) {
-        if (state !is AppListState.Loaded) state = AppListState.Loading
-        state = try {
-            AppListState.Loaded(withContext(Dispatchers.IO) { loadInstalledApps(context) })
-        } catch (cancelled: kotlinx.coroutines.CancellationException) {
-            throw cancelled
-        } catch (failure: Exception) {
-            AppListState.Failed(failure.localizedMessage ?: "Couldn't read the installed apps.")
-        }
+    val directory = (LocalContext.current.applicationContext as TaptationApplication).apps
+    val list by directory.apps.collectAsStateWithLifecycle()
+    val apps = list.apps
+    val error = list.error
+    val state = when {
+        apps != null -> AppListState.Loaded(apps)
+        error != null -> AppListState.Failed(error)
+        else -> AppListState.Loading
     }
-    return remember(version, state) { AppListController({ version++ }, state) }
-}
-
-@Suppress("DEPRECATION")
-private fun loadInstalledApps(context: Context): List<InstalledApp> {
-    val pm = context.packageManager
-    val intent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
-    val matches: List<ResolveInfo> = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU)
-        pm.queryIntentActivities(intent, PackageManager.ResolveInfoFlags.of(0L))
-    else pm.queryIntentActivities(intent, 0)
-    return matches.asSequence().mapNotNull { info ->
-        val app = info.activityInfo?.applicationInfo ?: return@mapNotNull null
-        if (app.packageName == context.packageName) null
-        else InstalledApp(app.packageName, app.loadLabel(pm).toString())
-    }.distinctBy { it.packageName }.sortedBy { it.label.lowercase(Locale.ROOT) }.toList()
+    return remember(state) { AppListController(directory::reload, state) }
 }

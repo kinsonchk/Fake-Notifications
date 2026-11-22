@@ -9,14 +9,6 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class AppLabelsTest {
-    @Test fun notificationPickerHidesDisabledAppsWithoutChangingItsSourceOrSavedRules() {
-        val apps = listOf(InstalledApp("enabled", "Calendar", true), InstalledApp("disabled", "Camera", false))
-        assertEquals(listOf(apps[0]), AppLabels.notifyingApps(apps, "ca"))
-        assertTrue(AppLabels.notifyingApps(apps, "Camera").isEmpty())
-        assertEquals(2, apps.size)
-        assertEquals(listOf(apps[1].copy(notificationsEnabled = true)),
-            AppLabels.notifyingApps(listOf(apps[1].copy(notificationsEnabled = true)), ""))
-    }
     @Test fun fallbackLabelSkipsGenericPackageParts() {
         assertEquals("Instagram", AppLabels.fallbackLabel("com.instagram.android"))
         assertEquals("Calendar", AppLabels.fallbackLabel("com.google.android.calendar"))

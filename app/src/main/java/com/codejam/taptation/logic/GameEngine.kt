@@ -50,7 +50,8 @@ class GameEngine(
                     // take, but the catch, lockout and choice overlay still happen.
                     next.isDead || random() < (if (allowDebugOverrides) next.config.catchProbability else next.config.difficulty.probability) -> {
                         next = caught(next, next.config.level, now).let {
-                            it.copy(pendingCatch = it.pendingCatch?.copy(packageName = context.packageName))
+                            it.copy(pendingCatch = it.pendingCatch?.copy(packageName = context.packageName,
+                                rule = assessment.reason, channel = context.channelName))
                         }
                         outcome = TapOutcome.Caught
                         reason = "caught"
@@ -182,7 +183,8 @@ class GameEngine(
             recoveryAnchorMillis = now,
             // Same choice for tap catches and forced (debug) catches. Continuing can't cost more
             // health than is left, so at 0 the overlay shows no extra penalty.
-            pendingCatch = PendingCatch("$now-${source.totalCatches + 1}", null, minOf(CONTINUE_EXTRA_DAMAGE, health)),
+            pendingCatch = PendingCatch("$now-${source.totalCatches + 1}", null, minOf(CONTINUE_EXTRA_DAMAGE, health),
+                healthBefore = source.health, healthAfter = health),
         )
     }
 
