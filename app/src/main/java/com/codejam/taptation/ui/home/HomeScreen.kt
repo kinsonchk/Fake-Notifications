@@ -68,7 +68,7 @@ fun HomeScreen(contentPadding: PaddingValues, onOpenSettings: (String) -> Unit =
     val monitoring by (context.applicationContext as com.codejam.taptation.TaptationApplication).system.monitoring
         .collectAsStateWithLifecycle()
 
-    TabScreen(contentPadding, "Home") {
+    TabScreen(contentPadding, "Welcome to Taptation") {
         error?.let { message -> item { Text(message, color = MaterialTheme.colorScheme.error) } }
         val state = snapshot
         if (state == null) {

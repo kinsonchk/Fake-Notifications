@@ -48,7 +48,7 @@ import com.codejam.taptation.ui.common.rememberGameRepository
  * saved source of settings.
  */
 @Composable
-fun SettingsScreen(contentPadding: PaddingValues, openPage: String? = null, onPageOpened: () -> Unit = {}) {
+fun SettingsScreen(contentPadding: PaddingValues, openPage: String? = null, onPageOpened: () -> Unit = {}, onShowTutorial: () -> Unit = {}) {
     val repository = rememberGameRepository()
     val snapshot by repository.state.collectAsStateWithLifecycle()
     val error by repository.error.collectAsStateWithLifecycle()
@@ -93,6 +93,7 @@ fun SettingsScreen(contentPadding: PaddingValues, openPage: String? = null, onPa
             SettingsLink("Notification rules", "$bait always bait · $important always important", R.drawable.ic_tab_notifications) { page = "rules" }
         }
         item { SettingsLink("Catch reminders", "Permissions and delivery", R.drawable.ic_tab_notifications) { page = "feedback" } }
+        item { SettingsLink("Learn Taptation again", "Review the main features and setup steps", R.drawable.ic_tab_home, onShowTutorial) }
     }
     }
 }

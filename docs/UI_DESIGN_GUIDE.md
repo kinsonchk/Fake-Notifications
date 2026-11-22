@@ -36,6 +36,11 @@ Below-the-fold content remains scrollable. Home references include actual Androi
 The character is calm, botanical and spacious: cream background, forest-green emphasis,
 serif page headings, simple sans-serif controls, white rounded cards and subtle borders.
 
+For the meadow, use `grass-screen-mockup.html` as the geometry and motion reference:
+78 tall curved blades on one fading mound, saturated blade colors, coherent wind and
+damped springs for brushing. Do not blend grass with pale card colors or replace its
+motion with rigid offsets. Health changes density/height; touch changes appearance only.
+
 ## 3. Tokens: use roles in code
 
 The implementation lives in `app/src/main/java/com/codejam/taptation/ui/theme/`.
