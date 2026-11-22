@@ -63,7 +63,8 @@ private const val SAMPLE_TITLE = "sam.k liked your photo"
 
 /** A notification as it looks in the shade, with the rule colour as its left stripe. */
 @Composable
-internal fun MiniNotification(subtitle: String, modifier: Modifier = Modifier, rule: AppRule = AppRule.LetUsDecide) {
+internal fun MiniNotification(subtitle: String, modifier: Modifier = Modifier, rule: AppRule = AppRule.LetUsDecide,
+    title: String = SAMPLE_TITLE, app: String = SAMPLE_APP) {
     Surface(modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp), color = MaterialTheme.colorScheme.background,
         contentColor = MaterialTheme.colorScheme.onSurface,
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) {
@@ -72,11 +73,11 @@ internal fun MiniNotification(subtitle: String, modifier: Modifier = Modifier, r
             Row(Modifier.padding(horizontal = 10.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 Box(Modifier.size(28.dp).background(rule.color(), CircleShape), contentAlignment = Alignment.Center) {
-                    Text(SAMPLE_APP.take(1), color = MaterialTheme.colorScheme.background,
+                    Text(app.take(1), color = MaterialTheme.colorScheme.background,
                         style = MaterialTheme.typography.labelLarge)
                 }
                 Column {
-                    Text(SAMPLE_TITLE, style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(title, style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     Text(subtitle, style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }

@@ -62,7 +62,11 @@ import com.codejam.taptation.ui.common.color
 import com.codejam.taptation.ui.common.openOverlaySettings
 import com.codejam.taptation.ui.common.rememberAppLabels
 import com.codejam.taptation.ui.common.rememberGameRepository
-import com.codejam.taptation.ui.home.GrassMeadow
+import com.codejam.taptation.logic.meadow.MeadowState
+import com.codejam.taptation.logic.meadow.ValleyStage
+import com.codejam.taptation.ui.home.MeadowCanvas
+import com.codejam.taptation.ui.home.MeadowEffects
+import com.codejam.taptation.ui.home.MeadowScenery
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
@@ -168,44 +172,72 @@ internal fun OnboardingScreen(startAtSetup: Boolean, onComplete: () -> Unit) {
 
 @Composable
 private fun WelcomePage() {
-    GrassMeadow(health = 100)
-    SectionCard(
-        title = "Make space for what matters.",
-        subtitle = "Some distracting notification taps trigger a reminder and lower your meadow’s health. Important notifications are excluded.",
-    ) {}
+    Text("Taptation helps you stay away from distracting notifications and break the habit of checking them the moment they arrive.",
+        style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.fillMaxWidth())
+    IllustratedCard("Grow your meadow",
+        "Leave distracting notifications for later and your meadow stays healthy. Calm stretches reveal more of the valley.",
+        illustration = { WelcomeMeadow() }) {}
+    IllustratedCard("Distracting taps can catch you",
+        "Some taps on distracting notifications trigger a reminder and lower your meadow’s health.",
+        illustration = { MiniNotification("$SAMPLE_APP · Distracting", rule = AppRule.AlwaysBait) }) {}
+    IllustratedCard("Important ones are never penalized",
+        "Family, work, rides or banking can be set to Always important.",
+        illustration = { MiniNotification("WhatsApp · Always important", rule = AppRule.AlwaysImportant,
+            title = "Mom: Can you call me back?", app = "WhatsApp") }) {}
+}
+
+/** The same valley meadow as Home, fully grown, to show where calm time leads; display only. */
+@Composable
+private fun WelcomeMeadow() {
+    val effects = remember { MeadowEffects() }
+    val world = remember {
+        val grown = ValleyStage.Valley.minutes * MeadowState.MINUTE
+        MeadowState(healthyMillis = grown, cleanMillis = grown, revealedStage = ValleyStage.Valley.ordinal)
+    }
+    MeadowCanvas(health = 100, world = world, effects = effects, scenery = MeadowScenery.Valley)
 }
 
 @Composable
 private fun CriteriaPage(config: GameConfig?, repository: GameRepository) {
     val aiConfigured = (LocalContext.current.applicationContext as TaptationApplication).judges.isConfigured
-    SectionCard(
-        title = "Set your personal notification priorities",
-        subtitle = "These preferences guide automatic checks. They only affect apps set to Let us decide, and you can change them later in Settings.",
-    ) {
-        if (config == null) {
-            Text("Loading your saved preferences…", style = MaterialTheme.typography.bodyMedium)
-        } else {
+    Text("Your answers guide automatic checks for apps set to Let us decide. You can change them later in Settings.",
+        style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.fillMaxWidth())
+    if (config == null) {
+        Text("Loading your saved preferences…", style = MaterialTheme.typography.bodyMedium,
+            modifier = Modifier.fillMaxWidth())
+    } else {
+        IllustratedCard("Never interrupt",
+            "Messages Taptation should always let through.",
+            illustration = { MiniNotification("WhatsApp · Important", rule = AppRule.AlwaysImportant,
+                title = "Mom: Can you call me back?", app = "WhatsApp") }) {
             CriteriaField(
                 label = "What messages would you not want Taptation to interrupt?",
                 placeholder = "Family messages, work shifts, delivery updates, appointment changes…",
                 saved = config.essentialCriteria,
             ) { value -> repository.setCriteria(essential = value.trim()) }
+        }
+        IllustratedCard("Distracting",
+            "Notifications that pull you away from what you were doing.",
+            illustration = { MiniNotification("$SAMPLE_APP · Distracting", rule = AppRule.AlwaysBait) }) {
             CriteriaField(
                 label = "What notifications would distract you?",
                 placeholder = "Likes, follows, game rewards, sales, suggested posts…",
                 saved = config.nonEssentialCriteria,
             ) { value -> repository.setCriteria(nonEssential = value.trim()) }
         }
-        Text(
+    }
+    Text(
             if (aiConfigured) {
                 "Your answers are saved on this device. When AI judging runs, Taptation sends your preferences and notification details to Cloudflare. Notification details are not saved by Taptation."
             } else {
                 "Your answers are saved on this device. Automatic AI checks are not available in this build, so apps set to Let us decide will not be penalized automatically."
             },
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-    }
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.fillMaxWidth(),
+    )
 }
 
 /** What happens after a tap, in order: the check, the chance, the reminder over the app, the choice. */
