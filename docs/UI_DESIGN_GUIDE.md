@@ -40,6 +40,9 @@ For the meadow, use `grass-screen-mockup.html` as the geometry and motion refere
 78 tall curved blades on one fading mound, saturated blade colors, coherent wind and
 damped springs for brushing. Do not blend grass with pale card colors or replace its
 motion with rigid offsets. Health changes density/height; touch changes appearance only.
+The [living meadow](living-meadow.md) adds earned flowers/visitors, permanent discoveries and
+landmarks, an underground view, and an isolated Debug preview. Keep progression in `logic/meadow`;
+do not copy the mockup's time-skip or manual-unlock controls into the public Home screen.
 
 ## 3. Tokens: use roles in code
 

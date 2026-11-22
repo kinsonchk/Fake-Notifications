@@ -20,8 +20,9 @@ class ClefQuestionTest {
     @Test
     fun lowBaitProbabilityIsImportant() {
         assertEquals(Verdict.Important, ClefQuestion.verdict(0.1, Strictness.Strict))
-        assertEquals(Verdict.Important, ClefQuestion.verdict(0.4, Strictness.Balanced))
-        assertEquals(Verdict.Unsure, ClefQuestion.verdict(0.41, Strictness.Balanced))
+        assertEquals(Verdict.Important, ClefQuestion.verdict(0.3, Strictness.Balanced))
+        assertEquals(Verdict.Unsure, ClefQuestion.verdict(0.31, Strictness.Balanced))
+        assertEquals(Verdict.Unsure, ClefQuestion.verdict(0.4, Strictness.Balanced))
     }
 
     @Test

@@ -1,5 +1,10 @@
 # Person 3: UI and stats
 
+**Living meadow:** [current implementation](../living-meadow.md) adds health-driven grass,
+earned flowers/visitors, permanent discoveries and landmarks, underground interactions and
+Debug → Open meadow preview. Its additive progression backend is in `logic/meadow`; existing
+game/catch/classification rules are unchanged. The older tree/pet status below is historical.
+
 **Latest revision:** [revised catch flow](../revised-catch-flow.md) is implemented with
 two-destination caught feedback, activation friction, fixed difficulty settings and real
 SQLite-backed graphs. The older lockout/notification plan below is historical. Home's visual

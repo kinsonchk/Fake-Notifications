@@ -18,6 +18,8 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
+import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.onGloballyPositioned
@@ -31,10 +33,19 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.codejam.taptation.ui.common.rememberMotionEnabled
 import com.codejam.taptation.ui.theme.*
+import com.codejam.taptation.logic.meadow.MeadowState
+import com.codejam.taptation.logic.meadow.MeadowDiscovery
 
 /** Mockup meadow: curved blades on a fading mound, coherent wind and springy local brushing. */
 @Composable
 fun GrassMeadow(health: Int, modifier: Modifier = Modifier) {
+    val effects = remember { MeadowEffects() }
+    MeadowCanvas(health, modifier, null, effects)
+}
+
+@Composable
+internal fun MeadowCanvas(health: Int, modifier: Modifier = Modifier, world: MeadowState?, effects: MeadowEffects,
+    onDiscover: (MeadowDiscovery) -> Unit = {}, onOpenUnderground: () -> Unit = {}) {
     val motion = rememberMotionEnabled()
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     var started by remember { mutableStateOf(lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) }
@@ -53,6 +64,10 @@ fun GrassMeadow(health: Int, modifier: Modifier = Modifier) {
     val currentGrowth by rememberUpdatedState(growth)
     val currentTouch by rememberUpdatedState(if (pressed) touch else Offset.Unspecified)
     val field = remember { MeadowMotion() }
+    val painter = remember { MeadowPainter() }
+    val currentWorld by rememberUpdatedState(world)
+    val currentDiscover by rememberUpdatedState(onDiscover)
+    val currentOpenUnder by rememberUpdatedState(onOpenUnderground)
     val bladePath = remember { Path() }
     val background = MaterialTheme.colorScheme.background
     val dark = background.luminance() < .5f
@@ -60,8 +75,12 @@ fun GrassMeadow(health: Int, modifier: Modifier = Modifier) {
     val highlight = if (dark) GrassDarkHighlight else GrassHighlight
     val dry = if (dark) GrassDarkDry else Earth
     val soil = if (dark) MeadowDarkSoil else MeadowSoil
-    val unit = canvasSize.height / MeadowMotion.HEIGHT
-    val groundY = canvasSize.height * .86f
+    val logicalHeight = if (world == null) MeadowMotion.HEIGHT else 230f
+    val unit = canvasSize.height / logicalHeight
+    val groundY = canvasSize.height * if (world == null) .86f else .83f
+    val groundOffset = if (unit > 0) groundY / unit - MeadowMotion.HEIGHT * .86f else 0f
+    painter.palette(highlight, bladeColor, if (dark) MeadowNightPetal else MeadowPetal,
+        MeadowGold, dry, dark)
     val hillBrush = remember(canvasSize, soil, background) {
         Brush.verticalGradient(listOf(soil, background), startY = groundY - 14f * unit,
             endY = canvasSize.height.toFloat().coerceAtLeast(1f))
@@ -83,34 +102,89 @@ fun GrassMeadow(health: Int, modifier: Modifier = Modifier) {
                 val elapsed = if (previous == 0L) 1f / 60f else (now - previous) / 1_000_000_000f
                 previous = now
                 val pointer = currentTouch
+                effects.tick(elapsed.coerceAtMost(.1f))
                 field.advance(elapsed, currentGrowth, canvasSize.width / unit,
                     if (pointer.isSpecified) pointer.x / unit else Float.NaN,
-                    if (pointer.isSpecified) pointer.y / unit else Float.NaN)
+                    if (pointer.isSpecified) pointer.y / unit - groundOffset else Float.NaN,
+                    effects.gust * 25, effects.dragVelocity,
+                    if (effects.vortexUntil > effects.time) effects.vortex.x else Float.NaN,
+                    if (effects.vortexUntil > effects.time) 45f else 0f)
                 frame++
             }
         }
     }
-    Canvas(modifier.fillMaxWidth().height(165.dp)
+    Canvas(modifier.fillMaxWidth().height(logicalHeight.dp)
         .onSizeChanged { canvasSize = it }
         .onGloballyPositioned { visible = it.boundsInWindow().let { b -> b.width > 0 && b.height > 0 } }
         .semantics { contentDescription = "Meadow health ${health.coerceIn(0, 100)} out of 100" }
-        .pointerInput(motion) {
-            if (!motion) return@pointerInput
+        .pointerInput(motion, world != null, canvasSize) {
+            if (!motion && currentWorld == null) return@pointerInput
             awaitEachGesture {
                 val down = awaitFirstDown(requireUnconsumed = false)
+                if (unit <= 0) return@awaitEachGesture
+                val interactive = currentWorld != null
+                if (interactive) down.consume()
+                val trail = ArrayList<Offset>()
+                val revealed = mutableSetOf<MeadowDiscovery>()
+                var distance = 0f
+                var previous = down.position
+                var pulled = false
                 touch = down.position; pressed = true
                 try {
                     do {
                         val change = awaitPointerEvent().changes.firstOrNull { it.id == down.id } ?: break
                         if (change.isConsumed) break // Keep vertical page scrolling available.
+                        if (interactive) change.consume()
+                        distance += (change.position - previous).getDistance() / unit
+                        effects.dragVelocity = ((change.position.x - previous.x) / unit * 2).coerceIn(-45f,45f)
+                        previous = change.position
                         touch = change.position
+                        if (interactive) {
+                            val point = touch / unit
+                            if (down.position.y > size.height * .93f && (down.position.y - touch.y) / unit > 32 && !pulled) {
+                                currentOpenUnder(); pulled = true
+                            }
+                            if (!pulled && distance > 25 && point.y > logicalHeight * .65f) {
+                                val found = if (point.x < size.width / unit * .27f) MeadowDiscovery.Hedgehog
+                                    else if (point.x > size.width / unit * .72f) MeadowDiscovery.Pond else null
+                                if (found != null && revealed.add(found)) {
+                                    currentDiscover(found)
+                                    effects.say(if(found == MeadowDiscovery.Hedgehog) "You found a sleeping hedgehog." else "A tiny pond was hiding in the grass.")
+                                }
+                            }
+                            trail.add(point); if (trail.size > 64) trail.removeAt(0)
+                            if (!pulled && effects.time >= effects.vortexUntil - 2 && isMeadowCircle(trail)) {
+                                effects.whirlwind(Offset(trail.map { it.x }.average().toFloat(), trail.map { it.y }.average().toFloat())); trail.clear()
+                            }
+                        }
                     } while (change.pressed)
+                    if (interactive && distance < 15 && !pulled) {
+                        val point = touch / unit
+                        val width = size.width / unit
+                        val ground = groundY / unit
+                        val state = currentWorld!!
+                        val flower = (0 until state.flowers).any { i -> (point - Offset(MeadowPainter.FLOWER_X[i] * width, ground - MeadowPainter.FLOWER_H[i])).getDistance() < 26 }
+                        when {
+                            flower -> effects.flower(point)
+                            state.acornStage > 0 && kotlin.math.abs(point.x - width * .48f) < 24 -> effects.squirrel()
+                            state.robin && (point - Offset(if(state.nestStage>=2)width*.75f else width*.36f,if(state.nestStage>=2)ground-56 else ground)).getDistance() < 32 -> {
+                                effects.birdUntil = effects.time + 1.4f; effects.say("Hello, little robin.")
+                            }
+                            else -> effects.scatter(point)
+                        }
+                    }
                 } finally { pressed = false }
             }
         }) {
-        @Suppress("UNUSED_VARIABLE") val drawFrame = frame
-        val scale = size.height / MeadowMotion.HEIGHT
+        @Suppress("UNUSED_VARIABLE") val drawFrame = frame + effects.revision
+        val scale = size.height / logicalHeight
         drawPath(hillPath, hillBrush)
+        world?.let { drawIntoCanvas { canvas ->
+            canvas.nativeCanvas.save(); canvas.nativeCanvas.scale(scale,scale)
+            canvas.nativeCanvas.clipRect(0f,0f,size.width/scale,logicalHeight)
+            painter.landmarks(canvas.nativeCanvas,size.width/scale,groundY/scale,it,if(motion)effects.time else 0f)
+            canvas.nativeCanvas.restore()
+        } }
         val activeCount = 8f + growth * (MeadowMotion.COUNT - 8)
         // Healthy grass keeps the mockup's saturated greens, not the pale card/selection palette.
         val greenAmount = ((growth - .15f) / .1f).coerceIn(0f, 1f)
@@ -118,19 +192,29 @@ fun GrassMeadow(health: Int, modifier: Modifier = Modifier) {
             val alpha = (activeCount - blade.activationRank).coerceIn(0f, 1f)
             if (alpha == 0f) return@forEach
             val x = blade.u * size.width
-            val y = blade.baseY * scale
+            val y = (blade.baseY + groundOffset) * scale
             val length = blade.height(growth) * scale
             val bend = (if (motion) blade.bend else blade.restBend(growth)) * scale
-            val controlX = x + bend * .35f
-            val controlY = y - length * .55f
+            // The root stays planted while the upper blade curls and droops into the breeze.
+            val rootControlX = x - bend * .12f
+            val tipControlX = x + bend * .48f
+            val tipY = y - length + (bend * bend / length.coerceAtLeast(scale)).coerceAtMost(18f * scale) * .45f
             val baseWidth = (2.4f + (1f - blade.layer * .25f) * 2f) * scale
             bladePath.reset()
             bladePath.moveTo(x - baseWidth * .5f, y)
-            bladePath.quadraticTo(controlX - baseWidth * .2f, controlY, x + bend, y - length)
-            bladePath.quadraticTo(controlX + baseWidth * .2f, controlY, x + baseWidth * .5f, y)
+            bladePath.cubicTo(rootControlX - baseWidth * .3f, y - length * .38f,
+                tipControlX - baseWidth * .15f, y - length * 1.08f, x + bend, tipY)
+            bladePath.cubicTo(tipControlX + baseWidth * .15f, y - length * 1.08f,
+                rootControlX + baseWidth * .3f, y - length * .38f, x + baseWidth * .5f, y)
             bladePath.close()
             drawPath(bladePath, lerp(dry, if (blade.layer == 0) bladeColor else highlight, greenAmount),
                 alpha = alpha * if (blade.layer == 2) .72f else .95f)
         }
+        world?.let { drawIntoCanvas { canvas ->
+            canvas.nativeCanvas.save(); canvas.nativeCanvas.scale(scale,scale)
+            canvas.nativeCanvas.clipRect(0f,0f,size.width/scale,logicalHeight)
+            painter.life(canvas.nativeCanvas,size.width/scale,groundY/scale,health,it,effects,motion)
+            canvas.nativeCanvas.restore()
+        } }
     }
 }

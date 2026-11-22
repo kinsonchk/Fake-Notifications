@@ -20,6 +20,7 @@ All objects below come from `(context.applicationContext as TaptationApplication
 | Home status | `system.monitoring: StateFlow<MonitoringStatus?>` | Setup needed / paused / connection interrupted / monitoring. |
 | AI judge available | `judges.isConfigured` | Never read `BuildConfig.CF_*` in screens. |
 | Stats | `stats.weekly` / `stats.monthly`, `stats.changes` | |
+| Meadow | `meadow.state`, `meadow.error` | Separate saved progression; health history and monitoring determine earned growth. See [living meadow](living-meadow.md). |
 | Allowed values | `GameConfig.FRESHNESS_CHOICES_MINUTES`, `GameConfig.DEFAULT_FRESHNESS_SECONDS`, `DisableGate.DURATION_CHOICES_MINUTES`, `DisableGate.DEFAULT_DURATION_MINUTES`, `DisableGate.WAIT_MILLIS` | Screens only word them. |
 | Derived values | `game.recoveryIntervalMinutes(config)`, `config.currentDamage`, `config.countOf(rule)`, `config.freshnessEnabled`, `game.disableWaitRemainingMillis(challenge)` | |
 
@@ -33,6 +34,8 @@ All objects below come from `(context.applicationContext as TaptationApplication
 | Ignore older notifications | `game.setFreshnessEnabled(b)` (restores the default), `setFreshnessMinutes(m)` (checked against the choices), `setFreshnessFromFirstSeen(b)` |
 | Let us decide answers | `game.setCriteria(essential, nonEssential)` (cut to the max length), `game.setStrictness(s)` |
 | App rule | `game.setAppRule(pkg, rule)`, `game.clearAppRule(pkg)` |
+| Meadow discovery | `meadow.discover(discovery)` | Wind, rain and creature reactions are temporary UI effects; they never award health or growth. |
+| Retry meadow load/save | `meadow.retry()` | A failed save retains the last successfully saved state. |
 | Pause / resume | `game.beginDisable()`, `confirmDisable(id, minutes)`, `cancelDisable()`, `enable()` |
 | Open Android settings | `PermissionHelper.openNotificationAccessSettings`, `openOverlaySettings` (or `ui/common/openOverlaySettings`, which adds a message), `openAppNotificationSettings`, `openBatteryOptimizationSettings` |
 | Notification prompt shown | `system.markNotificationPromptShown()` |

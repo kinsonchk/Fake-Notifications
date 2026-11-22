@@ -6,6 +6,7 @@ import android.os.Bundle
 import com.codejam.taptation.ai.ClefJudge
 import com.codejam.taptation.ai.JudgeQueue
 import com.codejam.taptation.logic.GameRepository
+import com.codejam.taptation.logic.meadow.MeadowRepository
 import com.codejam.taptation.logic.RulePicker
 import com.codejam.taptation.logic.TapDispatcher
 import com.codejam.taptation.service.AppDirectory
@@ -57,6 +58,9 @@ class TaptationApplication : Application() {
     lateinit var system: SystemStatus
         private set
 
+    lateinit var meadow: MeadowRepository
+        private set
+
     /** What the Notification rules page lists: eligible apps with their rule, and orphaned rules. */
     lateinit var rulePicker: StateFlow<RulePicker>
         private set
@@ -72,6 +76,7 @@ class TaptationApplication : Application() {
         feedback.attach(game)
         TapDispatcher.handler = game
         system = SystemStatus(this, TapListenerService.connected, game.state, scope)
+        meadow = MeadowRepository(this, game.state, system.monitoring, scope)
         rulePicker = combine(apps.apps, game.state) { list, state ->
             RulePicker.build(list, state?.config, apps.notificationFilterSupported)
         }.stateIn(scope, SharingStarted.Eagerly, RulePicker(notificationFilterSupported = apps.notificationFilterSupported))
@@ -85,7 +90,7 @@ class TaptationApplication : Application() {
         // The user may come back from system settings or after the phone slept: re-read permissions
         // and installed apps, and catch up on recovery. Screens don't need to trigger any of this.
         registerActivityLifecycleCallbacks(object : ActivityLifecycleCallbacks {
-            override fun onActivityResumed(activity: Activity) { system.refresh(); apps.reload(); game.refresh() }
+            override fun onActivityResumed(activity: Activity) { system.refresh(); apps.reload(); game.refresh(); meadow.refresh() }
             override fun onActivityCreated(activity: Activity, savedInstanceState: Bundle?) {}
             override fun onActivityStarted(activity: Activity) {}
             override fun onActivityPaused(activity: Activity) {}

@@ -64,11 +64,14 @@ fun HomeScreen(contentPadding: PaddingValues, onOpenSettings: (String) -> Unit =
     val now = rememberNow(repository)
     val labels = rememberAppLabels()
     val pause = rememberPauseFlow(repository)
+    val meadow = (context.applicationContext as com.codejam.taptation.TaptationApplication).meadow
+    val meadowState by meadow.state.collectAsStateWithLifecycle()
+    val meadowError by meadow.error.collectAsStateWithLifecycle()
     // Setup / paused / interrupted / monitoring is decided by the backend (service/SystemStatus).
     val monitoring by (context.applicationContext as com.codejam.taptation.TaptationApplication).system.monitoring
         .collectAsStateWithLifecycle()
 
-    TabScreen(contentPadding, "Welcome to Taptation") {
+    TabScreen(contentPadding, "Home") {
         error?.let { message -> item { Text(message, color = MaterialTheme.colorScheme.error) } }
         val state = snapshot
         if (state == null) {
@@ -76,8 +79,20 @@ fun HomeScreen(contentPadding: PaddingValues, onOpenSettings: (String) -> Unit =
             return@TabScreen
         }
         monitoring?.let { status -> item { StatusArea(status, pause) } }
-        item { GrassMeadow(health = state.health) }
+        item(key = "living-meadow") {
+            val world = meadowState
+            if (world == null) {
+                GrassMeadow(health = state.health)
+                if (meadowError == null) Text("Loading your meadow…",style=MaterialTheme.typography.bodySmall)
+            }
+            else LivingMeadow(state.health,world,meadow::discover)
+            meadowError?.let {
+                Text(it,color=MaterialTheme.colorScheme.error)
+                TextButton(onClick=meadow::retry) { Text("Try again") }
+            }
+        }
         item { HealthCard(state, now, repository.recoveryIntervalMinutes(state.config)) }
+        meadowState?.let { world -> item { MeadowGrowthCard(world) } }
         if (state.taps.isEmpty()) item { FirstUseCard(state.config.difficulty, onOpenSettings) }
         if (state.taps.isNotEmpty()) item { RecentActivity(state, labels) }
         if (state.totalCatches > 0 || state.tapsPerApp.isNotEmpty()) item { AllTimeCard(state, now) }

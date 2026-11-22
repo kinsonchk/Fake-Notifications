@@ -54,6 +54,8 @@ fun DebugScreen(contentPadding: PaddingValues = PaddingValues(), controls: DemoC
     }
     val connected by TapListenerService.connected.collectAsStateWithLifecycle()
     val listenerTaps by TapLog.entries.collectAsStateWithLifecycle()
+    var meadowPreview by remember { mutableStateOf(false) }
+    if (meadowPreview) com.codejam.taptation.ui.home.MeadowPreviewDialog { meadowPreview = false }
 
     TabScreen(contentPadding, "Debug") {
         error?.let { message -> item { Text(message, color = MaterialTheme.colorScheme.error) } }
@@ -85,6 +87,11 @@ fun DebugScreen(contentPadding: PaddingValues = PaddingValues(), controls: DemoC
         }
 
         item { DemoControlsPanel(demoControls) }
+        item {
+            SectionCard("Meadow preview", "Try every growth stage without changing your real meadow.") {
+                OutlinedButton(onClick = { meadowPreview = true }) { Text("Open meadow preview") }
+            }
+        }
         item {
             SectionCard("Debug probability override", "Release builds always use the chosen difficulty.") {
                 Text("Catch chance: ${override.toInt()}%")

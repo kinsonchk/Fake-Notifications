@@ -43,7 +43,7 @@ class MockupScreensTest {
         try {
             compose.activity.setContent { TaptationTheme(darkTheme = false) { AppTabs(debug = true) } }
             compose.waitUntil(10_000) { compose.onAllNodesWithTag("screen-title").fetchSemanticsNodes().isNotEmpty() }
-            compose.onNodeWithTag("screen-title").assertTextEquals("Welcome to Taptation")
+            compose.onNodeWithTag("screen-title").assertTextEquals("Home")
             capture("home-light")
             compose.onNodeWithText("Stats").performClick()
             compose.onNodeWithTag("screen-title").assertTextEquals("Stats")
@@ -94,7 +94,7 @@ class MockupScreensTest {
     @Test fun darkScreensAndCaughtChoicesRender() {
         compose.activity.setContent { TaptationTheme(darkTheme = true) { AppTabs(debug = true) } }
         compose.waitUntil(10_000) { compose.onAllNodesWithTag("screen-title").fetchSemanticsNodes().isNotEmpty() }
-        compose.onNodeWithTag("screen-title").assertTextEquals("Welcome to Taptation")
+        compose.onNodeWithTag("screen-title").assertTextEquals("Home")
         capture("home-dark")
         compose.onNodeWithText("Stats").performClick()
         compose.onNodeWithTag("screen-title").assertTextEquals("Stats")
