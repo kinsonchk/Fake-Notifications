@@ -1,8 +1,6 @@
 package com.codejam.taptation.ui
 
 import android.content.Context
-import android.content.Intent
-import android.net.Uri
 import android.provider.Settings
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -12,6 +10,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
@@ -19,10 +19,12 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -32,6 +34,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import com.codejam.taptation.service.PermissionHelper
 import com.codejam.taptation.ui.common.SectionCard
+import com.codejam.taptation.ui.common.openOverlaySettings
 import com.codejam.taptation.ui.home.TreeIllustration
 
 private const val PREFS = "first_run"
@@ -48,7 +51,7 @@ internal fun completeTutorial(context: Context) {
 @Composable
 internal fun OnboardingScreen(startAtSetup: Boolean, onComplete: () -> Unit) {
     val context = LocalContext.current
-    var page by remember { mutableIntStateOf(if (startAtSetup) 3 else 0) }
+    var page by rememberSaveable { mutableIntStateOf(if (startAtSetup) 3 else 0) }
     var notificationAccess by remember { mutableStateOf(PermissionHelper.isNotificationAccessGranted(context)) }
     var overlayAccess by remember { mutableStateOf(Settings.canDrawOverlays(context)) }
 
@@ -57,13 +60,15 @@ internal fun OnboardingScreen(startAtSetup: Boolean, onComplete: () -> Unit) {
         overlayAccess = Settings.canDrawOverlays(context)
     }
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { refresh() }
+    val scroll = rememberScrollState()
+    LaunchedEffect(page) { scroll.scrollTo(0) }
     Column(
         modifier = Modifier.fillMaxSize().padding(horizontal = 24.dp, vertical = 24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.SpaceBetween,
     ) {
         Column(
-            modifier = Modifier.weight(1f, fill = false).fillMaxWidth(),
+            modifier = Modifier.weight(1f, fill = false).fillMaxWidth().verticalScroll(scroll),
             verticalArrangement = Arrangement.spacedBy(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
@@ -93,7 +98,7 @@ internal fun OnboardingScreen(startAtSetup: Boolean, onComplete: () -> Unit) {
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             } else {
-                Text("Taptation needs both permissions to detect notification taps and show catch feedback over other apps.",
+                Text("Taptation needs notification access to detect notification taps. Showing catch feedback over other apps is optional but recommended.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.fillMaxWidth())
@@ -104,8 +109,9 @@ internal fun OnboardingScreen(startAtSetup: Boolean, onComplete: () -> Unit) {
                         modifier = Modifier.fillMaxWidth(),
                     ) { Text("Open notification access settings") }
                 }
-                SectionCard("Display over other apps", "Lets catch feedback appear while you’re using another app.") {
-                    AccessStatus(if (overlayAccess) "Enabled" else "Needed", overlayAccess)
+                SectionCard("Display over other apps",
+                    "Recommended. Lets catch feedback appear while you’re using another app. Without it, a notification opens the choice instead.") {
+                    AccessStatus(if (overlayAccess) "Enabled" else "Recommended", overlayAccess, required = false)
                     if (!overlayAccess) Button(
                         onClick = { openOverlaySettings(context) },
                         modifier = Modifier.fillMaxWidth(),
@@ -132,7 +138,7 @@ internal fun OnboardingScreen(startAtSetup: Boolean, onComplete: () -> Unit) {
                 if (page > 0 && page < 3) {
                     OutlinedButton(onClick = { page-- }, modifier = Modifier.weight(1f).height(52.dp)) { Text("Back") }
                 }
-                val canFinish = page == 3 && notificationAccess && overlayAccess
+                val canFinish = page == 3 && notificationAccess
                 Button(
                     onClick = {
                         if (page < 3) page++ else if (canFinish) onComplete()
@@ -151,17 +157,14 @@ internal fun OnboardingScreen(startAtSetup: Boolean, onComplete: () -> Unit) {
 }
 
 @Composable
-private fun AccessStatus(label: String, enabled: Boolean) {
+private fun AccessStatus(label: String, enabled: Boolean, required: Boolean = true) {
     Text(
         "●  $label",
         style = MaterialTheme.typography.bodyMedium,
-        color = if (enabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
+        color = when {
+            enabled -> MaterialTheme.colorScheme.primary
+            required -> MaterialTheme.colorScheme.error
+            else -> MaterialTheme.colorScheme.onSurfaceVariant
+        },
     )
-}
-
-private fun openOverlaySettings(context: Context) {
-    val intent = Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:${context.packageName}"))
-    runCatching { context.startActivity(intent) }.onFailure {
-        context.startActivity(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION))
-    }
 }
