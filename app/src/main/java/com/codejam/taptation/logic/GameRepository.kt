@@ -133,7 +133,11 @@ class GameRepository(context: Context, private val stats: StatsRepository? = nul
     }
     fun reset(): CompletableFuture<GameState> = submit { reset() }
 
-    /** Transform runs on the queue so simultaneous settings changes cannot lose updates. */
+    /**
+     * Transform runs on the queue so simultaneous settings changes cannot lose updates. Screens should
+     * use the typed actions below (setDifficulty, setFreshness…, setCriteria…) so the rules stay here;
+     * this open form is for debug panels and the actions themselves.
+     */
     fun updateConfig(change: (GameConfig) -> GameConfig): CompletableFuture<GameState> = submit {
         val changed = change(state.config)
         require(changed.active == state.config.active && changed.disabledUntilMillis == state.config.disabledUntilMillis) {
@@ -142,10 +146,50 @@ class GameRepository(context: Context, private val stats: StatsRepository? = nul
         updateConfig(if (debug) changed else changed.copy(debugCatchProbability = null, debugRecoveryIntervalMinutes = null))
     }
 
+    // Typed settings actions: screens call these instead of editing GameConfig, so every game rule
+    // (allowed values, defaults, what a choice also resets) lives here.
+
+    /** Picking a public difficulty also drops any debug catch-chance override. */
+    fun setDifficulty(difficulty: Difficulty) = updateConfig { it.copy(difficulty = difficulty, debugCatchProbability = null) }
+
+    /** Turning "ignore older notifications" back on restores the default window. */
+    fun setFreshnessEnabled(enabled: Boolean) =
+        updateConfig { it.copy(freshnessSeconds = if (enabled) GameConfig.DEFAULT_FRESHNESS_SECONDS else 0) }
+
+    fun setFreshnessMinutes(minutes: Int): CompletableFuture<GameState> {
+        require(minutes in GameConfig.FRESHNESS_CHOICES_MINUTES) { "Unsupported time limit: $minutes min" }
+        return updateConfig { it.copy(freshnessSeconds = minutes * 60) }
+    }
+
+    fun setFreshnessFromFirstSeen(fromFirstSeen: Boolean) = updateConfig { it.copy(freshnessFromFirstSeen = fromFirstSeen) }
+
+    /** User answers for "Let us decide"; cut to [GameConfig.MAX_CRITERIA_LENGTH]. Null leaves one unchanged. */
+    fun setCriteria(essential: String? = null, nonEssential: String? = null) = updateConfig {
+        it.copy(
+            essentialCriteria = essential?.take(GameConfig.MAX_CRITERIA_LENGTH) ?: it.essentialCriteria,
+            nonEssentialCriteria = nonEssential?.take(GameConfig.MAX_CRITERIA_LENGTH) ?: it.nonEssentialCriteria,
+        )
+    }
+
+    fun setStrictness(strictness: Strictness) = updateConfig { it.copy(strictness = strictness) }
+
+    /** Removes an app's rule, back to "Let us decide" (also for apps that are no longer installed). */
+    fun clearAppRule(packageName: String) = setAppRule(packageName, AppRule.LetUsDecide)
+
+    /** "This should be important" after a catch: the whole app becomes Always important. */
+    fun markAppImportant(packageName: String) = setAppRule(packageName, AppRule.AlwaysImportant)
+
+    /** The recovery interval in force (the debug override only applies in debuggable builds). */
+    fun recoveryIntervalMinutes(config: GameConfig): Int = config.effectiveRecoveryIntervalMinutes(debug)
+
+    /** Time left before a disable [challenge] can be confirmed, on the gate's own clock. */
+    fun disableWaitRemainingMillis(challenge: DisableGate.Challenge): Long =
+        (challenge.readyAtMillis - android.os.SystemClock.elapsedRealtime()).coerceAtLeast(0)
+
     fun beginDisable(): CompletableFuture<DisableGate.Challenge> = submit { disableGate.begin() }
     fun cancelDisable(): CompletableFuture<Unit> = submit { disableGate.cancel() }
     fun confirmDisable(id: String, minutes: Int?): CompletableFuture<GameState> = submit {
-        require(minutes == null || minutes in setOf(15, 60))
+        require(minutes in DisableGate.DURATION_CHOICES_MINUTES)
         disableGate.confirm(id)
         setActive(false, minutes?.let { System.currentTimeMillis() + it * 60_000L })
     }

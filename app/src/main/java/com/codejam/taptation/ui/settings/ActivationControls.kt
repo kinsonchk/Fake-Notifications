@@ -71,6 +71,8 @@ fun rememberPauseFlow(repository: GameRepository): PauseFlow {
 
 @Composable
 fun ActivationControls(repository: GameRepository, config: GameConfig) {
+    // Paused/active comes from the backend's monitoring status when available (it follows the timed
+    // pause end); the clock only keeps the "resumes at" line current.
     val now = rememberNow(repository)
     val active = config.isActive(now)
     val flow = rememberPauseFlow(repository)
@@ -82,7 +84,7 @@ fun ActivationControls(repository: GameRepository, config: GameConfig) {
             horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text("Monitoring notifications", style = MaterialTheme.typography.titleMedium)
-                Text(if (active) "Pausing takes a 10-second confirmation." else "Paused. Turn on to start checking again.",
+                Text(if (active) "Pausing takes a ${DisableGate.WAIT_MILLIS / 1000}-second confirmation." else "Paused. Turn on to start checking again.",
                     style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             Switch(checked = active, enabled = !flow.busy,
@@ -101,7 +103,7 @@ fun DisableConfirmation(challenge: DisableGate.Challenge, busy: Boolean,
     onCancel: () -> Unit, onConfirm: (Int?) -> Unit,
 ) {
     var now by remember(challenge.id) { mutableLongStateOf(SystemClock.elapsedRealtime()) }
-    var duration by remember(challenge.id) { mutableStateOf<Int?>(15) }
+    var duration by remember(challenge.id) { mutableStateOf<Int?>(DisableGate.DEFAULT_DURATION_MINUTES) }
     LaunchedEffect(challenge.id) {
         while (now < challenge.readyAtMillis) { delay(250); now = SystemClock.elapsedRealtime() }
     }
@@ -112,7 +114,9 @@ fun DisableConfirmation(challenge: DisableGate.Challenge, busy: Boolean,
             androidx.compose.foundation.layout.Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text("Monitoring, new activity recording and catches will stop. Your existing history stays.")
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    listOf(15 to "15 minutes", 60 to "1 hour", null to "Until enabled").forEach { (value, label) ->
+                    // Allowed lengths come from the backend; only their wording lives here.
+                    DisableGate.DURATION_CHOICES_MINUTES.forEach { value ->
+                        val label = when (value) { null -> "Until enabled"; 60 -> "1 hour"; else -> "$value minutes" }
                         FilterChip(selected = duration == value, onClick = { duration = value }, label = { Text(label) })
                     }
                 }

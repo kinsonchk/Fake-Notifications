@@ -27,6 +27,20 @@ object PermissionHelper {
         launch(context, Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
     }
 
+    /** "Display over other apps", needed for the caught overlay (optional: it falls back to a notification). */
+    fun canDrawOverlays(context: Context): Boolean = Settings.canDrawOverlays(context)
+
+    /**
+     * Opens this app's "Display over other apps" page, or App info when the ROM lacks that screen.
+     * Returns false when neither could be opened (the caller shows a message).
+     */
+    fun openOverlaySettings(context: Context): Boolean = tryLaunch(context,
+        Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.fromParts("package", context.packageName, null)))
+
+    /** Opens this app's notification settings (when the system prompt can no longer be shown). */
+    fun openAppNotificationSettings(context: Context): Boolean = tryLaunch(context,
+        Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName))
+
     /** True when the app is already exempt from battery optimization ("Unrestricted"). */
     fun isIgnoringBatteryOptimizations(context: Context): Boolean {
         val pm = context.getSystemService(PowerManager::class.java) ?: return false
@@ -39,6 +53,13 @@ object PermissionHelper {
      */
     fun openBatteryOptimizationSettings(context: Context) {
         launch(context, Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))
+    }
+
+    /** Like [launch], but never throws: false when neither the screen nor App info could open. */
+    private fun tryLaunch(context: Context, intent: Intent): Boolean = try {
+        launch(context, intent); true
+    } catch (e: RuntimeException) {
+        Log.w(TAG, "Couldn't open ${intent.action} or App info", e); false
     }
 
     /** Falls back to this app's App info page if the OEM removed the requested screen. */

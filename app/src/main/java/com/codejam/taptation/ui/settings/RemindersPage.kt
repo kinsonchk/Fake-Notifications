@@ -1,5 +1,6 @@
 ﻿package com.codejam.taptation.ui.settings
 
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import android.Manifest
 import android.content.Context
 import android.content.Intent
@@ -35,30 +36,21 @@ import com.codejam.taptation.ui.common.SectionCard
 import com.codejam.taptation.ui.common.StatusPill
 import com.codejam.taptation.ui.common.TabScreen
 
-/** What Android currently allows for catch reminders; refreshed whenever the screen resumes. */
+/** What Android currently allows for catch reminders, as this page shows it (from SystemStatus). */
 data class ReminderPermissions(val overlay: Boolean, val notifications: Boolean, val notificationAccess: Boolean) {
     /** How many things need the user's attention. */
     val issues: Int get() = listOf(overlay, notifications).count { !it }
 
-    companion object {
-        fun read(context: Context) = ReminderPermissions(
-            overlay = Settings.canDrawOverlays(context),
-            notifications = NotificationManagerCompat.from(context).areNotificationsEnabled(),
-            notificationAccess = PermissionHelper.isNotificationAccessGranted(context),
-        )
-    }
 }
 
+/** The backend's permission state in this page's shape. */
 @Composable
 fun rememberReminderPermissions(): ReminderPermissions {
-    val context = LocalContext.current
-    var permissions by remember { mutableStateOf(ReminderPermissions.read(context)) }
-    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { permissions = ReminderPermissions.read(context) }
-    return permissions
+    val system = (LocalContext.current.applicationContext as com.codejam.taptation.TaptationApplication).system
+    val status by system.permissions.collectAsStateWithLifecycle()
+    return ReminderPermissions(status.overlay, status.postNotifications, status.notificationAccess)
 }
 
-private const val PREFS = "catch_reminders"
-private const val ASKED = "asked_notifications"
 
 /**
  * Catch reminders: each permission shows whether it is Allowed, why it is needed, and the right next
@@ -68,13 +60,13 @@ private const val ASKED = "asked_notifications"
 @Composable
 fun RemindersPage(contentPadding: PaddingValues, onBack: () -> Unit) {
     val context = LocalContext.current
-    var live by remember { mutableStateOf(ReminderPermissions.read(context)) }
-    var asked by remember { mutableStateOf(context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean(ASKED, false)) }
-    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { live = ReminderPermissions.read(context) }
+    // Permission state and "already asked" come from the backend (service/SystemStatus), which
+    // re-reads them whenever an activity resumes.
+    val system = (context.applicationContext as com.codejam.taptation.TaptationApplication).system
+    val status by system.permissions.collectAsStateWithLifecycle()
+    val live = ReminderPermissions(status.overlay, status.postNotifications, status.notificationAccess)
     val request = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {
-        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putBoolean(ASKED, true).apply()
-        asked = true
-        live = ReminderPermissions.read(context)
+        system.markNotificationPromptShown()
     }
 
     TabScreen(contentPadding, "Catch reminders.") {
@@ -95,13 +87,11 @@ fun RemindersPage(contentPadding: PaddingValues, onBack: () -> Unit) {
             SectionCard("Allow reminder notifications", "Used when a reminder can't appear over other apps.") {
                 PermissionStatus(live.notifications)
                 if (!live.notifications) {
-                    val canAsk = Build.VERSION.SDK_INT >= 33 && !asked
+                    val canAsk = status.notificationPromptAvailable
                     if (canAsk) Button(onClick = { request.launch(Manifest.permission.POST_NOTIFICATIONS) },
                         modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("Allow notifications") }
-                    else OutlinedButton(onClick = {
-                        context.startActivity(Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
-                            .putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
-                    }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("Open Android settings") }
+                    else OutlinedButton(onClick = { PermissionHelper.openAppNotificationSettings(context) },
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("Open Android settings") }
                 }
             }
         }

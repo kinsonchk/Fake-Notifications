@@ -18,16 +18,20 @@ object GameStateCodec {
         val pendingExtraDamage: Boolean,
         val rulesTail: Boolean,
         val recoveryTail: Boolean,
+        /** v8: the pending catch's health before/after, rule and channel (PendingCatch details). */
+        val pendingDetails: Boolean = false,
     ) {
         companion object {
             val V5 = Layout(5, pendingExtraDamage = false, rulesTail = false, recoveryTail = false)
             val V6_RULES = Layout(6, pendingExtraDamage = false, rulesTail = true, recoveryTail = false)
             val V6_PENALTY = Layout(6, pendingExtraDamage = true, rulesTail = false, recoveryTail = false)
             val V6_MERGED = Layout(6, pendingExtraDamage = true, rulesTail = true, recoveryTail = false)
-            val CURRENT = Layout(7, pendingExtraDamage = true, rulesTail = true, recoveryTail = true)
+            val V7 = Layout(7, pendingExtraDamage = true, rulesTail = true, recoveryTail = true)
+            val CURRENT = Layout(8, pendingExtraDamage = true, rulesTail = true, recoveryTail = true, pendingDetails = true)
 
             fun candidates(version: Int): List<Layout> = when (version) {
                 CURRENT.version -> listOf(CURRENT)
+                V7.version -> listOf(V7)
                 6 -> listOf(V6_MERGED, V6_RULES, V6_PENALTY)
                 else -> listOf(Layout(version, pendingExtraDamage = false, rulesTail = false, recoveryTail = false))
             }
@@ -113,6 +117,13 @@ object GameStateCodec {
                 out.writeBoolean(it.packageName != null)
                 it.packageName?.let(out::writeUTF)
                 if (layout.pendingExtraDamage) out.writeInt(it.continueExtraDamage)
+                if (layout.pendingDetails) {
+                    out.writeInt(it.healthBefore ?: -1)
+                    out.writeInt(it.healthAfter ?: -1)
+                    out.writeUTF(it.rule)
+                    out.writeBoolean(it.channel != null)
+                    it.channel?.let(out::writeUTF)
+                }
             }
             with(state.config) {
                 if (layout.rulesTail) {
@@ -217,9 +228,16 @@ object GameStateCodec {
                 active = input.readBoolean(),
                 disabledUntilMillis = if (input.readBoolean()) input.readLong() else null,
             )
-            val pending = if (version >= 5 && input.readBoolean()) PendingCatch(input.readUTF(),
-                if (input.readBoolean()) input.readUTF() else null,
-                if (layout.pendingExtraDamage) input.readInt() else 0) else null
+            val pending = if (version >= 5 && input.readBoolean()) {
+                val basic = PendingCatch(input.readUTF(), if (input.readBoolean()) input.readUTF() else null,
+                    if (layout.pendingExtraDamage) input.readInt() else 0)
+                if (!layout.pendingDetails) basic else basic.copy(
+                    healthBefore = input.readInt().takeIf { it in 0..100 },
+                    healthAfter = input.readInt().takeIf { it in 0..100 },
+                    rule = input.readUTF(),
+                    channel = if (input.readBoolean()) input.readUTF() else null,
+                )
+            } else null
             config = if (layout.rulesTail) config.copy(
                 appRules = buildMap { repeat(input.count()) { put(input.readUTF(), AppRule.valueOf(input.readUTF())) } },
                 essentialCriteria = input.readUTF(),

@@ -305,7 +305,7 @@ class GameEngineTest {
         assertThrows(Exception::class.java) { GameStateCodec.decode("broken") }
         val encoded = GameStateCodec.encode(GameState())
         val bytes = java.util.Base64.getDecoder().decode(encoded)
-        bytes[3] = 8
+        bytes[3] = 99 // a version from the future
         assertThrows(IllegalArgumentException::class.java) {
             GameStateCodec.decode(java.util.Base64.getEncoder().encodeToString(bytes))
         }
@@ -509,5 +509,25 @@ class GameEngineTest {
         assertEquals(f.now + 15 * GameEngine.MINUTE_MILLIS, f.game.nextScheduledChangeMillis())
         f.game.setActive(false, null)
         assertNull(f.game.nextScheduledChangeMillis())
+    }
+
+    @Test fun catchRecordsItsOwnDetailsForTheCaughtScreens() {
+        val f = Fixture()
+        f.configure()
+        val pending = f.game.onTap(f.context("bait").copy(channelName = "Likes")).state.pendingCatch!!
+        assertEquals(CatchDetails("bait", 100, 90, 10, "app_always_bait", "Likes"), CatchDetails.of(pending))
+        f.now += 31_000L // past the 30 s lockout, before any recovery step
+        // A forced (debug) catch has no notification behind it, but still its own cost.
+        val forced = f.game.applyCatch(CatchLevel.Mild).pendingCatch!!
+        assertEquals(CatchDetails(null, 90, 80, 10, "", null), CatchDetails.of(forced))
+    }
+
+    @Test fun pendingCatchDetailsSurviveARestart() {
+        val state = GameState(pendingCatch = PendingCatch("9-3", "pkg", 5, healthBefore = 60, healthAfter = 40,
+            rule = "ai_bait", channel = "Messages"))
+        assertEquals(state, GameStateCodec.decode(GameStateCodec.encode(state)))
+        // A v7 snapshot (no details) still loads, without details.
+        val v7 = GameStateCodec.decode(GameStateCodec.encode(state, GameStateCodec.Layout.V7))
+        assertEquals(PendingCatch("9-3", "pkg", 5), v7.pendingCatch)
     }
 }

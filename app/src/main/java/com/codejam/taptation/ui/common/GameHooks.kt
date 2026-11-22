@@ -28,15 +28,14 @@ fun rememberGameRepository(): GameRepository {
 }
 
 /**
- * Wall-clock time that ticks every second while the screen is started, for lockout countdowns.
- * Recovery doesn't depend on it: GameRepository refreshes itself when the next step is due. The
- * on-resume refresh only catches up after the device slept (its timer pauses in deep sleep).
+ * Wall-clock time that ticks every second while the screen is started, for countdowns only.
+ * Recovery doesn't depend on it: GameRepository refreshes itself when the next step is due, and
+ * TaptationApplication refreshes it whenever an activity resumes.
  */
 @Composable
 fun rememberNow(repository: GameRepository): Long {
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
-    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { repository.refresh() }
     LaunchedEffect(repository, lifecycle) {
         lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
             while (true) {

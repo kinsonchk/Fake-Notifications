@@ -88,8 +88,8 @@ fun SettingsScreen(contentPadding: PaddingValues, openPage: String? = null, onPa
         item { GameRulesCard(config, repository) }
         item { FreshnessCard(config, repository) }
         item {
-            val bait = config.appRules.values.count { it == AppRule.AlwaysBait }
-            val important = config.appRules.values.count { it == AppRule.AlwaysImportant }
+            val bait = config.countOf(AppRule.AlwaysBait)
+            val important = config.countOf(AppRule.AlwaysImportant)
             SettingsLink("Notification rules", "$bait always bait · $important always important", R.drawable.ic_tab_notifications) { page = "rules" }
         }
         item { SettingsLink("Catch reminders", "Permissions and delivery", R.drawable.ic_tab_notifications) { page = "feedback" } }
@@ -102,7 +102,7 @@ private fun GameRulesCard(config: GameConfig, repository: GameRepository) {
     SectionCard("Difficulty", "Chance of a catch when you open a distracting notification within your time limit.") {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Difficulty.entries.forEach { difficulty ->
-                val select = { repository.updateConfig { it.copy(difficulty = difficulty, debugCatchProbability = null) }; Unit }
+                val select = { repository.setDifficulty(difficulty); Unit }
                 val isSelected = difficulty == config.difficulty
                 Surface(onClick = select, modifier = Modifier.weight(1f).semantics { selected = isSelected },
                     shape = RoundedCornerShape(16.dp), border = if (isSelected) null else BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
@@ -119,8 +119,8 @@ private fun GameRulesCard(config: GameConfig, repository: GameRepository) {
     }
 }
 
-/** Everyday choices; short demo windows are in the Debug tab. */
-private val timeLimitMinutes = listOf(5, 10, 15, 30, 60)
+/** Everyday choices (allowed values owned by the backend); short demo windows are in the Debug tab. */
+private val timeLimitMinutes = GameConfig.FRESHNESS_CHOICES_MINUTES
 
 
 
@@ -128,7 +128,7 @@ private val timeLimitMinutes = listOf(5, 10, 15, 30, 60)
 private fun FreshnessCard(config: GameConfig, repository: GameRepository) {
     var changing by rememberSaveable { mutableStateOf(false) }
     var advanced by rememberSaveable { mutableStateOf(false) }
-    val on = config.freshnessSeconds > 0
+    val on = config.freshnessEnabled
     SectionCard("Ignore older notifications") {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             Text(if (on) "Opening a notification more than ${timeLimitText(config.freshnessSeconds)} after " +
@@ -136,7 +136,7 @@ private fun FreshnessCard(config: GameConfig, repository: GameRepository) {
                 else "Every distracting notification can catch you, however old it is.",
                 Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Switch(checked = on, modifier = Modifier.semantics { contentDescription = "Ignore older notifications" },
-                onCheckedChange = { enabled -> repository.updateConfig { it.copy(freshnessSeconds = if (enabled) 600 else 0) } })
+                onCheckedChange = { enabled -> repository.setFreshnessEnabled(enabled) })
         }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
             TextButton(enabled = on, onClick = { changing = !changing }) { Text(if (changing) "Done" else "Change time") }
@@ -145,7 +145,7 @@ private fun FreshnessCard(config: GameConfig, repository: GameRepository) {
         if (changing && on) FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             timeLimitMinutes.forEach { minutes ->
                 FilterChip(selected = config.freshnessSeconds == minutes * 60,
-                    onClick = { repository.updateConfig { it.copy(freshnessSeconds = minutes * 60) } },
+                    onClick = { repository.setFreshnessMinutes(minutes) },
                     label = { Text(timeLimitText(minutes * 60)) })
             }
         }
@@ -153,11 +153,11 @@ private fun FreshnessCard(config: GameConfig, repository: GameRepository) {
             Text("Count age from", style = MaterialTheme.typography.titleSmall)
             com.codejam.taptation.ui.common.RadioOption(!config.freshnessFromFirstSeen, "Latest update",
                 "A new message in the same chat restarts the clock.") {
-                repository.updateConfig { it.copy(freshnessFromFirstSeen = false) }
+                repository.setFreshnessFromFirstSeen(false)
             }
             com.codejam.taptation.ui.common.RadioOption(config.freshnessFromFirstSeen, "First time Taptation saw it",
                 "The clock starts once, even if the app updates the notification.") {
-                repository.updateConfig { it.copy(freshnessFromFirstSeen = true) }
+                repository.setFreshnessFromFirstSeen(true)
             }
         }
     }

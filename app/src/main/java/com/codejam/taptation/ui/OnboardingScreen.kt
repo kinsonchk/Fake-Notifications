@@ -21,6 +21,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -35,13 +36,23 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.codejam.taptation.BuildConfig
 import com.codejam.taptation.service.PermissionHelper
+import com.codejam.taptation.ui.common.CriteriaField
 import com.codejam.taptation.ui.common.SectionCard
 import com.codejam.taptation.ui.common.openOverlaySettings
+import com.codejam.taptation.ui.common.rememberGameRepository
 import com.codejam.taptation.ui.home.GrassMeadow
 
 private const val PREFS = "first_run"
 private const val TUTORIAL_COMPLETE = "tutorial_complete"
+private const val PAGE_WELCOME = 0
+private const val PAGE_PERSONAL_CRITERIA = 1
+private const val PAGE_SAFE_APPS = 2
+private const val PAGE_CATCHES = 3
+private const val PAGE_SETUP = 4
+private const val TUTORIAL_PAGE_COUNT = PAGE_SETUP
 
 internal fun isTutorialComplete(context: Context): Boolean =
     context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean(TUTORIAL_COMPLETE, false)
@@ -54,7 +65,9 @@ internal fun completeTutorial(context: Context) {
 @Composable
 internal fun OnboardingScreen(startAtSetup: Boolean, onComplete: () -> Unit) {
     val context = LocalContext.current
-    var page by rememberSaveable { mutableIntStateOf(if (startAtSetup) 3 else 0) }
+    val repository = rememberGameRepository()
+    val gameState by repository.state.collectAsStateWithLifecycle()
+    var page by rememberSaveable { mutableIntStateOf(if (startAtSetup) PAGE_SETUP else PAGE_WELCOME) }
     var notificationAccess by remember { mutableStateOf(PermissionHelper.isNotificationAccessGranted(context)) }
     var overlayAccess by remember { mutableStateOf(Settings.canDrawOverlays(context)) }
 
@@ -78,29 +91,67 @@ internal fun OnboardingScreen(startAtSetup: Boolean, onComplete: () -> Unit) {
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Text(
-                if (page == 3) "A couple of settings" else "A little more room",
+                when (page) {
+                    PAGE_SETUP -> "A couple of settings"
+                    PAGE_PERSONAL_CRITERIA -> "What matters to you?"
+                    PAGE_SAFE_APPS -> "Your important apps stay safe."
+                    PAGE_CATCHES -> "A tap can be a moment to pause."
+                    else -> "A little more room"
+                },
                 style = MaterialTheme.typography.headlineLarge,
                 modifier = Modifier.fillMaxWidth(),
             )
-            if (page < 3) {
-                Text("Step ${page + 1} of 3", style = MaterialTheme.typography.labelSmall,
+            if (page < PAGE_SETUP) {
+                Text("Step ${page + 1} of $TUTORIAL_PAGE_COUNT", style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant)
-                if (page == 0) GrassMeadow(health = 100)
-                SectionCard(
-                    title = when (page) {
-                        0 -> "Make space for what matters."
-                        1 -> "Your important apps stay safe."
-                        else -> "A tap can be a moment to pause."
-                    },
-                    subtitle = when (page) {
-                        0 -> "Some distracting notification taps trigger a reminder and lower your meadow’s health. Important notifications are excluded."
-                        1 -> "Choose the apps and people you want to protect. Taptation can also skip urgent and important notifications."
-                        else -> "Taptation checks distracting notification taps. If a catch happens, your meadow loses health and a reminder shows what it cost before you continue."
-                    },
-                ) {
-                    if (page == 1) Text("You can choose safe apps later in Settings.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                if (page == PAGE_WELCOME) GrassMeadow(health = 100)
+                if (page == PAGE_PERSONAL_CRITERIA) {
+                    SectionCard(
+                        title = "Help the AI understand your priorities",
+                        subtitle = "These answers guide the AI for apps set to Let us decide. You can change them later in Settings.",
+                    ) {
+                        val config = gameState?.config
+                        if (config == null) {
+                            Text("Loading your saved preferences…", style = MaterialTheme.typography.bodyMedium)
+                        } else {
+                            CriteriaField(
+                                label = "What notifications are important in your life?",
+                                placeholder = "Family messages, work shifts, delivery updates, appointment changes…",
+                                saved = config.essentialCriteria,
+                            ) { value -> repository.updateConfig { it.copy(essentialCriteria = value.trim()) } }
+                            CriteriaField(
+                                label = "What notifications are usually not important to you?",
+                                placeholder = "Likes, follows, game rewards, sales, suggested posts…",
+                                saved = config.nonEssentialCriteria,
+                            ) { value -> repository.updateConfig { it.copy(nonEssentialCriteria = value.trim()) } }
+                        }
+                        Text(
+                            if (BuildConfig.CF_ACCOUNT_ID.isNotBlank() && BuildConfig.CF_API_TOKEN.isNotBlank()) {
+                                "Your answers are saved on this device. When AI judging runs, Taptation sends your preferences and notification details to Cloudflare. Notification details are not saved by Taptation."
+                            } else {
+                                "Your answers are saved on this device. AI judging is not configured in this build, so these answers will not affect automatic decisions yet."
+                            },
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                } else {
+                    SectionCard(
+                        title = when (page) {
+                            PAGE_WELCOME -> "Make space for what matters."
+                            PAGE_SAFE_APPS -> "Your important apps stay safe."
+                            else -> "A tap can be a moment to pause."
+                        },
+                        subtitle = when (page) {
+                            PAGE_WELCOME -> "Some distracting notification taps trigger a reminder and lower your meadow’s health. Important notifications are excluded."
+                            PAGE_SAFE_APPS -> "Choose the apps and people you want to protect. Taptation can also skip urgent and important notifications."
+                            else -> "Taptation checks distracting notification taps. If a catch happens, your meadow loses health and a reminder shows what it cost before you continue."
+                        },
+                    ) {
+                        if (page == PAGE_SAFE_APPS) Text("You can choose safe apps later in Settings.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
                 }
             } else {
                 Text("Taptation needs notification access to detect notification taps. Showing catch feedback over other apps is optional but recommended.",
@@ -131,7 +182,7 @@ internal fun OnboardingScreen(startAtSetup: Boolean, onComplete: () -> Unit) {
 
         Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                repeat(4) { index ->
+                repeat(PAGE_SETUP + 1) { index ->
                     Surface(
                         color = if (index == page) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant,
                         shape = RoundedCornerShape(50),
@@ -139,21 +190,24 @@ internal fun OnboardingScreen(startAtSetup: Boolean, onComplete: () -> Unit) {
                     ) {}
                 }
             }
+            if (page == PAGE_PERSONAL_CRITERIA) {
+                TextButton(onClick = { page = PAGE_SAFE_APPS }) { Text("Skip for now") }
+            }
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                if (page > 0 && page < 3) {
+                if (page > PAGE_WELCOME && page < PAGE_SETUP) {
                     OutlinedButton(onClick = { page-- }, modifier = Modifier.weight(1f).height(52.dp)) { Text("Back") }
                 }
-                val canFinish = page == 3 && notificationAccess
+                val canFinish = page == PAGE_SETUP && notificationAccess
                 Button(
                     onClick = {
-                        if (page < 3) page++ else if (canFinish) onComplete()
+                        if (page < PAGE_SETUP) page++ else if (canFinish) onComplete()
                     },
-                    enabled = page < 3 || canFinish,
+                    enabled = page < PAGE_SETUP || canFinish,
                     modifier = Modifier.weight(1f).height(52.dp),
                     shape = RoundedCornerShape(16.dp),
                 ) { Text(when (page) {
-                    0, 1 -> "Next"
-                    2 -> "Set up notifications"
+                    PAGE_WELCOME, PAGE_PERSONAL_CRITERIA, PAGE_SAFE_APPS -> "Next"
+                    PAGE_CATCHES -> "Set up notifications"
                     else -> "Finish setup"
                 }) }
             }

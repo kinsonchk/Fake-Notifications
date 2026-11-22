@@ -12,5 +12,10 @@ class DisableGate(private val elapsedMillis: () -> Long) {
         challenge = null
     }
     fun cancel() { challenge = null }
-    companion object { const val WAIT_MILLIS = 10_000L }
+    companion object {
+        const val WAIT_MILLIS = 10_000L
+        /** Pause lengths the user can choose (minutes); null means "until turned back on". */
+        val DURATION_CHOICES_MINUTES: List<Int?> = listOf(15, 60, null)
+        const val DEFAULT_DURATION_MINUTES = 15
+    }
 }

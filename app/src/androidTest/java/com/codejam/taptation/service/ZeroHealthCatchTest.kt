@@ -45,6 +45,7 @@ class ZeroHealthCatchTest {
             assertTrue(Settings.canDrawOverlays(original))
             instrumentation.runOnMainSync {
                 feedback = CatchFeedback(isolated)
+                feedback.surface = com.codejam.taptation.ui.overlay.CatchOverlay(isolated)
                 initialized = true
                 repository = GameRepository(isolated, onCaught = feedback::rememberDestination)
                 feedback.attach(repository)
