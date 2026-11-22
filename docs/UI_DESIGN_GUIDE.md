@@ -67,6 +67,8 @@ there when an intentional app-wide design change is requested. Avoid hard-coded 
   explicitly set `contentColor = MaterialTheme.colorScheme.onSurface`; color-role aliases
   can otherwise make the heading inherit muted text.
 - Preserve the stable palette. Wallpaper-derived dynamic colors must not replace these colors.
+- Dark is the app default. Settings → Appearance offers Dark/Light; the saved choice also governs
+  caught overlays and system-bar contrast. Do not fall back to the phone theme for individual screens.
 - Every custom surface must work in dark mode. Never put a hard-coded white panel behind theme text.
 
 | Text purpose | Typography role | Size / line height |

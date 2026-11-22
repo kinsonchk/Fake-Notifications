@@ -9,6 +9,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.window.DialogWindowProvider
 import androidx.core.view.WindowCompat
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
@@ -21,7 +22,8 @@ import kotlin.math.roundToInt
 fun MeadowPreviewDialog(onClose:()->Unit) {
     var health by remember{mutableFloatStateOf(100f)}
     var minutes by remember{mutableFloatStateOf(360f)}
-    var dark by remember{mutableStateOf(false)}
+    val initialDark = MaterialTheme.colorScheme.background.luminance() < .5f
+    var dark by remember{mutableStateOf(initialDark)}
     var discoveries by remember{mutableStateOf(MeadowDiscovery.entries.toSet())}
     val world=MeadowState(healthyMillis=minutes.roundToInt()*MeadowState.MINUTE,
         checkpointFull=health.roundToInt()==100,checkpointMonitoring=true,discoveries=discoveries)

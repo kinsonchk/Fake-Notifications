@@ -50,7 +50,8 @@ full-health timestamp. Initial installation starts new growth, rather than fabri
 - Mushrooms glow, the beetle wanders, and the ant changes its oversized parcel. Explore provides
   an accessible alternative to these canvas targets. Roots grow with the acorn/sapling/oak.
 - Discoveries lists earned and locked entries, their requirements, and permanent keepsakes.
-- Night follows the app's Android dark theme. It is not a separate gameplay setting.
+- Night follows the app's appearance: dark by default, with an optional Light setting under
+  Settings → Appearance. The choice persists independently of the phone's system theme.
 
 ## Debug and verification
 

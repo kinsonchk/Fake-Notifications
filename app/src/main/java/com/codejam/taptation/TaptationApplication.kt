@@ -6,6 +6,8 @@ import android.os.Bundle
 import com.codejam.taptation.ai.ClefJudge
 import com.codejam.taptation.ai.JudgeQueue
 import com.codejam.taptation.logic.GameRepository
+import com.codejam.taptation.logic.AppearanceRepository
+import com.codejam.taptation.logic.Appearance
 import com.codejam.taptation.logic.meadow.MeadowRepository
 import com.codejam.taptation.logic.RulePicker
 import com.codejam.taptation.logic.TapDispatcher
@@ -61,17 +63,21 @@ class TaptationApplication : Application() {
     lateinit var meadow: MeadowRepository
         private set
 
+    lateinit var appearance: AppearanceRepository
+        private set
+
     /** What the Notification rules page lists: eligible apps with their rule, and orphaned rules. */
     lateinit var rulePicker: StateFlow<RulePicker>
         private set
 
     override fun onCreate() {
         super.onCreate()
+        appearance = AppearanceRepository(this, scope)
         stats = StatsRepository(SqliteStatsStore(this))
         judges = JudgeQueue(ClefJudge())
         apps = AppDirectory(this)
         feedback = CatchFeedback(this, apps)
-        feedback.surface = CatchOverlay(this)
+        feedback.surface = CatchOverlay(this) { appearance.mode.value != Appearance.Light }
         game = GameRepository(this, stats, feedback::rememberDestination)
         feedback.attach(game)
         TapDispatcher.handler = game

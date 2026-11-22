@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- Platform theme so no AppCompat dependency is needed; Compose draws its own UI. -->
-    <style name="Theme.Taptation" parent="android:Theme.Material.Light.NoActionBar" />
+    <style name="Theme.Taptation" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">#19221D</item>
+    </style>
 </resources>

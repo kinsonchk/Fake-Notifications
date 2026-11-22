@@ -2,7 +2,6 @@ package com.codejam.taptation.ui.overlay
 
 import android.animation.ValueAnimator
 import android.content.Context
-import android.content.res.Configuration
 import android.graphics.PixelFormat
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
@@ -30,7 +29,7 @@ import com.codejam.taptation.ui.theme.*
  * Compose needs an activity. Pure presentation: the backend (service/CatchFeedback) decides when to
  * show it and builds the [CatchPrompt]; buttons only call [CatchActions]. Main thread only.
  */
-class CatchOverlay(private val context: Context) : CatchSurface {
+class CatchOverlay(private val context: Context, private val isDark: () -> Boolean = { true }) : CatchSurface {
     private val windows = context.getSystemService(WindowManager::class.java)
     private val animators = mutableListOf<ValueAnimator>()
     private var overlay: View? = null
@@ -39,7 +38,7 @@ class CatchOverlay(private val context: Context) : CatchSurface {
         hide()
         val density = context.resources.displayMetrics.density
         fun dp(value: Int) = (value * density).toInt()
-        val dark = context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK == Configuration.UI_MODE_NIGHT_YES
+        val dark = isDark()
         val background = (if (dark) NightSurface else androidx.compose.ui.graphics.Color.White).toArgb()
         val ink = (if (dark) NightInk else Ink).toArgb()
         val muted = (if (dark) NightMuted else MutedGreen).toArgb()
@@ -185,7 +184,7 @@ class CatchOverlay(private val context: Context) : CatchSurface {
         return LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(14), dp(14), dp(14), dp(14))
-            val dark = context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK == Configuration.UI_MODE_NIGHT_YES
+            val dark = isDark()
             background = GradientDrawable().apply {
                 setColor((if (dark) Night else Cream).toArgb())
                 cornerRadius = dp(16).toFloat()

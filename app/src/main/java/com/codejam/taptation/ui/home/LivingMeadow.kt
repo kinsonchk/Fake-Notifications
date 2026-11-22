@@ -133,7 +133,7 @@ private data class MeadowEntry(val name:String,val found:Boolean,val description
 private fun entries(world:MeadowState)=listOf(
     MeadowEntry("Butterfly",world.butterfly,"Draw wind and watch it ride the breeze.","First flowers: 30 min at full health."),
     MeadowEntry("Robin",world.robin,"A little visitor who makes a home here.","Wildflowers: 90 min at full health."),
-    MeadowEntry("Fireflies",world.fireflies,"Tiny lights appear when your phone uses dark mode.","Visitors: 180 min at full health."),
+    MeadowEntry("Fireflies",world.fireflies,"Tiny lights appear with the app’s dark appearance.","Visitors: 180 min at full health."),
     MeadowEntry("Hedgehog",MeadowDiscovery.Hedgehog in world.discoveries,"Still tucked in. Still asleep.","Brush the lower left of the meadow, or Explore."),
     MeadowEntry("Hidden pond",MeadowDiscovery.Pond in world.discoveries,"A quiet little place beneath the grass.","Brush the lower right of the meadow, or Explore."),
     MeadowEntry("Robin’s nest",world.nestStage>=2,"The robin’s story continues as your meadow grows.","240 min at full health."),

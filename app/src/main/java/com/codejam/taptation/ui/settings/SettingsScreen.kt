@@ -87,6 +87,7 @@ fun SettingsScreen(contentPadding: PaddingValues, openPage: String? = null, onPa
         item { ActivationControls(repository, config) }
         item { GameRulesCard(config, repository) }
         item { FreshnessCard(config, repository) }
+        item { AppearanceCard() }
         item {
             val bait = config.countOf(AppRule.AlwaysBait)
             val important = config.countOf(AppRule.AlwaysImportant)
@@ -95,6 +96,24 @@ fun SettingsScreen(contentPadding: PaddingValues, openPage: String? = null, onPa
         item { SettingsLink("Catch reminders", "Permissions and delivery", R.drawable.ic_tab_notifications) { page = "feedback" } }
         item { SettingsLink("Learn Taptation again", "Review the main features and setup steps", R.drawable.ic_tab_home, onShowTutorial) }
     }
+    }
+}
+
+@Composable
+private fun AppearanceCard() {
+    val appearance = (androidx.compose.ui.platform.LocalContext.current.applicationContext as com.codejam.taptation.TaptationApplication).appearance
+    val mode by appearance.mode.collectAsStateWithLifecycle()
+    val error by appearance.error.collectAsStateWithLifecycle()
+    SectionCard("Appearance", "Dark is the default. Choose the look you prefer.") {
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            com.codejam.taptation.logic.Appearance.entries.forEach { choice ->
+                FilterChip(selected = mode == choice, enabled = mode != null,
+                    onClick = { appearance.setAppearance(choice) },
+                    modifier = Modifier.semantics { contentDescription = "${choice.name} theme" },
+                    label = { Text(choice.name) })
+            }
+        }
+        error?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
     }
 }
 

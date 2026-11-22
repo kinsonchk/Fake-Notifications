@@ -1,6 +1,5 @@
 package com.codejam.taptation.ui.theme
 
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -36,7 +35,7 @@ private val AppShapes = Shapes(
 
 /** A stable product palette: wallpaper-derived colors must not replace the mockup's greens. */
 @Composable
-fun TaptationTheme(darkTheme: Boolean = isSystemInDarkTheme(), content: @Composable () -> Unit) {
+fun TaptationTheme(darkTheme: Boolean = true, content: @Composable () -> Unit) {
     MaterialTheme(colorScheme = if (darkTheme) DarkColors else LightColors,
         typography = Typography, shapes = AppShapes, content = content)
 }
