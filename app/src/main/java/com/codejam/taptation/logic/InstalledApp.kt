@@ -4,8 +4,14 @@ package com.codejam.taptation.logic
  * An app the user can pick. Built by the backend (service/AppDirectory) from the package manager;
  * screens show [label] and the icon, never the package name. [notificationsEnabled] is whether the
  * app may post notifications (always true before Android 13, where it can't be checked).
+ * [category] is `ApplicationInfo.category` as declared by the app, null when undefined.
  */
-data class InstalledApp(val packageName: String, val label: String, val notificationsEnabled: Boolean = true)
+data class InstalledApp(
+    val packageName: String,
+    val label: String,
+    val notificationsEnabled: Boolean = true,
+    val category: Int? = null,
+)
 
 /** Launchable apps: null while loading; [error] when the package manager query failed. */
 data class AppList(val apps: List<InstalledApp>? = null, val error: String? = null)
@@ -34,7 +40,23 @@ data class RulePicker(
         return apps.orEmpty().filter { needle.isEmpty() || it.app.label.contains(needle, ignoreCase = true) }
     }
 
+    /**
+     * The apps onboarding offers first: those whose declared category is social, game or video (in
+     * that order, then by name). Empty when none declare one. The order ignores the saved rule, so a
+     * row doesn't move while the user changes it.
+     */
+    fun suggestions(limit: Int = ONBOARDING_SUGGESTIONS): List<RuleApp> =
+        apps.orEmpty().withIndex()
+            .filter { it.value.app.category in SUGGESTED_CATEGORIES }
+            .sortedWith(compareBy({ SUGGESTED_CATEGORIES.indexOf(it.value.app.category) }, { it.index }))
+            .take(limit).map { it.value }
+
     companion object {
+        const val ONBOARDING_SUGGESTIONS = 5
+
+        // ApplicationInfo.CATEGORY_SOCIAL, _GAME, _VIDEO (plain ints keep this JVM-testable).
+        private val SUGGESTED_CATEGORIES = listOf(4, 0, 2)
+
         fun build(list: AppList, config: GameConfig?, notificationFilterSupported: Boolean): RulePicker {
             val installed = list.apps ?: return RulePicker(error = list.error,
                 notificationFilterSupported = notificationFilterSupported)

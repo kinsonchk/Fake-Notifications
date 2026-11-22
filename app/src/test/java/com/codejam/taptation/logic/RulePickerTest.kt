@@ -34,6 +34,17 @@ class RulePickerTest {
         assertEquals(2, picker.search("").size)
     }
 
+    @Test fun suggestionsAreSocialGameAndVideoAppsInThatOrderWhateverTheRule() {
+        val game = InstalledApp("game", "Garden Rush", category = 0)
+        val social = InstalledApp("social", "Zebra Chat", category = 4)
+        val maps = InstalledApp("maps", "Atlas", category = 6)
+        val picker = RulePicker.build(AppList(listOf(maps, calendar, game, social)),
+            GameConfig(appRules = mapOf("social" to AppRule.AlwaysImportant)), notificationFilterSupported = false)
+        assertEquals(listOf("social", "game"), picker.suggestions().map { it.app.packageName })
+        assertEquals(listOf("social"), picker.suggestions(1).map { it.app.packageName })
+        assertTrue(RulePicker().suggestions().isEmpty())
+    }
+
     @Test fun loadingAndErrorsPassThrough() {
         assertNull(RulePicker.build(AppList(), config, true).apps)
         assertEquals("boom", RulePicker.build(AppList(error = "boom"), config, true).error)
