@@ -1,6 +1,7 @@
 package com.codejam.taptation.ui.common
 
 import android.content.Intent
+import android.Manifest
 import android.content.pm.PackageManager
 import android.content.pm.ResolveInfo
 import android.os.Build
@@ -41,7 +42,8 @@ fun rememberInstalledAppsState(): InstalledAppsState {
                     .mapNotNull { info ->
                         val app = info.activityInfo?.applicationInfo ?: return@mapNotNull null
                         if (app.packageName == context.packageName) return@mapNotNull null
-                        InstalledApp(app.packageName, app.loadLabel(context.packageManager).toString())
+                        InstalledApp(app.packageName, app.loadLabel(context.packageManager).toString(),
+                            notificationsAllowed(context.packageManager, app.packageName))
                     }
                     .distinctBy { it.packageName }
                     .sortedBy { it.label.lowercase() }
@@ -54,6 +56,13 @@ fun rememberInstalledAppsState(): InstalledAppsState {
         }
     }
     return InstalledAppsState(apps, error) { version++ }
+}
+
+/** Restored from main. Before Android 13 the other app's notification switch isn't publicly queryable. */
+private fun notificationsAllowed(packageManager: PackageManager, packageName: String): Boolean {
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return true
+    return packageManager.checkPermission(Manifest.permission.POST_NOTIFICATIONS, packageName) ==
+        PackageManager.PERMISSION_GRANTED
 }
 
 @Suppress("DEPRECATION")

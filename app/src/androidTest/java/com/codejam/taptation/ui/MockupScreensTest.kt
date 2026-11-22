@@ -35,6 +35,8 @@ class MockupScreensTest {
         val installed = compose.activity.packageManager.queryIntentActivities(
             Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER), 0)
             .map { it.activityInfo.applicationInfo }.filter { it.packageName != compose.activity.packageName }
+            .filter { android.os.Build.VERSION.SDK_INT < 33 || compose.activity.packageManager.checkPermission(
+                android.Manifest.permission.POST_NOTIFICATIONS, it.packageName) == android.content.pm.PackageManager.PERMISSION_GRANTED }
             .distinctBy { it.packageName }.sortedBy { it.loadLabel(compose.activity.packageManager).toString().lowercase() }
         val target = installed.first()
         val name = target.loadLabel(compose.activity.packageManager).toString()
@@ -55,6 +57,21 @@ class MockupScreensTest {
             compose.onNodeWithText("Notification rules").performClick()
             compose.onNodeWithTag("screen-title").assertTextEquals("Notification rules")
             compose.waitUntil(10_000) { compose.onAllNodesWithContentDescription("$name notification rule").fetchSemanticsNodes().isNotEmpty() }
+            if (android.os.Build.VERSION.SDK_INT >= 33) {
+                val blocked = compose.activity.packageManager.queryIntentActivities(
+                    Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER), 0)
+                    .map { it.activityInfo.applicationInfo }.firstOrNull {
+                        it.packageName != compose.activity.packageName && compose.activity.packageManager.checkPermission(
+                            android.Manifest.permission.POST_NOTIFICATIONS, it.packageName) != android.content.pm.PackageManager.PERMISSION_GRANTED
+                    }
+                if (blocked != null) {
+                    app.game.setAppRule(blocked.packageName, AppRule.AlwaysImportant).get(5, TimeUnit.SECONDS)
+                    compose.onNodeWithText("Find an app").performTextReplacement(blocked.loadLabel(compose.activity.packageManager).toString())
+                    compose.onNodeWithText("No matching apps with notification permission. Try a different name.").assertIsDisplayed()
+                    assertEquals(AppRule.AlwaysImportant, app.game.state.value!!.config.ruleFor(blocked.packageName))
+                    compose.onNodeWithText("Find an app").performTextClearance()
+                }
+            }
             capture("app-rules-light")
             compose.onNodeWithContentDescription("$name notification rule").performClick()
             compose.onAllNodesWithText("Always important").onLast().performClick()

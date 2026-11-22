@@ -38,7 +38,7 @@ fun NotificationRulesScreen(contentPadding: PaddingValues, repository: GameRepos
     var saving by remember { mutableStateOf(setOf<String>()) }
     var saved by remember { mutableStateOf(false) }
     val config = snapshot?.config
-    val matches = installed.apps?.let { AppLabels.filter(it, search) }.orEmpty()
+    val matches = installed.apps?.let { AppLabels.notifyingApps(it, search) }.orEmpty()
     TabScreen(contentPadding, "Notification rules", itemSpacing = 10.dp,
         subtitle = "Choose which apps are always important or always bait. Let us decide uses your answers below.") {
         item { BackLink("Settings", onBack) }
@@ -50,6 +50,9 @@ fun NotificationRulesScreen(contentPadding: PaddingValues, repository: GameRepos
         item {
             Column(Modifier.padding(top = 12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Text("Your apps", style = MaterialTheme.typography.titleLarge)
+                Text(if (android.os.Build.VERSION.SDK_INT >= 33) "Only apps allowed to send notifications are shown."
+                    else "This Android version can’t check other apps’ notification permission, so all apps are shown.",
+                    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Text("Always important: never penalized. Always bait: a quick tap can trigger a catch. Every app starts on Let us decide.",
                     style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 OutlinedTextField(search, onValueChange = { search = it }, label = { Text("Find an app") },
@@ -62,7 +65,9 @@ fun NotificationRulesScreen(contentPadding: PaddingValues, repository: GameRepos
                 OutlinedButton(onClick = installed.reload) { Text("Try again") }
             }
             installed.apps == null -> item { Text("Loading installed apps…") }
-            matches.isEmpty() -> item { Text("No matching apps. Try a different name.", color = MaterialTheme.colorScheme.onSurfaceVariant) }
+            matches.isEmpty() -> item { Text(if (search.isBlank()) "No apps with notification permission found."
+                else "No matching apps with notification permission. Try a different name.",
+                color = MaterialTheme.colorScheme.onSurfaceVariant) }
         }
         items(matches, key = { it.packageName }) { app ->
             AppRuleRow(app, config.ruleFor(app.packageName), labels, app.packageName !in saving) { choice ->

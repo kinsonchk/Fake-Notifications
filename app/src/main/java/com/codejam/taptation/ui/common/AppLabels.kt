@@ -36,7 +36,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 /** An app the user can pick: its package name stays internal, people see [label] and the icon. */
-data class InstalledApp(val packageName: String, val label: String)
+data class InstalledApp(val packageName: String, val label: String, val notificationsEnabled: Boolean = true)
 
 /** App names and icons from the phone, so no screen shows a package name. */
 class AppLabels(context: Context) {
@@ -65,6 +65,10 @@ class AppLabels(context: Context) {
     }
 
     companion object {
+        /** Notification-rule picker only; disabled apps stay in the loaded list so saved rules aren't lost. */
+        fun notifyingApps(apps: List<InstalledApp>, query: String): List<InstalledApp> =
+            filter(apps.filter { it.notificationsEnabled }, query)
+
         private val noise = setOf("android", "app", "apps", "mobile", "lite", "client", "release", "google", "com", "org", "net")
 
         /** Readable guess from a package name when the phone can't give the real label. */

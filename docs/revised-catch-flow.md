@@ -117,3 +117,5 @@ Statistics add a two-color opened/swiped split and inspectable daily counts, inc
 
 No engine, classifier, AI judge, persistence or statistics-calculation changes are part of this
 frontend revision. Older branch controls for retired channel/keyword rules are no longer exposed.
+
+Notification rules restores main's notification-permission filter on Android 13+: only permitted apps are shown. Disabled apps remain in the loaded inventory so saved rules are preserved and aren't mistaken for uninstalled apps. Older Android retains the existing all-apps fallback. The picker reloads on resume; the backend is unchanged.
