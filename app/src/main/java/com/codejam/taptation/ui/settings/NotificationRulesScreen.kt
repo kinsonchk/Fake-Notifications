@@ -69,43 +69,6 @@ fun NotificationRulesScreen(contentPadding: PaddingValues, repository: GameRepos
             }
         }
         if (appsExpanded) {
-            when {
-                installed.error != null -> item {
-                    Text("Couldn’t load installed apps.", color = MaterialTheme.colorScheme.error)
-                    OutlinedButton(onClick = installed.reload) { Text("Try again") }
-                }
-                installed.apps == null -> item { Text("Loading installed apps…") }
-                matches.isEmpty() -> item { Text(if (search.isBlank()) "No apps with notification permission found."
-                    else "No matching apps with notification permission. Try a different name.",
-                    color = MaterialTheme.colorScheme.onSurfaceVariant) }
-            }
-            items(matches, key = { it.packageName }) { app ->
-                AppRuleRow(app, config.ruleFor(app.packageName), labels, app.packageName !in saving) { choice ->
-                    saving = saving + app.packageName
-                    repository.setAppRule(app.packageName, choice).whenComplete { _, failure -> scope.launch {
-                        saving = saving - app.packageName
-                        if (failure == null) saved = true
-                    } }
-                }
-            }
-            val installedPackages = installed.apps?.map { it.packageName }?.toSet()
-            val missing = if (installedPackages == null || search.isNotBlank()) emptyList()
-                else config.appRules.keys.filter { it !in installedPackages }.sorted()
-            if (missing.isNotEmpty()) item {
-                Text("Apps no longer installed", Modifier.padding(top = 14.dp), style = MaterialTheme.typography.titleSmall)
-                Text("Saved rules stay until you remove them.", style = MaterialTheme.typography.bodySmall)
-            }
-            items(missing, key = { "missing-$it" }) { pkg ->
-                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    Text(labels.label(pkg), Modifier.weight(1f))
-                    TextButton(enabled = pkg !in saving, onClick = {
-                        saving = saving + pkg
-                        repository.setAppRule(pkg, AppRule.LetUsDecide).whenComplete { _, failure -> scope.launch {
-                            saving = saving - pkg
-                            if (failure == null) saved = true
-                        } }
-                    }) { Text("Remove rule") }
-                }
         when {
             picker.apps == null && picker.error != null -> item {
                 Text("Couldn’t load installed apps.", color = MaterialTheme.colorScheme.error)
@@ -142,6 +105,7 @@ fun NotificationRulesScreen(contentPadding: PaddingValues, repository: GameRepos
                     } }
                 }) { Text("Remove rule") }
             }
+        }
         }
         item { CriteriaSection(config, repository) }
         item { StrictnessSection(config, repository) }

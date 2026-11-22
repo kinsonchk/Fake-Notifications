@@ -56,19 +56,21 @@ enum class Tab(val label: String, @param:DrawableRes val icon: Int, val debugOnl
 fun TaptationApp(debug: Boolean) {
     val context = LocalContext.current
     var tutorialComplete by remember { mutableStateOf(isTutorialComplete(context)) }
-    if (tutorialComplete) {
-        AppTabs(debug)
+    var replayTutorial by rememberSaveable { mutableStateOf(false) }
+    if (tutorialComplete && !replayTutorial) {
+        AppTabs(debug, onShowTutorial = { replayTutorial = true })
     } else {
         OnboardingScreen(startAtSetup = false) {
             completeTutorial(context)
             tutorialComplete = true
+            replayTutorial = false
         }
     }
 }
 
 /** Bottom tabs. Debug-only tabs are hidden in release builds. */
 @Composable
-internal fun AppTabs(debug: Boolean) {
+internal fun AppTabs(debug: Boolean, onShowTutorial: () -> Unit = {}) {
     val tabs = Tab.entries.filter { debug || !it.debugOnly }
     val compact = LocalConfiguration.current.screenWidthDp < 380
     var selected by rememberSaveable { mutableStateOf(Tab.Home) }
@@ -129,7 +131,7 @@ internal fun AppTabs(debug: Boolean) {
                 Tab.Home -> HomeScreen(padding, onOpenSettings = { page -> settingsRequest = page; selected = Tab.Settings })
                 Tab.Stats -> StatsScreen(padding)
                 Tab.Notifications -> NotificationsScreen(padding)
-                Tab.Settings -> SettingsScreen(padding, openPage = settingsRequest, onPageOpened = { settingsRequest = null })
+                Tab.Settings -> SettingsScreen(padding, openPage = settingsRequest, onPageOpened = { settingsRequest = null }, onShowTutorial = onShowTutorial)
                 Tab.Debug -> DebugScreen(padding)
             }
         }
