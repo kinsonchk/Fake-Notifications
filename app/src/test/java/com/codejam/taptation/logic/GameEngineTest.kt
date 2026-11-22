@@ -538,7 +538,7 @@ class GameEngineTest {
         f.configure()
         val pending = f.game.onTap(f.context("bait").copy(channelName = "Likes")).state.pendingCatch!!
         assertEquals(CatchDetails("bait", 100, 90, 10, "app_always_bait", "Likes"), CatchDetails.of(pending))
-        f.now += 31_000L // past the 30 s lockout, before any recovery step
+        f.now += 16_000L // past the 15 s lockout, before any recovery step
         // A forced (debug) catch has no notification behind it, but still its own cost.
         val forced = f.game.applyCatch(CatchLevel.Mild).pendingCatch!!
         assertEquals(CatchDetails(null, 90, 80, 10, "", null), CatchDetails.of(forced))

@@ -38,7 +38,7 @@ data class GameConfig(
     val mediumDamage: Int = 20,
     val savageDamage: Int = 35,
     val recoveryPerHour: Int = 5,
-    val lockoutSeconds: Int = 30,
+    val lockoutSeconds: Int = 15,
     val whitelistedPackages: Set<String> = emptySet(),
     val baitPackages: Set<String> = emptySet(),
     val baitKeywords: Set<String> = emptySet(),

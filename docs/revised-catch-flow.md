@@ -14,7 +14,7 @@ settings and lockout instructions in the older briefs.
   preserves partial progress. The debug panel can use 1/5/15-minute intervals; release uses 60.
 - A caught notification creates one persistent pending choice: **Go to Taptation** or
   **Go to original app**. The choice acknowledges an already-applied catch and never applies
-  damage again. The internal 30-second catch cooldown prevents repeated penalties; it is not
+  damage again. The internal 15-second catch cooldown prevents repeated penalties; it is not
   a compulsory pause screen or a device-wide lock.
 - With display-over-other-apps permission, background catches show an Android application
   overlay. In the foreground, the same two choices appear as a Compose dialog. Without
