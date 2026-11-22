@@ -195,11 +195,14 @@ class GameEngineTest {
         assertEquals(10, f.game.state.taps.last().damage)
         f.hours(24.0)
         assertEquals(0, f.game.getHealth())
-        assertEquals("dead", f.tap("bait").reason)
+        // At 0 health a bait tap is always caught, without rolling and without more damage.
+        val dead = f.tap("bait")
+        assertEquals(TapOutcome.Caught, dead.outcome)
+        assertEquals(0, dead.state.taps.last().damage)
         assertEquals(1, f.rolls)
         val reset = f.game.reset()
         assertEquals(100, reset.health)
-        assertEquals(1L, reset.totalCatches)
+        assertEquals(2L, reset.totalCatches)
         assertEquals(2L, reset.tapsPerApp["bait"])
         assertEquals(0L, reset.lockoutUntilMillis)
     }
@@ -208,7 +211,7 @@ class GameEngineTest {
         Fixture().game.reset()
     }
 
-    @Test fun debugCatchAlsoRespectsDeathAndLockout() {
+    @Test fun debugCatchRespectsLockoutAndStillCatchesAtZero() {
         val f = Fixture()
         f.game.applyCatch(CatchLevel.Medium)
         f.game.applyCatch(CatchLevel.Savage)
@@ -217,6 +220,31 @@ class GameEngineTest {
         f.game.setHealthForDebug(0)
         f.game.applyCatch(CatchLevel.Mild)
         assertEquals(0, f.game.state.health)
+        assertEquals(2L, f.game.state.totalCatches)
+        assertEquals(0, f.game.state.pendingCatch!!.continueExtraDamage)
+    }
+
+    @Test fun atZeroHealthEveryBaitTapIsCaughtEvenWithAZeroChance() {
+        val f = Fixture()
+        f.configure { it.copy(debugCatchProbability = 0.0) }
+        f.game.setHealthForDebug(0)
+        val result = f.tap("bait")
+        assertEquals(TapOutcome.Caught, result.outcome)
+        assertEquals("caught", result.reason)
+        assertEquals(0, f.rolls)
+        assertEquals("bait", result.state.pendingCatch!!.packageName)
+        assertTrue(result.state.isLockedOut(f.now))
+        // Important taps stay safe, and the lockout still prevents back-to-back catches.
+        f.configure { it.copy(appRules = mapOf("bait" to AppRule.AlwaysBait, "mom" to AppRule.AlwaysImportant)) }
+        assertEquals(TapOutcome.Bypass, f.tap("mom").outcome)
+        assertEquals("lockout", f.tap("bait").reason)
+    }
+
+    @Test fun continuePenaltyNeverExceedsTheHealthLeft() {
+        val f = Fixture()
+        f.configure()
+        f.game.setHealthForDebug(13) // Mild catch: 13 -> 3, so continuing can cost only 3.
+        assertEquals(3, f.tap("bait").state.pendingCatch!!.continueExtraDamage)
     }
 
     @Test fun configAndAllHistoryRoundTrip() {
@@ -277,7 +305,7 @@ class GameEngineTest {
         assertThrows(Exception::class.java) { GameStateCodec.decode("broken") }
         val encoded = GameStateCodec.encode(GameState())
         val bytes = java.util.Base64.getDecoder().decode(encoded)
-        bytes[3] = 8
+        bytes[3] = 99 // a version from the future
         assertThrows(IllegalArgumentException::class.java) {
             GameStateCodec.decode(java.util.Base64.getEncoder().encodeToString(bytes))
         }
@@ -455,5 +483,51 @@ class GameEngineTest {
         assertEquals(anchor, f.game.state.recoveryAnchorMillis)
         f.game.setDebugRecoveryInterval(5)
         assertEquals(f.now, f.game.state.recoveryAnchorMillis)
+    }
+
+    @Test fun nextScheduledChangeIsTheNextRecoveryStep() {
+        val f = Fixture()
+        f.configure()
+        assertNull("full health: nothing due", f.game.nextScheduledChangeMillis())
+        f.game.setHealthForDebug(50)
+        val anchor = f.game.state.recoveryAnchorMillis
+        assertEquals(anchor + 60 * GameEngine.MINUTE_MILLIS, f.game.nextScheduledChangeMillis())
+        f.game.setDebugRecoveryInterval(1)
+        assertEquals(f.now + GameEngine.MINUTE_MILLIS, f.game.nextScheduledChangeMillis())
+        // After the step lands, the next one is one interval later.
+        f.now += GameEngine.MINUTE_MILLIS + 10_000
+        assertEquals(55, f.game.refresh().health)
+        assertEquals(f.now - 10_000 + GameEngine.MINUTE_MILLIS, f.game.nextScheduledChangeMillis())
+    }
+
+    @Test fun nothingIsScheduledWhenDeadAndTimedDisableEndsAreScheduled() {
+        val f = Fixture()
+        f.game.setHealthForDebug(0)
+        assertNull(f.game.nextScheduledChangeMillis())
+        f.game.setHealthForDebug(50)
+        f.game.setActive(false, f.now + 15 * GameEngine.MINUTE_MILLIS)
+        assertEquals(f.now + 15 * GameEngine.MINUTE_MILLIS, f.game.nextScheduledChangeMillis())
+        f.game.setActive(false, null)
+        assertNull(f.game.nextScheduledChangeMillis())
+    }
+
+    @Test fun catchRecordsItsOwnDetailsForTheCaughtScreens() {
+        val f = Fixture()
+        f.configure()
+        val pending = f.game.onTap(f.context("bait").copy(channelName = "Likes")).state.pendingCatch!!
+        assertEquals(CatchDetails("bait", 100, 90, 10, "app_always_bait", "Likes"), CatchDetails.of(pending))
+        f.now += 31_000L // past the 30 s lockout, before any recovery step
+        // A forced (debug) catch has no notification behind it, but still its own cost.
+        val forced = f.game.applyCatch(CatchLevel.Mild).pendingCatch!!
+        assertEquals(CatchDetails(null, 90, 80, 10, "", null), CatchDetails.of(forced))
+    }
+
+    @Test fun pendingCatchDetailsSurviveARestart() {
+        val state = GameState(pendingCatch = PendingCatch("9-3", "pkg", 5, healthBefore = 60, healthAfter = 40,
+            rule = "ai_bait", channel = "Messages"))
+        assertEquals(state, GameStateCodec.decode(GameStateCodec.encode(state)))
+        // A v7 snapshot (no details) still loads, without details.
+        val v7 = GameStateCodec.decode(GameStateCodec.encode(state, GameStateCodec.Layout.V7))
+        assertEquals(PendingCatch("9-3", "pkg", 5), v7.pendingCatch)
     }
 }

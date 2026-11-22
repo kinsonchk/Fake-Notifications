@@ -10,4 +10,10 @@
     <string name="caught_original_fallback">Continue to the original app</string>
     <string name="caught_correct">This should be important</string>
     <string name="caught_later">Not now</string>
+    <string name="caught_choice_failed">Could not save your choice. Please try again.</string>
+    <string name="caught_original_unavailable">Original app is no longer available</string>
+    <string name="caught_channel_name">Catch reminders</string>
+    <string name="caught_notification_title">Caught you</string>
+    <string name="caught_notification_text">A distracting notification reduced your health. Open Taptation to choose what to do next.</string>
+    <string name="caught_original_destination">the original app</string>
 </resources>

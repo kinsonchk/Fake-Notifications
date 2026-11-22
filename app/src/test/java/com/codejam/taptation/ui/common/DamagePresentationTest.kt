@@ -13,15 +13,14 @@ class DamagePresentationTest {
         assertEquals(0f, damageDropProgress(-1f), .001f)
     }
 
-    @Test fun manualCatchUsesItsOwnHealthRecordInsteadOfAnOldNotification() {
-        val state = GameState(health = 70, taps = listOf(
-            TapRecord(10, "old.app", Classification.Bait, TapOutcome.Caught, 100, 90, 10, "caught")),
-            healthHistory = listOf(HealthRecord(20, 80, 70, "catch")))
-        val details = catchDetailsForUi(state, PendingCatch("20-2", null))!!
+    /** The details come from the catch itself (recorded at catch time), never from an older tap. */
+    @Test fun manualCatchShowsItsOwnCostNotAnOldNotification() {
+        val details = CatchDetails.of(PendingCatch("20-2", null, healthBefore = 80, healthAfter = 70))!!
         assertEquals(80, details.healthBefore)
         assertEquals(70, details.healthAfter)
+        assertEquals(10, details.damage)
         assertNull(details.packageName)
-        assertNull(catchDetailsForUi(state, PendingCatch("30-3", null)))
-        assertEquals(70, state.health)
+        // Catches saved before the details were recorded show the generic message.
+        assertNull(CatchDetails.of(PendingCatch("30-3", null)))
     }
 }

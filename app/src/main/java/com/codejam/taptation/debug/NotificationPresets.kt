@@ -3,6 +3,7 @@ package com.codejam.taptation.debug
 import android.content.Context
 import android.content.SharedPreferences
 import android.util.Log
+import com.codejam.taptation.logic.MediaKind
 import com.codejam.taptation.logic.NotificationContext
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
@@ -18,6 +19,9 @@ import kotlinx.coroutines.flow.asStateFlow
  * [id]/[name]). Only holds what the user entered, never content copied from real notifications.
  *
  * @property iconFile file name inside [NotificationIcons]' folder, shown as the large icon.
+ * @property media attachment to post with the message (a generated placeholder file), or none.
+ * @property sender chat sender to post as a MessagingStyle message (blank = none).
+ * @property isGroup posts a group chat (true), a 1-to-1 chat (false), or no chat flag (null).
  */
 data class NotificationPreset(
     val id: String = "",
@@ -31,7 +35,13 @@ data class NotificationPreset(
     val isConversation: Boolean? = null,
     val actions: List<String> = emptyList(),
     val iconFile: String? = null,
+    val media: MediaKind? = null,
+    val sender: String = "",
+    val isGroup: Boolean? = null,
 ) {
+    /** Posted as a chat (MessagingStyle) message rather than a plain notification. */
+    val isChat: Boolean get() = media != null || sender.isNotBlank() || isGroup != null
+
     /** The context the listener will report; blank package means "this app". */
     fun toContext(ownPackageName: String? = null): NotificationContext = NotificationContext(
         packageName = packageName.trim().ifEmpty { ownPackageName.orEmpty() },
@@ -42,12 +52,16 @@ data class NotificationPreset(
         isConversation = isConversation,
         channelName = channelName.trim().takeIf(String::isNotEmpty),
         actions = actions.map(String::trim).filter(String::isNotEmpty),
+        media = media,
+        sender = sender.trim().takeIf(String::isNotEmpty) ?: title.takeIf { isChat && isGroup != true && it.isNotBlank() },
+        isGroup = isGroup,
     )
 }
 
 /** Versioned, pure-JVM encoding (same style as GameStateCodec) so it is unit-tested. */
 object NotificationPresetCodec {
-    private const val VERSION = 1
+    /** v2 adds [NotificationPreset.media], v3 sender and isGroup; older presets still load. */
+    private const val VERSION = 3
 
     fun encode(presets: List<NotificationPreset>): String {
         val buffer = ByteArrayOutputStream()
@@ -61,9 +75,10 @@ object NotificationPresetCodec {
 
     fun decode(encoded: String): List<NotificationPreset> =
         DataInputStream(ByteArrayInputStream(Base64.getDecoder().decode(encoded))).use { input ->
-            require(input.readInt() == VERSION) { "Unsupported preset version" }
+            val version = input.readInt()
+            require(version in 1..VERSION) { "Unsupported preset version" }
             val count = input.readInt().also { require(it in 0..1000) { "Invalid preset count" } }
-            List(count) { input.preset() }.also {
+            List(count) { input.preset(version) }.also {
                 require(input.available() == 0) { "Trailing preset data" }
             }
         }
@@ -79,9 +94,12 @@ object NotificationPresetCodec {
         writeInt(p.actions.size)
         p.actions.forEach(::writeUTF)
         writeNullable(p.iconFile) { writeUTF(it) }
+        writeNullable(p.media) { writeUTF(it.name) }
+        writeUTF(p.sender)
+        writeNullable(p.isGroup) { writeBoolean(it) }
     }
 
-    private fun DataInputStream.preset(): NotificationPreset {
+    private fun DataInputStream.preset(version: Int): NotificationPreset {
         val strings = List(7) { readUTF() }
         return NotificationPreset(
             id = strings[0], name = strings[1], packageName = strings[2], title = strings[3],
@@ -90,6 +108,9 @@ object NotificationPresetCodec {
             isConversation = readNullable { readBoolean() },
             actions = List(readInt().also { require(it in 0..20) }) { readUTF() },
             iconFile = readNullable { readUTF() },
+            media = if (version >= 2) readNullable { MediaKind.valueOf(readUTF()) } else null,
+            sender = if (version >= 3) readUTF() else "",
+            isGroup = if (version >= 3) readNullable { readBoolean() } else null,
         )
     }
 

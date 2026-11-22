@@ -96,7 +96,7 @@ The game engine should receive the final numeric probability and apply it only a
 
 - **0% custom:** eligible bait taps do not catch; the random comparison should never pass.
 - **5%, 10%, or 20% presets:** the engine uses the matching stored probability. Unit tests should use a deterministic random value to check both sides of the threshold rather than expecting a particular rate over a short run.
-- **100% custom:** every eligible bait tap catches unless another rule (whitelist, active lockout, dead state) prevents that attempt.
+- **100% custom:** every eligible bait tap catches unless another rule (whitelist, active lockout) prevents that attempt. At 0 health every bait tap catches anyway, whatever the chance.
 - **Whitelisted bait app:** no random roll at any selected chance.
 - **Swipe-dismissed notification:** no tap and no random roll.
 - **Custom value is saved:** after closing and reopening the app, the selected percentage and displayed option agree.

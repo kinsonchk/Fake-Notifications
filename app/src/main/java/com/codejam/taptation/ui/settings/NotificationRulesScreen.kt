@@ -1,5 +1,7 @@
 package com.codejam.taptation.ui.settings
 
+import androidx.compose.ui.platform.LocalContext
+import com.codejam.taptation.TaptationApplication
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -30,14 +32,16 @@ import kotlin.math.roundToInt
 fun NotificationRulesScreen(contentPadding: PaddingValues, repository: GameRepository, onBack: () -> Unit) {
     val snapshot by repository.state.collectAsStateWithLifecycle()
     val error by repository.error.collectAsStateWithLifecycle()
-    val installed = rememberInstalledAppsState()
+    val app = LocalContext.current.applicationContext as TaptationApplication
+    // Which apps are listed, with their rule and the orphaned rules, is decided by the backend.
+    val picker by app.rulePicker.collectAsStateWithLifecycle()
     val labels = rememberAppLabels()
     val scope = rememberCoroutineScope()
     var search by rememberSaveable { mutableStateOf("") }
     var saving by remember { mutableStateOf(setOf<String>()) }
     var saved by remember { mutableStateOf(false) }
     val config = snapshot?.config
-    val matches = installed.apps?.let { AppLabels.notifyingApps(it, search) }.orEmpty()
+    val matches = picker.search(search)
     TabScreen(contentPadding, "Notification rules", itemSpacing = 10.dp,
         subtitle = "Choose which apps are always important or always bait. Let us decide uses your answers below.") {
         item { BackLink("Settings", onBack) }
@@ -49,7 +53,7 @@ fun NotificationRulesScreen(contentPadding: PaddingValues, repository: GameRepos
         item {
             Column(Modifier.padding(top = 12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Text("Your apps", style = MaterialTheme.typography.titleLarge)
-                Text(if (android.os.Build.VERSION.SDK_INT >= 33) "Only apps allowed to send notifications are shown."
+                Text(if (picker.notificationFilterSupported) "Only apps allowed to send notifications are shown."
                     else "This Android version can’t check other apps’ notification permission, so all apps are shown.",
                     style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Text("Always important: never penalized. Always bait: a quick tap can trigger a catch. Every app starts on Let us decide.",
@@ -59,27 +63,26 @@ fun NotificationRulesScreen(contentPadding: PaddingValues, repository: GameRepos
             }
         }
         when {
-            installed.error != null -> item {
+            picker.apps == null && picker.error != null -> item {
                 Text("Couldn’t load installed apps.", color = MaterialTheme.colorScheme.error)
-                OutlinedButton(onClick = installed.reload) { Text("Try again") }
+                OutlinedButton(onClick = app.apps::reload) { Text("Try again") }
             }
-            installed.apps == null -> item { Text("Loading installed apps…") }
+            picker.apps == null -> item { Text("Loading installed apps…") }
             matches.isEmpty() -> item { Text(if (search.isBlank()) "No apps with notification permission found."
                 else "No matching apps with notification permission. Try a different name.",
                 color = MaterialTheme.colorScheme.onSurfaceVariant) }
         }
-        items(matches, key = { it.packageName }) { app ->
-            AppRuleRow(app, config.ruleFor(app.packageName), labels, app.packageName !in saving) { choice ->
-                saving = saving + app.packageName
-                repository.setAppRule(app.packageName, choice).whenComplete { _, failure -> scope.launch {
-                    saving = saving - app.packageName
+        items(matches, key = { it.app.packageName }) { row ->
+            val pkg = row.app.packageName
+            AppRuleRow(row.app, row.rule, labels, pkg !in saving) { choice ->
+                saving = saving + pkg
+                repository.setAppRule(pkg, choice).whenComplete { _, failure -> scope.launch {
+                    saving = saving - pkg
                     if (failure == null) saved = true
                 } }
             }
         }
-        val installedPackages = installed.apps?.map { it.packageName }?.toSet()
-        val missing = if (installedPackages == null || search.isNotBlank()) emptyList()
-            else config.appRules.keys.filter { it !in installedPackages }.sorted()
+        val missing = if (search.isNotBlank()) emptyList() else picker.missingRules
         if (missing.isNotEmpty()) item {
             Text("Apps no longer installed", Modifier.padding(top = 14.dp), style = MaterialTheme.typography.titleSmall)
             Text("Saved rules stay until you remove them.", style = MaterialTheme.typography.bodySmall)
@@ -89,7 +92,7 @@ fun NotificationRulesScreen(contentPadding: PaddingValues, repository: GameRepos
                 Text(labels.label(pkg), Modifier.weight(1f))
                 TextButton(enabled = pkg !in saving, onClick = {
                     saving = saving + pkg
-                    repository.setAppRule(pkg, AppRule.LetUsDecide).whenComplete { _, failure -> scope.launch {
+                    repository.clearAppRule(pkg).whenComplete { _, failure -> scope.launch {
                         saving = saving - pkg
                         if (failure == null) saved = true
                     } }
@@ -168,21 +171,21 @@ private fun RuleSelector(app: String, rule: AppRule, enabled: Boolean, modifier:
     }
 }
 
-private val aiConfigured = BuildConfig.CF_ACCOUNT_ID.isNotBlank() && BuildConfig.CF_API_TOKEN.isNotBlank()
-
 @Composable
 private fun CriteriaSection(config: GameConfig, repository: GameRepository) {
+    // Whether the AI judge works in this build (API keys) is the backend's answer, not BuildConfig's.
+    val aiConfigured = (LocalContext.current.applicationContext as TaptationApplication).judges.isConfigured
     Column(Modifier.padding(top = 26.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text("How should we judge the rest?", style = MaterialTheme.typography.titleLarge)
         Text("These answers guide the AI for apps set to Let us decide.", style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant)
         CriteriaField("What makes a message essential for you?",
             "For example: family messages, shifts, delivery codes and meeting changes.", config.essentialCriteria) { text ->
-            repository.updateConfig { it.copy(essentialCriteria = text) }
+            repository.setCriteria(essential = text)
         }
         CriteriaField("What makes a message non-essential for you?",
             "For example: likes, follows, game rewards, sales and group chatter.", config.nonEssentialCriteria) { text ->
-            repository.updateConfig { it.copy(nonEssentialCriteria = text) }
+            repository.setCriteria(nonEssential = text)
         }
         Text(if (aiConfigured) "For automatic decisions, notification content is sent to Cloudflare. Taptation doesn’t save the notification text. Uncertain or unavailable AI decisions are not penalized."
             else "Automatic decisions aren’t configured in this build. Let us decide currently treats notifications as bait. Choose Always important for apps you don’t want penalized.",
@@ -203,7 +206,7 @@ private fun StrictnessSection(config: GameConfig, repository: GameRepository) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Slider(index, onValueChange = { index = it }, valueRange = 0f..2f, steps = 1,
                     modifier = Modifier.semantics { contentDescription = "AI strictness" },
-                    onValueChangeFinished = { repository.updateConfig { it.copy(strictness = current) } })
+                    onValueChangeFinished = { repository.setStrictness(current) })
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                     Strictness.entries.forEach { level -> Text(level.name, style = MaterialTheme.typography.bodySmall,
                         color = if (level == current) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,

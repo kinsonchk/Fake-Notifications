@@ -1,4 +1,4 @@
-package com.codejam.taptation.service
+package com.codejam.taptation.ui.overlay
 
 import android.content.Context
 import android.graphics.Canvas
