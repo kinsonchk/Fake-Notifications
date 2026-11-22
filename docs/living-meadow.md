@@ -74,7 +74,16 @@ counts nor resets). Mockup: [valley-reveal-mockup.html](valley-reveal-mockup.htm
 - Tap earned flowers to attract a temporary butterfly and release seeds. Tap the robin or acorn
   for a reaction. Call squirrel replays its visit after the acorn is earned.
 - Whirlwind and Rain are visual toys. They do not advance progression.
-- Pull up from the bottom strip of soil, or use Below ground, to reveal the underground scene.
+- Pull up from the bottom strip of soil, or use Below ground, to reveal the underground scene. It opens as one
+  cross-section directly under the meadow (mockup: [underground-mockup.html](underground-mockup.html)): the meadow
+  canvas draws the soil's top slice and the underground canvas continues it with the same `MeadowPainter.soil`,
+  scale and soil coordinates (y = 0 at the grass line), so there is no gap. Grass hair roots hang under the living
+  blades (deeper when healthy), the taproot under the sapling, the pond's bowl and fish under the pond, the burrow
+  under the hedgehog and ant tunnels under a small anthill. Soil layers (topsoil, subsoil, clay, rock), pebbles,
+  a worm and an old shell fossil; fungus threads join the mushrooms to the roots and carry a light pulse when one
+  is tapped. Below 60 health the soil dries: paler, dustier layers, cracks from the surface and a lower pond.
+- The grown oak (360 min) stands on the valley's near slope; the foreground keeps the sapling so the tree never
+  hides the valley. Classic scenery shows only the sapling.
 - Mushrooms glow, the beetle wanders, and the ant changes its oversized parcel. Explore provides
   an accessible alternative to these canvas targets. Roots grow with the acorn/sapling/oak.
 - Discoveries lists earned and locked entries, their requirements, and permanent keepsakes.

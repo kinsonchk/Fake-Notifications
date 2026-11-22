@@ -21,7 +21,9 @@ import kotlin.math.sin
 enum class MeadowScenery { Classic, Valley }
 
 /** What the valley shows this frame: camera, mist line and how far each landmark has grown in (0..1). */
-internal class ValleyView(val zoom: Float, val fog: Float, val path: Float, val bridge: Float, val cottage: Float, val windmill: Float)
+internal class ValleyView(val zoom: Float, val fog: Float, val path: Float, val bridge: Float, val cottage: Float, val windmill: Float,
+    /** The grown oak (earned at 360 min) stands on the near slope instead of in front of the view. */
+    val oak: Float = 0f)
 
 /** Presentation of [ValleyStage]: camera zoom (about the grass line) and mist line (fraction of height), eased between stages. */
 internal object ValleyCamera {
@@ -128,7 +130,9 @@ internal class ValleyScenery {
                 }
                 path(view, width, ground, land(p.path))
                 bridge(view.bridge, width * BRIDGE_U, ground, water, p)
-                for (u in NEAR_TREES) { val x = u * width; bush(x, nearHill.y(x, width, ground) + 4f, if (u == .2f) 6f else 8f, land(p.bushDark), land(p.bushLight)) }
+                for (u in NEAR_TREES) { if (u == OAK_U && view.oak > .5f) continue
+                    val x = u * width; bush(x, nearHill.y(x, width, ground) + 4f, if (u == OAK_U) 6f else 8f, land(p.bushDark), land(p.bushLight)) }
+                if (view.oak > 0f) { val x = width * OAK_U; oak(x, nearHill.y(x, width, ground) + 6f, .95f * (.5f + .5f * view.oak), p, ::land) }
                 drawPath(field, Brush.verticalGradient(listOf(land(p.field), land(p.field), background), startY = ground - 26f, endY = height))
                 // Daisies bloom on the near slope only at high health.
                 val shown = (((growth - .7f) / .3f).coerceIn(0f, 1f) * DAISIES).toInt()
@@ -224,6 +228,20 @@ internal class ValleyScenery {
         }
     }
 
+    /** Shaded crown on a tapered trunk, at valley scale. */
+    private fun DrawScope.oak(x: Float, y: Float, s: Float, p: Palette, land: (Color) -> Color) {
+        withTransform({ scale(s, s, pivot = Offset(x, y)) }) {
+            shape.reset(); shape.moveTo(x - 3f, y); shape.lineTo(x - 1.2f, y - 18f); shape.lineTo(x + 1.2f, y - 18f); shape.lineTo(x + 3f, y); shape.close()
+            drawPath(shape, land(p.woodDark))
+            val shade = land(lerp(p.bushDark, Color.Black, .15f))
+            drawCircle(shade, 9f, Offset(x - 9f, y - 22f)); drawCircle(shade, 9.5f, Offset(x + 9f, y - 21f)); drawCircle(shade, 10f, Offset(x, y - 19f))
+            val leaf = land(p.bushDark)
+            drawCircle(leaf, 9f, Offset(x - 8f, y - 28f)); drawCircle(leaf, 9.5f, Offset(x + 8f, y - 27f)); drawCircle(leaf, 10.5f, Offset(x, y - 34f)); drawCircle(leaf, 9f, Offset(x - 2f, y - 25f))
+            val light = land(p.bushLight)
+            drawCircle(light, 5.5f, Offset(x + 4f, y - 38f)); drawCircle(light, 4.5f, Offset(x + 10f, y - 31f))
+        }
+    }
+
     private fun DrawScope.cloud(x: Float, y: Float, s: Float, color: Color, alpha: Float) {
         drawCircle(color, 6f * s, Offset(x - 9f * s, y), alpha = alpha)
         drawCircle(color, 8.5f * s, Offset(x, y - 3.5f * s), alpha = alpha)
@@ -258,6 +276,7 @@ internal class ValleyScenery {
         val CONIFERS = floatArrayOf(.06f, .1f, .14f, .6f, .64f, .69f, .93f)
         val MID_BUSHES = floatArrayOf(.36f, .43f, .78f, .84f)
         val NEAR_TREES = floatArrayOf(.05f, .95f, .2f)
+        const val OAK_U = .2f
         val DAY = Palette(Color(0xFFBEDBE2), Color(0xFFEEF3E6), Color(0xFFB8D3A2), Color(0xFF97C17B), Color(0xFF78AC5F),
             Color(0xFF64A04F), Color(0xFF4E8365), Color(0xFF5D9350), Color(0xFF86B86A), Color(0xFF6EAEC7),
             Color(0xFFAAD6E2), Color(0xFFCDB880), Color(0xFFFFFFFF), Color(0xFFF5DF9C), Color(0xFFE3CF9B), Color(0xFFA87A4F),

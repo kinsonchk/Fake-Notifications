@@ -51,7 +51,7 @@ fun GrassMeadow(health: Int, modifier: Modifier = Modifier) {
 @Composable
 internal fun MeadowCanvas(health: Int, modifier: Modifier = Modifier, world: MeadowState?, effects: MeadowEffects,
     onDiscover: (MeadowDiscovery) -> Unit = {}, onOpenUnderground: () -> Unit = {},
-    scenery: MeadowScenery = MeadowScenery.Classic) {
+    scenery: MeadowScenery = MeadowScenery.Classic, soilOpen: Float = 0f) {
     val motion = rememberMotionEnabled()
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     var started by remember { mutableStateOf(lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) }
@@ -78,6 +78,7 @@ internal fun MeadowCanvas(health: Int, modifier: Modifier = Modifier, world: Mea
     val bridgeGrown by animateFloatAsState(if (revealed >= ValleyStage.Bridge) 1f else 0f, spec(1200), label = "Valley bridge")
     val cottageGrown by animateFloatAsState(if (revealed >= ValleyStage.Cottage) 1f else 0f, spec(1200), label = "Valley cottage")
     val windmillGrown by animateFloatAsState(if (revealed >= ValleyStage.Valley) 1f else 0f, spec(1200), label = "Valley windmill")
+    val oakGrown by animateFloatAsState(if ((world?.acornStage ?: 0) >= 3) 1f else 0f, spec(1200), label = "Valley oak")
     val currentTouch by rememberUpdatedState(if (pressed) touch else Offset.Unspecified)
     val field = remember { MeadowMotion() }
     val painter = remember { MeadowPainter() }
@@ -95,10 +96,9 @@ internal fun MeadowCanvas(health: Int, modifier: Modifier = Modifier, world: Mea
     val dry = if (dark) GrassDarkDry else Earth
     val soil = if (dark) MeadowDarkSoil else MeadowSoil
     val tip = if (dark) GrassDarkTip else GrassTip
-    // Valley needs room above the grass tops for the hills and river to read.
-    val logicalHeight = when { world == null -> MeadowMotion.HEIGHT; scenery == MeadowScenery.Valley -> 290f; else -> 230f }
+    val logicalHeight = meadowLogicalHeight(world != null, scenery)
     val unit = canvasSize.height / logicalHeight
-    val groundY = canvasSize.height * if (world == null) .86f else .83f
+    val groundY = canvasSize.height * if (world == null) .86f else WORLD_GROUND
     val groundOffset = if (unit > 0) groundY / unit - MeadowMotion.HEIGHT * .86f else 0f
     painter.palette(highlight, bladeColor, if (dark) MeadowNightPetal else MeadowPetal,
         MeadowGold, dry, dark)
@@ -216,8 +216,17 @@ internal fun MeadowCanvas(health: Int, modifier: Modifier = Modifier, world: Mea
         fun grass(c: Color) = lerp(dry, c, greenAmount)
         if (scenery == MeadowScenery.Valley && world != null) valley.draw(this, scale, size.width / scale, groundY / scale, logicalHeight,
             growth, dark, background, if (dark) MeadowNightPetal else MeadowPetal, MeadowGold, if (motion) effects.time else 0f,
-            ValleyView(zoom, fog, pathGrown, bridgeGrown, cottageGrown, windmillGrown))
+            ValleyView(zoom, fog, pathGrown, bridgeGrown, cottageGrown, windmillGrown, oakGrown))
         else drawPath(hillPath, hillBrush)
+        // Underground open: this canvas draws the soil's top slice; the underground canvas continues it below.
+        if (soilOpen > 0f && world != null) drawIntoCanvas { canvas ->
+            val native = canvas.nativeCanvas; val w = size.width / scale; val ground = groundY / scale
+            native.save(); native.scale(scale, scale); native.translate(0f, ground)
+            native.clipRect(0f, -20f, w, logicalHeight - ground)
+            if (soilOpen < 1f) native.saveLayerAlpha(0f, -20f, w, logicalHeight - ground, (soilOpen * 255).toInt())
+            painter.soil(native, w, logicalHeight - ground, health, world, effects, motion, field.blades)
+            native.restore()
+        }
         drawPath(turfPath, Brush.verticalGradient(listOf(grass(bladeColor).copy(alpha = .85f), Color.Transparent),
             startY = groundY - 8f * unit, endY = groundY + 12f * unit))
         world?.let { drawIntoCanvas { canvas ->
@@ -271,3 +280,10 @@ internal fun MeadowCanvas(health: Int, modifier: Modifier = Modifier, world: Mea
 
 private val EdgeFade = Brush.horizontalGradient(0f to Color.Transparent, .07f to Color.Black, .93f to Color.Black, 1f to Color.Transparent)
 private val TopFade = Brush.verticalGradient(0f to Color.Transparent, .1f to Color.Black)
+
+private const val WORLD_GROUND = .83f
+/** Logical height of the meadow canvas; the valley needs room above the grass tops for the hills and river. */
+internal fun meadowLogicalHeight(hasWorld: Boolean, scenery: MeadowScenery) = when {
+    !hasWorld -> MeadowMotion.HEIGHT; scenery == MeadowScenery.Valley -> 290f; else -> 230f }
+/** Soil depth already shown below the grass line by the meadow canvas; the underground canvas starts there. */
+internal fun meadowSoilShown(scenery: MeadowScenery) = meadowLogicalHeight(true, scenery) * (1 - WORLD_GROUND)
