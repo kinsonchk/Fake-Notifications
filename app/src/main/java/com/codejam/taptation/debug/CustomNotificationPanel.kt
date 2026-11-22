@@ -1,5 +1,8 @@
 package com.codejam.taptation.debug
 
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
+import com.codejam.taptation.logic.MediaKind
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -45,6 +48,29 @@ fun CustomNotificationFields(
         }
     }
     Field(actionsText, onActionsTextChange, "Action buttons (comma-separated)", "Reply, Mark as read")
+    Field(draft.sender, { onDraftChange(draft.copy(sender = it)) }, "Chat sender (optional)", "Alex")
+    Text("Group chat", style = MaterialTheme.typography.bodyMedium)
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        listOf(null to "Not a chat", false to "1-to-1", true to "Group").forEach { (value, label) ->
+            FilterChip(
+                selected = draft.isGroup == value,
+                onClick = { onDraftChange(draft.copy(isGroup = value)) },
+                label = { Text(label) },
+            )
+        }
+    }
+    Text("Attachment", style = MaterialTheme.typography.bodyMedium)
+    // Image, GIF, video and audio attach a real file (MessagingStyle data); a sticker has no MIME
+    // type, so apps only show text: type e.g. "Sticker" in Text to test that path.
+    Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        (listOf<MediaKind?>(null) + MediaKind.entries.filter { it != MediaKind.Sticker }).forEach { kind ->
+            FilterChip(
+                selected = draft.media == kind,
+                onClick = { onDraftChange(draft.copy(media = kind)) },
+                label = { Text(kind?.name ?: "None") },
+            )
+        }
+    }
 }
 
 /** Splits the typed action list. */

@@ -40,4 +40,20 @@ class NotificationPresetCodecTest {
     @Test fun typedActionsAreSplitOnCommas() {
         assertEquals(listOf("Reply", "Mark as read"), parseActions("Reply, Mark as read, "))
     }
+
+    @Test fun mediaRoundTripsAndVersion1PresetsStillLoad() {
+        val gif = NotificationPreset(id = "1", name = "gif", title = "Mom", media = com.codejam.taptation.logic.MediaKind.Gif,
+            sender = "Alex", isGroup = true)
+        assertEquals(listOf(gif), NotificationPresetCodec.decode(NotificationPresetCodec.encode(listOf(gif))))
+
+        // A preset saved by the v1 codec (no media field).
+        val buffer = java.io.ByteArrayOutputStream()
+        java.io.DataOutputStream(buffer).use { out ->
+            out.writeInt(1); out.writeInt(1)
+            listOf("1", "old", "", "Hi", "", "", "").forEach(out::writeUTF)
+            out.writeBoolean(false); out.writeBoolean(false); out.writeInt(0); out.writeBoolean(false)
+        }
+        val old = NotificationPresetCodec.decode(java.util.Base64.getEncoder().encodeToString(buffer.toByteArray())).single()
+        assertEquals(NotificationPreset(id = "1", name = "old", title = "Hi"), old)
+    }
 }
