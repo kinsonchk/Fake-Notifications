@@ -67,7 +67,7 @@ class CaughtOverlayTest {
             }
             assertNotNull("Native caught overlay was not shown", originalButton)
             assertNotNull(node("Go to Taptation"))
-            assertNotNull("Caught heading missing", node("Caught"))
+            assertNotNull("Caught heading missing", node(original.getString(com.codejam.taptation.R.string.caught_title)))
             assertNotNull("Correction action missing", node("This should be important"))
             assertNotNull("Cost should be stated in text", node("−10"))
             automation.takeScreenshot()?.let { bitmap ->

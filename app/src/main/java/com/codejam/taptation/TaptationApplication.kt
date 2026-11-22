@@ -77,12 +77,12 @@ class TaptationApplication : Application() {
         judges = JudgeQueue(ClefJudge())
         apps = AppDirectory(this)
         feedback = CatchFeedback(this, apps)
-        feedback.surface = CatchOverlay(this) { appearance.mode.value != Appearance.Light }
         game = GameRepository(this, stats, feedback::rememberDestination)
-        feedback.attach(game)
-        TapDispatcher.handler = game
         system = SystemStatus(this, TapListenerService.connected, game.state, scope)
         meadow = MeadowRepository(this, game.state, system.monitoring, scope)
+        feedback.surface = CatchOverlay(this,sceneFor={id->meadow.sceneFor(id)},isDark={appearance.mode.value != Appearance.Light})
+        feedback.attach(game)
+        TapDispatcher.handler = game
         rulePicker = combine(apps.apps, game.state) { list, state ->
             RulePicker.build(list, state?.config, apps.notificationFilterSupported)
         }.stateIn(scope, SharingStarted.Eagerly, RulePicker(notificationFilterSupported = apps.notificationFilterSupported))

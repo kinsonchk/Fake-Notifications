@@ -1,6 +1,7 @@
 package com.codejam.taptation.ui
 
 import androidx.compose.material3.MaterialTheme
+import androidx.test.platform.app.InstrumentationRegistry
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -31,7 +32,7 @@ class RedesignUiTest {
             CatchChoiceDialog(CatchDetails("com.insta", 90, 80, 10, "bait_channel", "Suggested for you"), "Instagram",
                 onTaptation = {}, onOriginal = { original++ }, onCorrect = { corrected++ })
         } }
-        compose.onNodeWithText("Caught").assertIsDisplayed()
+        compose.onNodeWithText(InstrumentationRegistry.getInstrumentation().targetContext.getString(com.codejam.taptation.R.string.caught_title)).assertIsDisplayed()
         compose.onNodeWithText("Instagram · Suggested for you is set as distracting").assertIsDisplayed()
         compose.onNodeWithContentDescription("Health 80 out of 100, down 10").assertIsDisplayed()
         compose.onNodeWithText("This should be important").performClick()

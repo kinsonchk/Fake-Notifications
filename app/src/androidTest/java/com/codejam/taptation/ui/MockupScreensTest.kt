@@ -105,7 +105,7 @@ class MockupScreensTest {
                 onTaptation = {}, onOriginal = {}, onCorrect = {}, continueExtraDamage = 5, onLater = { postponed = true })
         } }
         compose.onNodeWithText("Go to Taptation").assertIsDisplayed()
-        compose.onNodeWithText("Continue to Instagram · −5 health").assertIsDisplayed()
+        compose.onNodeWithContentDescription("Continue to Instagram · −5 health").assertIsDisplayed()
         capture("caught-light")
         compose.onNodeWithText("Not now").performClick()
         compose.runOnIdle { assertEquals(true, postponed) }

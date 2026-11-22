@@ -99,6 +99,13 @@ internal class MeadowPainter {
     private fun hedgehog(x:Float,y:Float,t:Float){oval(x,y-5,17f,9+sin(t*1.7f)*.3f,earth);for(i in 0..12){val a=PI.toFloat()+i*PI.toFloat()/12;line(x+cos(a)*13,y-4+sin(a)*8,x+cos(a)*19,y-4+sin(a)*13,deep)};oval(x+14,y-3,7f,5f,gold);stem(deep){moveTo(x+15,y-5);quadTo(x+17,y-3,x+19,y-5)};oval(x+21,y-2,1.8f,1.8f,deep)}
     private fun squirrel(x:Float,y:Float){shape(earth){moveTo(x-8,y-4);cubicTo(x-35,y-4,x-35,y-38,x-21,y-34);cubicTo(x-9,y-31,x-15,y-20,x-19,y-22);cubicTo(x-19,y-12,x-10,y-17,x-8,y-4);close()};oval(x,y-8,11f,8f,earth,-11f);oval(x+9,y-15,6f,6f,earth);shape(earth){moveTo(x+6,y-19);lineTo(x+7,y-27);lineTo(x+11,y-19);close()};oval(x+3,y-7,5f,4f,gold);oval(x+11,y-16,1.1f,1.1f,deep)}
 
+    fun cameoRobin(canvas:Canvas,x:Float,y:Float,time:Float,flying:Boolean){c=canvas;c.save();c.translate(x,y);c.scale(1.4f,1.4f);robin(0f,0f)
+        if(flying){val flap=sin(time*17);shape(green){moveTo(-4f,-10f);quadTo(-15f,-26*flap-10,-23f,-18*flap-5);quadTo(-18f,0f,-4f,-5f);close()}}
+        c.restore()
+    }
+    fun cameoSquirrel(canvas:Canvas,x:Float,y:Float,time:Float,digging:Boolean){c=canvas;c.save();c.translate(x,y);c.scale(1.3f,1.3f);if(digging)c.rotate(sin(time*15)*4);squirrel(0f,0f);c.restore()}
+    fun cameoHedgehog(canvas:Canvas,x:Float,y:Float,time:Float){c=canvas;c.save();c.translate(x,y);c.scale(1.3f,1.3f);hedgehog(0f,0f,time);fill(earth);paint.textSize=10f;c.drawText("z",5f,-24f-sin(time)*2,paint);paint.textSize=8f;c.drawText("z",15f,-31f-sin(time)*2,paint);c.restore()}
+
     fun underground(canvas:Canvas,width:Float,world:MeadowState,effects:MeadowEffects,motion:Boolean){c=canvas;val t=if(motion)effects.time else 0f
         fill(if(night)0xff302b22.toInt() else 0xff69583e.toInt());c.drawRect(0f,0f,width,230f,paint)
         for(i in 0..74){fill(gold);paint.alpha=30;c.drawCircle((i*67+13)%width,((i*41+9)%230).toFloat(),1f+(i%3),paint)}

@@ -1,7 +1,7 @@
 # Living meadow
 
-Implemented from the interactive living-meadow mockup. The fishing/caught overlays are a separate
-revision and are not part of this change.
+Implemented from the interactive living-meadow mockup. The [fishing/caught revision](caught-fishing-scenes.md)
+uses earned meadow visitors for cosmetic caught cameos through the same backend scene resolver.
 
 ## Ownership
 

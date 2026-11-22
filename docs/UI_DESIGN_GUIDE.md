@@ -143,8 +143,11 @@ fun ExampleScreen(padding: PaddingValues, safeAppCount: Int, onChooseApps: () ->
   A missing denominator is a dash. Empty history gets an explanation, never fabricated trends.
 - **Settings:** activation, fixed difficulty tiles, freshness summary, then focused rule sections.
   Opening a section starts at its top. Provide an obvious Back action and Android Back support.
-- **Caught:** small branded badge, one serif heading, short explanation, full-width primary
+- **Caught:** one serif heading, short explanation, full-width primary
   "Go to Taptation" and secondary "Go to original app". Keep the two destinations distinct.
+  The [fishing revision](caught-fishing-scenes.md) uses "You got caught lacking!", a shared
+  fishing scene and earned meadow cameos. No eyebrow badge. Keep both destinations enabled
+  during animation and keep land-based visitors on the bank.
 - **Lists/forms:** clear row labels, supporting text below, actions aligned consistently.
   Label every field. Explain why an action is disabled when the reason is not obvious.
 - **Debug:** use the same visual foundation, with denser technical information where useful.

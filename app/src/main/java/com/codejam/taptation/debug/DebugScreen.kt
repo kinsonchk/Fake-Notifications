@@ -56,6 +56,8 @@ fun DebugScreen(contentPadding: PaddingValues = PaddingValues(), controls: DemoC
     val listenerTaps by TapLog.entries.collectAsStateWithLifecycle()
     var meadowPreview by remember { mutableStateOf(false) }
     if (meadowPreview) com.codejam.taptation.ui.home.MeadowPreviewDialog { meadowPreview = false }
+    var caughtPreview by remember { mutableStateOf(false) }
+    if (caughtPreview) com.codejam.taptation.ui.caught.CaughtPreviewDialog { caughtPreview = false }
 
     TabScreen(contentPadding, "Debug") {
         error?.let { message -> item { Text(message, color = MaterialTheme.colorScheme.error) } }
@@ -88,8 +90,9 @@ fun DebugScreen(contentPadding: PaddingValues = PaddingValues(), controls: DemoC
 
         item { DemoControlsPanel(demoControls) }
         item {
-            SectionCard("Meadow preview", "Try every growth stage without changing your real meadow.") {
+            SectionCard("Visual previews", "Try growth stages and caught animations without changing your game.") {
                 OutlinedButton(onClick = { meadowPreview = true }) { Text("Open meadow preview") }
+                OutlinedButton(onClick = { caughtPreview = true }) { Text("Preview caught animations") }
             }
         }
         item {

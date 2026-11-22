@@ -140,6 +140,7 @@ internal fun AppTabs(debug: Boolean, onShowTutorial: () -> Unit = {}) {
         val actions = androidx.compose.runtime.remember(current.catchId) { app.feedback.actionsFor(current.catchId) }
         androidx.compose.runtime.key(current.catchId) {
         CatchChoiceDialog(current.details, current.appLabel, continueExtraDamage = current.continueExtraDamage,
+            cameo = app.meadow.sceneFor(current.catchId), sceneKey = current.catchId,
             animateDamage = current.animate, onLater = actions::postpone,
             onTaptation = { actions.choose(ourApp = true) },
             onOriginal = { actions.choose(ourApp = false) },

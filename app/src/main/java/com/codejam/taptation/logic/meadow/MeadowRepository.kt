@@ -30,6 +30,15 @@ class MeadowRepository(
     val state = _state.asStateFlow()
     private val _error = MutableStateFlow<String?>(null)
     val error = _error.asStateFlow()
+    private val catchScenes = LinkedHashMap<String,MeadowCameo>()
+
+    /** One eligible, cosmetic scene per catch; overlay and foreground use the same selection. */
+    @Synchronized
+    fun sceneFor(catchId:String):MeadowCameo = catchScenes.getOrPut(catchId) {
+        if(catchScenes.size>=32)catchScenes.remove(catchScenes.keys.first())
+        val pool=(_state.value?:MeadowState()).catchCameos
+        pool[Math.floorMod(catchId.hashCode(),pool.size)]
+    }
 
     init {
         scope.launch(Dispatchers.IO) {

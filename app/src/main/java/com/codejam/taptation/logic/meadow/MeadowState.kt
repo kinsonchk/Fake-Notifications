@@ -3,6 +3,7 @@ package com.codejam.taptation.logic.meadow
 import com.codejam.taptation.logic.GameState
 
 enum class MeadowDiscovery { Hedgehog, Pond }
+enum class MeadowCameo { Fish, Robin, Squirrel, Hedgehog }
 enum class MeadowMilestone(val minutes: Long) {
     Flowers(30), Wildflowers(90), Visitors(180), Nest(240), Eggs(300), Oak(360)
 }
@@ -22,6 +23,12 @@ data class MeadowState(
     val fireflies get() = healthyMinutes >= 180
     val nestStage get() = when { healthyMinutes >= 300 -> 3; healthyMinutes >= 240 -> 2; healthyMinutes >= 180 -> 1; else -> 0 }
     val acornStage get() = when { healthyMinutes >= 360 -> 3; healthyMinutes >= 240 -> 2; healthyMinutes >= 180 -> 1; else -> 0 }
+    val catchCameos: List<MeadowCameo> get() = buildList {
+        add(MeadowCameo.Fish)
+        if(robin)add(MeadowCameo.Robin)
+        if(acornStage>0)add(MeadowCameo.Squirrel)
+        if(MeadowDiscovery.Hedgehog in discoveries)add(MeadowCameo.Hedgehog)
+    }
     val nextMilestone get() = MeadowMilestone.entries.firstOrNull { healthyMillis < it.minutes * MINUTE }
     val remainingMillis get() = nextMilestone?.let { (it.minutes * MINUTE - healthyMillis).coerceAtLeast(0) }
     val milestoneProgress: Float get() {

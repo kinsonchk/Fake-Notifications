@@ -12,6 +12,17 @@ class MeadowProgressionTest {
     private fun advance(s:MeadowState,g:GameState=GameState(),working:Boolean=true,at:Long)=MeadowProgression.advance(s,g,working,at)
     private fun started()=advance(MeadowState(),at=start)
 
+    @Test fun catchCameosOnlyIncludeEarnedVisitors() {
+        assertEquals(listOf(MeadowCameo.Fish),MeadowState().catchCameos)
+        val hidden=MeadowState(discoveries=setOf(MeadowDiscovery.Hedgehog))
+        assertEquals(listOf(MeadowCameo.Fish,MeadowCameo.Hedgehog),hidden.catchCameos)
+        val robin=MeadowState(healthyMillis=90*minute)
+        assertTrue(MeadowCameo.Robin in robin.catchCameos)
+        assertFalse(MeadowCameo.Squirrel in robin.catchCameos)
+        val mature=hidden.copy(healthyMillis=360*minute)
+        assertEquals(MeadowCameo.entries.toSet(),mature.catchCameos.toSet())
+    }
+
     @Test fun firstInstallDoesNotInventHistoricalGrowth() {
         assertEquals(0,started().healthyMinutes)
     }

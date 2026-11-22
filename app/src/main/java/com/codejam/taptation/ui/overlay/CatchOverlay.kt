@@ -8,7 +8,6 @@ import android.graphics.drawable.GradientDrawable
 import android.view.Gravity
 import android.view.View
 import android.view.WindowManager
-import android.view.animation.DecelerateInterpolator
 import android.widget.Button
 import android.widget.FrameLayout
 import android.widget.LinearLayout
@@ -17,6 +16,8 @@ import androidx.compose.ui.graphics.toArgb
 import com.codejam.taptation.R
 import com.codejam.taptation.logic.CatchDetails
 import com.codejam.taptation.logic.CatchPrompt
+import com.codejam.taptation.logic.meadow.MeadowCameo
+import com.codejam.taptation.ui.caught.FishingSceneView
 import com.codejam.taptation.service.CatchActions
 import com.codejam.taptation.service.CatchSurface
 import com.codejam.taptation.ui.common.TapExplanations
@@ -29,7 +30,9 @@ import com.codejam.taptation.ui.theme.*
  * Compose needs an activity. Pure presentation: the backend (service/CatchFeedback) decides when to
  * show it and builds the [CatchPrompt]; buttons only call [CatchActions]. Main thread only.
  */
-class CatchOverlay(private val context: Context, private val isDark: () -> Boolean = { true }) : CatchSurface {
+class CatchOverlay(private val context: Context,
+    private val sceneFor: (String) -> MeadowCameo = { MeadowCameo.Fish },
+    private val isDark: () -> Boolean = { true }) : CatchSurface {
     private val windows = context.getSystemService(WindowManager::class.java)
     private val animators = mutableListOf<ValueAnimator>()
     private var overlay: View? = null
@@ -39,7 +42,7 @@ class CatchOverlay(private val context: Context, private val isDark: () -> Boole
         val density = context.resources.displayMetrics.density
         fun dp(value: Int) = (value * density).toInt()
         val dark = isDark()
-        val background = (if (dark) NightSurface else androidx.compose.ui.graphics.Color.White).toArgb()
+        val background = (if (dark) Night else Cream).toArgb()
         val ink = (if (dark) NightInk else Ink).toArgb()
         val muted = (if (dark) NightMuted else MutedGreen).toArgb()
         val green = (if (dark) NightGreen else Forest).toArgb()
@@ -58,7 +61,6 @@ class CatchOverlay(private val context: Context, private val isDark: () -> Boole
             }
             elevation = dp(8).toFloat()
         }
-        val badge: LeafBadgeView? = null
         panel.addView(TextView(context).apply {
             setText(R.string.caught_title); textSize = 34f; setTextColor(ink); typeface = Typeface.SERIF
         })
@@ -72,13 +74,14 @@ class CatchOverlay(private val context: Context, private val isDark: () -> Boole
                 setText(R.string.caught_message_no_extra); textSize = 14f; setTextColor(muted); setPadding(0, dp(12), 0, dp(4))
             })
         }
-        if (details != null && details.damage > 0) {
-            panel.addView(healthBlock(details, prompt.animate, badge, ink, muted, green, danger, warm, warmInk, border) { dp(it) })
-        }
-        if (prompt.continueExtraDamage > 0) panel.addView(TextView(context).apply {
-            text = context.getString(R.string.caught_message, prompt.continueExtraDamage)
-            textSize = 14f; setTextColor(muted); setPadding(0, dp(8), 0, dp(8))
+        panel.addView(FishingSceneView(context).apply {
+            layoutParams=LinearLayout.LayoutParams(-1,dp(160))
+            bind(prompt.catchId,sceneFor(prompt.catchId),appLabel,dark,prompt.animate)
         })
+        if (details != null && details.damage > 0) {
+            panel.addView(healthBlock(details, prompt.animate, ink, muted, green, danger, warm, warmInk, border) { dp(it) })
+        }
+        panel.addView(TextView(context).apply {setText(R.string.caught_destination_prompt);textSize=12f;setTextColor(muted);setPadding(0,dp(8),0,dp(4))})
         fun choice(label: String, primary: Boolean, action: () -> Unit) = Button(context).apply {
             text = label; isAllCaps = false; textSize = 14f
             setTextColor(if (primary) onGreen else green)
@@ -99,15 +102,24 @@ class CatchOverlay(private val context: Context, private val isDark: () -> Boole
         val continueLabel = if (prompt.continueExtraDamage > 0)
             context.getString(R.string.caught_original_app_with_penalty, destination, prompt.continueExtraDamage)
         else context.getString(R.string.caught_original_app, destination)
-        panel.addView(choice(continueLabel, false) { actions.choose(ourApp = false) })
-        panel.addView(choice(context.getString(R.string.caught_later), false) { actions.postpone() })
-        if (prompt.canCorrect) panel.addView(Button(context).apply {
-            setText(R.string.caught_correct); isAllCaps = false; textSize = 14f; setTextColor(green)
-            backgroundTintList = null; stateListAnimator = null; this.background = null
-            layoutParams = LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(4) }
-            minHeight = dp(48)
-            setOnClickListener { actions.correct() }
+        panel.addView(choice(continueLabel, false) { actions.choose(ourApp = false) }.apply {
+            contentDescription=continueLabel
+            if(prompt.continueExtraDamage>0){
+                val label=context.getString(R.string.caught_original_app,destination)
+                val caption=context.getString(R.string.caught_continue_cost,prompt.continueExtraDamage)
+                text=android.text.SpannableString("$label\n$caption").apply{
+                    setSpan(android.text.style.RelativeSizeSpan(.86f),label.length+1,length,android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                    setSpan(android.text.style.ForegroundColorSpan(muted),label.length+1,length,android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                }
+            }
         })
+        val quiet=LinearLayout(context).apply{orientation=LinearLayout.HORIZONTAL}
+        fun quietChoice(label:Int,action:()->Unit)=Button(context).apply{
+            setText(label);isAllCaps=false;textSize=12f;setTextColor(green);backgroundTintList=null;stateListAnimator=null;this.background=null
+            layoutParams=LinearLayout.LayoutParams(0,-2,1f);minHeight=dp(48);setPadding(dp(4),dp(8),dp(4),dp(8));setOnClickListener{action()}
+        }
+        if(prompt.canCorrect)quiet.addView(quietChoice(R.string.caught_correct){actions.correct()})
+        quiet.addView(quietChoice(R.string.caught_later){actions.postpone()});panel.addView(quiet)
         val params = WindowManager.LayoutParams(
             minOf(context.resources.displayMetrics.widthPixels - dp(32), dp(480)), WindowManager.LayoutParams.WRAP_CONTENT,
             WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
@@ -130,8 +142,8 @@ class CatchOverlay(private val context: Context, private val isDark: () -> Boole
         overlay = null
     }
 
-    /** "Tree health 90 -> 80" with a shrinking bar, a floating "-10" and a falling leaf; final values when animations are off. */
-    private fun healthBlock(details: CatchDetails, animate: Boolean, badge: LeafBadgeView?, ink: Int, muted: Int,
+    /** Already-applied health loss with a shrinking bar and floating cost; static when motion is off. */
+    private fun healthBlock(details: CatchDetails, animate: Boolean, ink: Int, muted: Int,
         green: Int, danger: Int, warm: Int, warmInk: Int, track: Int, dp: (Int) -> Int,
     ): View {
         val lost = details.damage
@@ -173,23 +185,16 @@ class CatchOverlay(private val context: Context, private val isDark: () -> Boole
                 setValue(damageDropProgress(it))
                 bar.fillColor = androidx.core.graphics.ColorUtils.blendARGB(green, danger, damageFlashMix(it))
             }
-            run(550, 120, DecelerateInterpolator()) { badge?.fall = it }
             run(900, 150, android.view.animation.LinearInterpolator()) {
                 floating.alpha = (if (it < .25f) it / .25f else 1f - (it - .25f) / .75f).coerceIn(0f, 1f)
                 floating.translationY = -dp(16) * it
             }
         } else {
-            setValue(1f); badge?.fall = 1f
+            setValue(1f)
         }
         return LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dp(14), dp(14), dp(14), dp(14))
-            val dark = isDark()
-            background = GradientDrawable().apply {
-                setColor((if (dark) Night else Cream).toArgb())
-                cornerRadius = dp(16).toFloat()
-                setStroke(dp(1), track)
-            }
+            setPadding(0, 0, 0, 0)
             layoutParams = LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(12); bottomMargin = dp(8) }
             addView(frame, LinearLayout.LayoutParams(-1, -2))
             addView(bar, LinearLayout.LayoutParams(-1, dp(8)).apply { topMargin = dp(8) })

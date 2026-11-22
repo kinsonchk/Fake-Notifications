@@ -1,7 +1,15 @@
 <resources>
     <string name="app_name">Taptation</string>
     <string name="caught_overlay_label">Caught</string>
-    <string name="caught_title">Caught</string>
+    <string name="caught_title">You got caught lacking!</string>
+    <string name="caught_destination_prompt">Where do you want to go?</string>
+    <string name="caught_continue_cost">−%1$d more health</string>
+    <string name="caught_scene_notification">Notification</string>
+    <string name="caught_scene_bait">Notification bait</string>
+    <string name="caught_scene_fish">A fish steals the notification, dives into its pond, then gives you an innocent look. Tap for a little flop.</string>
+    <string name="caught_scene_robin">Your meadow robin steals the bait. The fish looks offended. Tap to flutter its wings.</string>
+    <string name="caught_scene_squirrel">Your meadow squirrel buries the notification on the grassy bank. A tiny sprout appears.</string>
+    <string name="caught_scene_hedgehog">Your meadow hedgehog sleeps on the bank through the entire splash.</string>
     <string name="caught_message">Continuing adds %1$d more health loss. The initial catch is already recorded.</string>
     <string name="caught_message_no_extra">The catch is already recorded. Choose where to go next.</string>
     <string name="caught_our_app">Go to Taptation</string>

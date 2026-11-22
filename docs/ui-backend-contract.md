@@ -36,6 +36,7 @@ All objects below come from `(context.applicationContext as TaptationApplication
 | Let us decide answers | `game.setCriteria(essential, nonEssential)` (cut to the max length), `game.setStrictness(s)` |
 | App rule | `game.setAppRule(pkg, rule)`, `game.clearAppRule(pkg)` |
 | Meadow discovery | `meadow.discover(discovery)` | Wind, rain and creature reactions are temporary UI effects; they never award health or growth. |
+| Caught cameo | `meadow.sceneFor(catchId)` | Selects once from earned `catchCameos`; both surfaces use this cache. The scene has no game actions. |
 | Retry meadow load/save | `meadow.retry()` | A failed save retains the last successfully saved state. |
 | App appearance | `appearance.setAppearance(mode)` | Screens never read/write appearance preferences directly. |
 | Pause / resume | `game.beginDisable()`, `confirmDisable(id, minutes)`, `cancelDisable()`, `enable()` |

@@ -19,10 +19,12 @@ class MeadowRepositoryTest {
         try{
             var repo=MeadowRepository(context,game,monitoring,scope,now::get,name)
             await{repo.state.value?.checkpointMillis==now.get()}
+            assertEquals(MeadowCameo.Fish,repo.sceneFor("same-catch"))
             now.addAndGet(360*MeadowState.MINUTE);repo.refresh()
             await{repo.state.value?.acornStage==3}
             repo.discover(MeadowDiscovery.Hedgehog)
             await{MeadowDiscovery.Hedgehog in repo.state.value!!.discoveries}
+            assertEquals("A catch must keep its scene when more visitors unlock",MeadowCameo.Fish,repo.sceneFor("same-catch"))
             job.cancelAndJoin();job=SupervisorJob();scope=CoroutineScope(job+Dispatchers.Default)
             repo=MeadowRepository(context,game,monitoring,scope,now::get,name)
             await{repo.state.value?.acornStage==3}

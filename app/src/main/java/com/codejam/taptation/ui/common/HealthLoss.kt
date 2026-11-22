@@ -80,7 +80,7 @@ fun LeafBadge(fall: Float, modifier: Modifier = Modifier) {
  * straight away when animations are off, and always states the loss in text.
  */
 @Composable
-fun HealthLossBlock(healthBefore: Int, healthAfter: Int, animateDamage: Boolean = true) {
+fun HealthLossBlock(healthBefore: Int, healthAfter: Int, animateDamage: Boolean = true, compact: Boolean = false) {
     val motion = rememberMotionEnabled()
     val progress = remember(healthBefore, healthAfter) { Animatable(if (animateDamage && motion) 0f else 1f) }
     LaunchedEffect(motion) {
@@ -93,9 +93,8 @@ fun HealthLossBlock(healthBefore: Int, healthAfter: Int, animateDamage: Boolean 
     val bar = (healthBefore + (healthAfter - healthBefore) * drop) / 100f
     val color = androidx.compose.ui.graphics.lerp(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.error,
         damageFlashMix(progress.value))
-    Surface(shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.surface,
-        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) {
-        Column(Modifier.fillMaxWidth().padding(14.dp).semantics {
+    val content: @Composable () -> Unit = {
+        Column(Modifier.fillMaxWidth().then(if(compact)Modifier else Modifier.padding(14.dp)).semantics {
             contentDescription = "Health $healthAfter out of 100, down $lost"
         }, verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
@@ -109,4 +108,6 @@ fun HealthLossBlock(healthBefore: Int, healthAfter: Int, animateDamage: Boolean 
                 color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
+    if(compact) content() else Surface(shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.surface,
+        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) { content() }
 }
