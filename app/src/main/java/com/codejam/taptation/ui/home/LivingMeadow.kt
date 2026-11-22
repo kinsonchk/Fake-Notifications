@@ -26,13 +26,15 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.codejam.taptation.logic.meadow.*
 import com.codejam.taptation.ui.common.SectionCard
+import com.codejam.taptation.ui.common.formatDuration
 import com.codejam.taptation.ui.common.rememberMotionEnabled
 import com.codejam.taptation.ui.theme.*
 
 /** Public Home has no time-skip or unlock switches. The debug preview is isolated from this store. */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
-internal fun LivingMeadow(health: Int, world: MeadowState, onDiscover: (MeadowDiscovery) -> Unit) {
+internal fun LivingMeadow(health: Int, world: MeadowState, scenery: MeadowScenery = MeadowScenery.Valley,
+    onDiscover: (MeadowDiscovery) -> Unit) {
     val effects = remember { MeadowEffects() }
     var underground by rememberSaveable { mutableStateOf(false) }
     var collection by rememberSaveable { mutableStateOf(false) }
@@ -42,11 +44,19 @@ internal fun LivingMeadow(health: Int, world: MeadowState, onDiscover: (MeadowDi
     LaunchedEffect(world.acornStage) {
         if (world.acornStage > seenAcorn) { effects.squirrel(); seenAcorn = world.acornStage }
     }
+    // Valley feedback while Home is open: the mist lifts on a new stage; a catch sends a gust and rolls it back.
+    var seenStage by rememberSaveable { mutableIntStateOf(world.valleyStage.ordinal) }
+    var seenCatches by rememberSaveable { mutableLongStateOf(world.checkpointCatches) }
+    LaunchedEffect(world.valleyStage, world.checkpointCatches) {
+        if (seenCatches >= 0 && world.checkpointCatches > seenCatches) { effects.gust = 1f; effects.say("Caught. The mist rolls back in.") }
+        else if (world.valleyStage.ordinal > seenStage) effects.say("The mist lifts. ${valleyText(world.valleyStage)}")
+        seenStage = world.valleyStage.ordinal; seenCatches = world.checkpointCatches
+    }
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         BoxWithConstraints {
             SideEffect { width = maxWidth.value }
             MeadowCanvas(health = health, world = world, effects = effects,
-                onDiscover = onDiscover, onOpenUnderground = { underground = true })
+                onDiscover = onDiscover, onOpenUnderground = { underground = true }, scenery = scenery)
         }
         TextButton(onClick = { underground = !underground }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
             Text(if (underground) "Back to the surface ↑" else "Below ground ↓")
@@ -98,6 +108,46 @@ private fun MeadowAction(text:String,onClick:()->Unit) {
     OutlinedButton(onClick=onClick,modifier=Modifier.heightIn(min=48.dp),shape=RoundedCornerShape(14.dp),
         contentPadding=PaddingValues(horizontal=12.dp,vertical=8.dp),
         colors=ButtonDefaults.outlinedButtonColors(contentColor=MaterialTheme.colorScheme.primary)) { Text(text) }
+}
+
+internal fun valleyTitle(stage: ValleyStage) = when (stage) {
+    ValleyStage.Grass -> "Your patch of grass"
+    ValleyStage.NearField -> "The near field"
+    ValleyStage.River -> "A river"
+    ValleyStage.Hills -> "Rolling hills"
+    ValleyStage.Bridge -> "A bridge"
+    ValleyStage.Ridges -> "Far ridges"
+    ValleyStage.Cottage -> "A cottage"
+    ValleyStage.Valley -> "The whole valley"
+}
+
+internal fun valleyText(stage: ValleyStage) = when (stage) {
+    ValleyStage.Grass -> "Mist hides everything past the grass."
+    ValleyStage.NearField -> "Bushes and daisies at the edge of the meadow."
+    ValleyStage.River -> "Water glints beyond the grass."
+    ValleyStage.Hills -> "A path winds down towards the water."
+    ValleyStage.Bridge -> "Someone built a crossing over the river."
+    ValleyStage.Ridges -> "Pines, open sky and the sun."
+    ValleyStage.Cottage -> "Smoke curls from a chimney on the hill."
+    ValleyStage.Valley -> "A windmill turns on the far ridge."
+}
+
+/** Clean streak and what the next stretch of clean time reveals. */
+@Composable
+internal fun MeadowValleyCard(world: MeadowState) {
+    SectionCard(valleyTitle(world.valleyStage)) {
+        Text("Clean for ${formatDuration(world.cleanMillis)}", style = MaterialTheme.typography.bodyMedium)
+        LinearProgressIndicator(progress = { world.valleyProgress }, modifier = Modifier.fillMaxWidth(),
+            color = MaterialTheme.colorScheme.primary, trackColor = MaterialTheme.colorScheme.primaryContainer)
+        val next = world.valleyStage.next
+        Text(if (next != null) "${valleyTitle(next)} in ${formatDuration(world.valleyRemainingMillis ?: 0)}"
+            else "Your whole valley is visible.", style = MaterialTheme.typography.bodySmall)
+        Text(when {
+            !world.checkpointMonitoring -> "Clean time waits while monitoring is off."
+            world.revealed > world.valleyStage -> "A catch brings the mist back one stage. What you uncovered stays behind it."
+            else -> "A catch brings the mist back one stage."
+        }, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
 }
 
 @Composable

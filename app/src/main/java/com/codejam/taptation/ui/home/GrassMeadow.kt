@@ -14,7 +14,11 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.isSpecified
+import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.CompositingStrategy
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.luminance
@@ -35,6 +39,7 @@ import com.codejam.taptation.ui.common.rememberMotionEnabled
 import com.codejam.taptation.ui.theme.*
 import com.codejam.taptation.logic.meadow.MeadowState
 import com.codejam.taptation.logic.meadow.MeadowDiscovery
+import com.codejam.taptation.logic.meadow.ValleyStage
 
 /** Mockup meadow: curved blades on a fading mound, coherent wind and springy local brushing. */
 @Composable
@@ -45,7 +50,8 @@ fun GrassMeadow(health: Int, modifier: Modifier = Modifier) {
 
 @Composable
 internal fun MeadowCanvas(health: Int, modifier: Modifier = Modifier, world: MeadowState?, effects: MeadowEffects,
-    onDiscover: (MeadowDiscovery) -> Unit = {}, onOpenUnderground: () -> Unit = {}) {
+    onDiscover: (MeadowDiscovery) -> Unit = {}, onOpenUnderground: () -> Unit = {},
+    scenery: MeadowScenery = MeadowScenery.Classic) {
     val motion = rememberMotionEnabled()
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     var started by remember { mutableStateOf(lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) }
@@ -62,9 +68,22 @@ internal fun MeadowCanvas(health: Int, modifier: Modifier = Modifier, world: Mea
     val growth by animateFloatAsState(health.coerceIn(0, 100) / 100f,
         animationSpec = if (motion) tween(700) else snap(), label = "Meadow health")
     val currentGrowth by rememberUpdatedState(growth)
+    // Valley camera and landmarks animate when the stage changes (mist lifting, or rolling back after a catch).
+    val clean = world?.cleanMillis ?: 0L
+    val revealed = world?.revealed ?: ValleyStage.Grass
+    fun spec(ms: Int) = if (motion) tween<Float>(ms) else snap()
+    val zoom by animateFloatAsState(ValleyCamera.zoom(clean), spec(1400), label = "Valley zoom")
+    val fog by animateFloatAsState(ValleyCamera.fog(clean), spec(1400), label = "Valley mist")
+    val pathGrown by animateFloatAsState(if (revealed >= ValleyStage.Hills) 1f else 0f, spec(1800), label = "Valley path")
+    val bridgeGrown by animateFloatAsState(if (revealed >= ValleyStage.Bridge) 1f else 0f, spec(1200), label = "Valley bridge")
+    val cottageGrown by animateFloatAsState(if (revealed >= ValleyStage.Cottage) 1f else 0f, spec(1200), label = "Valley cottage")
+    val windmillGrown by animateFloatAsState(if (revealed >= ValleyStage.Valley) 1f else 0f, spec(1200), label = "Valley windmill")
     val currentTouch by rememberUpdatedState(if (pressed) touch else Offset.Unspecified)
     val field = remember { MeadowMotion() }
     val painter = remember { MeadowPainter() }
+    val valley = remember { ValleyScenery() }
+    // Back row first so the brighter front row overlaps it: depth without extra shapes.
+    val drawOrder = remember { field.blades.sortedByDescending { it.layer } }
     val currentWorld by rememberUpdatedState(world)
     val currentDiscover by rememberUpdatedState(onDiscover)
     val currentOpenUnder by rememberUpdatedState(onOpenUnderground)
@@ -75,7 +94,9 @@ internal fun MeadowCanvas(health: Int, modifier: Modifier = Modifier, world: Mea
     val highlight = if (dark) GrassDarkHighlight else GrassHighlight
     val dry = if (dark) GrassDarkDry else Earth
     val soil = if (dark) MeadowDarkSoil else MeadowSoil
-    val logicalHeight = if (world == null) MeadowMotion.HEIGHT else 230f
+    val tip = if (dark) GrassDarkTip else GrassTip
+    // Valley needs room above the grass tops for the hills and river to read.
+    val logicalHeight = when { world == null -> MeadowMotion.HEIGHT; scenery == MeadowScenery.Valley -> 290f; else -> 230f }
     val unit = canvasSize.height / logicalHeight
     val groundY = canvasSize.height * if (world == null) .86f else .83f
     val groundOffset = if (unit > 0) groundY / unit - MeadowMotion.HEIGHT * .86f else 0f
@@ -91,6 +112,16 @@ internal fun MeadowCanvas(health: Int, modifier: Modifier = Modifier, world: Mea
             quadraticTo(canvasSize.width * .5f, groundY - 12f * unit, canvasSize.width.toFloat(), groundY + 6f * unit)
             lineTo(canvasSize.width.toFloat(), canvasSize.height.toFloat())
             lineTo(0f, canvasSize.height.toFloat())
+            close()
+        }
+    }
+    // Turf band where blades meet the mound, so they grow out of ground instead of floating over beige soil.
+    val turfPath = remember(canvasSize) {
+        Path().apply {
+            moveTo(0f, groundY + 2f * unit)
+            quadraticTo(canvasSize.width * .5f, groundY - 14f * unit, canvasSize.width.toFloat(), groundY + 2f * unit)
+            lineTo(canvasSize.width.toFloat(), groundY + 12f * unit)
+            quadraticTo(canvasSize.width * .5f, groundY, 0f, groundY + 12f * unit)
             close()
         }
     }
@@ -114,9 +145,12 @@ internal fun MeadowCanvas(health: Int, modifier: Modifier = Modifier, world: Mea
         }
     }
     Canvas(modifier.fillMaxWidth().height(logicalHeight.dp)
+        // Offscreen so the edge fade below masks the whole scene (soft sides instead of hard cuts).
+        .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
         .onSizeChanged { canvasSize = it }
         .onGloballyPositioned { visible = it.boundsInWindow().let { b -> b.width > 0 && b.height > 0 } }
-        .semantics { contentDescription = "Meadow health ${health.coerceIn(0, 100)} out of 100" }
+        .semantics { contentDescription = "Meadow health ${health.coerceIn(0, 100)} out of 100" +
+            if (scenery == MeadowScenery.Valley && world != null) ". Valley: ${valleyTitle(world.valleyStage)}" else "" }
         .pointerInput(motion, world != null, canvasSize) {
             if (!motion && currentWorld == null) return@pointerInput
             awaitEachGesture {
@@ -178,7 +212,14 @@ internal fun MeadowCanvas(health: Int, modifier: Modifier = Modifier, world: Mea
         }) {
         @Suppress("UNUSED_VARIABLE") val drawFrame = frame + effects.revision
         val scale = size.height / logicalHeight
-        drawPath(hillPath, hillBrush)
+        val greenAmount = ((growth - .15f) / .1f).coerceIn(0f, 1f)
+        fun grass(c: Color) = lerp(dry, c, greenAmount)
+        if (scenery == MeadowScenery.Valley && world != null) valley.draw(this, scale, size.width / scale, groundY / scale, logicalHeight,
+            growth, dark, background, if (dark) MeadowNightPetal else MeadowPetal, MeadowGold, if (motion) effects.time else 0f,
+            ValleyView(zoom, fog, pathGrown, bridgeGrown, cottageGrown, windmillGrown))
+        else drawPath(hillPath, hillBrush)
+        drawPath(turfPath, Brush.verticalGradient(listOf(grass(bladeColor).copy(alpha = .85f), Color.Transparent),
+            startY = groundY - 8f * unit, endY = groundY + 12f * unit))
         world?.let { drawIntoCanvas { canvas ->
             canvas.nativeCanvas.save(); canvas.nativeCanvas.scale(scale,scale)
             canvas.nativeCanvas.clipRect(0f,0f,size.width/scale,logicalHeight)
@@ -187,8 +228,12 @@ internal fun MeadowCanvas(health: Int, modifier: Modifier = Modifier, world: Mea
         } }
         val activeCount = 8f + growth * (MeadowMotion.COUNT - 8)
         // Healthy grass keeps the mockup's saturated greens, not the pale card/selection palette.
-        val greenAmount = ((growth - .15f) / .1f).coerceIn(0f, 1f)
-        field.blades.forEach { blade ->
+        // One shared root-to-tip gradient per row: darker at the root, sunlit at the tip.
+        val tipY = groundY - 100f * scale
+        val backBrush = Brush.verticalGradient(listOf(grass(lerp(bladeColor, Color.Black, .22f)), grass(bladeColor)), groundY, tipY)
+        val midBrush = Brush.verticalGradient(listOf(grass(bladeColor), grass(highlight)), groundY, tipY)
+        val frontBrush = Brush.verticalGradient(listOf(grass(bladeColor), grass(lerp(highlight, tip, .55f))), groundY, tipY)
+        drawOrder.forEach { blade ->
             val alpha = (activeCount - blade.activationRank).coerceIn(0f, 1f)
             if (alpha == 0f) return@forEach
             val x = blade.u * size.width
@@ -207,8 +252,11 @@ internal fun MeadowCanvas(health: Int, modifier: Modifier = Modifier, world: Mea
             bladePath.cubicTo(tipControlX + baseWidth * .15f, y - length * 1.08f,
                 rootControlX + baseWidth * .3f, y - length * .38f, x + baseWidth * .5f, y)
             bladePath.close()
-            drawPath(bladePath, lerp(dry, if (blade.layer == 0) bladeColor else highlight, greenAmount),
-                alpha = alpha * if (blade.layer == 2) .72f else .95f)
+            when (blade.layer) {
+                0 -> drawPath(bladePath, frontBrush, alpha = alpha * .97f)
+                1 -> drawPath(bladePath, midBrush, alpha = alpha * .92f)
+                else -> drawPath(bladePath, backBrush, alpha = alpha * .8f)
+            }
         }
         world?.let { drawIntoCanvas { canvas ->
             canvas.nativeCanvas.save(); canvas.nativeCanvas.scale(scale,scale)
@@ -216,5 +264,10 @@ internal fun MeadowCanvas(health: Int, modifier: Modifier = Modifier, world: Mea
             painter.life(canvas.nativeCanvas,size.width/scale,groundY/scale,health,it,effects,motion)
             canvas.nativeCanvas.restore()
         } }
+        drawRect(EdgeFade, blendMode = BlendMode.DstIn)
+        if (scenery == MeadowScenery.Valley) drawRect(TopFade, blendMode = BlendMode.DstIn)
     }
 }
+
+private val EdgeFade = Brush.horizontalGradient(0f to Color.Transparent, .07f to Color.Black, .93f to Color.Black, 1f to Color.Transparent)
+private val TopFade = Brush.verticalGradient(0f to Color.Transparent, .1f to Color.Black)

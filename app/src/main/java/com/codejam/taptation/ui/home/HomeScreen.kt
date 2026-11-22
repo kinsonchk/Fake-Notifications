@@ -85,13 +85,14 @@ fun HomeScreen(contentPadding: PaddingValues, onOpenSettings: (String) -> Unit =
                 GrassMeadow(health = state.health)
                 if (meadowError == null) Text("Loading your meadow…",style=MaterialTheme.typography.bodySmall)
             }
-            else LivingMeadow(state.health,world,meadow::discover)
+            else LivingMeadow(state.health,world,onDiscover=meadow::discover)
             meadowError?.let {
                 Text(it,color=MaterialTheme.colorScheme.error)
                 TextButton(onClick=meadow::retry) { Text("Try again") }
             }
         }
         item { HealthCard(state, now, repository.recoveryIntervalMinutes(state.config)) }
+        meadowState?.let { world -> item { MeadowValleyCard(world) } }
         meadowState?.let { world -> item { MeadowGrowthCard(world) } }
         if (state.taps.isEmpty()) item { FirstUseCard(state.config.difficulty, onOpenSettings) }
         if (state.taps.isNotEmpty()) item { RecentActivity(state, labels) }
