@@ -240,7 +240,7 @@ Debug APK: `app/build/outputs/apk/debug/app-debug.apk`.
    lockout expiry: matching comes from the captured title.
 9. Swipe a posted notification away: no tap/catch is recorded.
 10. In **Debug** > Demo controls, set health to 10, then **Force catch** with Medium/Savage: health reaches zero.
-    Use **Reset tree** on Home: health returns to 100 and historical totals remain.
+    The Home screen does not offer a tree reset. For repeated debug demos, use **Reset demo data** in Debug > Demo controls; it restores the demo state and stats.
 11. Setting health to 100 also clears lockout for demo preparation. These direct health controls
     are hidden in release builds, and the repository rejects release debug-health calls.
 12. Reopen the app during a lockout and confirm remaining time/state. Close/restart later

@@ -96,14 +96,14 @@ fun HomeScreen(contentPadding: PaddingValues, onSettings: () -> Unit = {}, onTut
                     }
                 }
             }
-            item { TreeStatusCard(state, now, onReset = { repository.reset() }) }
+            item { TreeStatusCard(state, now) }
             lastResult?.let { result -> item { LastTapCard(result) } }
         }
     }
 }
 
 @Composable
-private fun TreeStatusCard(state: GameState, now: Long, onReset: () -> Unit) {
+private fun TreeStatusCard(state: GameState, now: Long) {
     SectionCard(title = "Your progress", subtitle = "${mood(state.health)} · ${state.health}/100 health") {
         LinearProgressIndicator(
             progress = { state.health / 100f },
@@ -122,8 +122,7 @@ private fun TreeStatusCard(state: GameState, now: Long, onReset: () -> Unit) {
             )
         }
         if (state.isDead) {
-            Text("Your tree died. Reset to start growing again.")
-            Button(onClick = onReset) { Text("Reset tree") }
+            Text("Your tree has died.")
         }
     }
 }
