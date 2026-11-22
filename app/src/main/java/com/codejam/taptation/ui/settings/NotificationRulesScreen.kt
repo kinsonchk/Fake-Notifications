@@ -22,7 +22,6 @@ import com.codejam.taptation.logic.GameConfig
 import com.codejam.taptation.logic.GameRepository
 import com.codejam.taptation.logic.Strictness
 import com.codejam.taptation.ui.common.*
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
@@ -189,20 +188,6 @@ private fun CriteriaSection(config: GameConfig, repository: GameRepository) {
             else "Automatic decisions aren’t configured in this build. Let us decide currently treats notifications as bait. Choose Always important for apps you don’t want penalized.",
             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
-}
-
-@Composable
-private fun CriteriaField(label: String, placeholder: String, saved: String, onSave: (String) -> Unit) {
-    var text by rememberSaveable { mutableStateOf(saved) }
-    val latestText by rememberUpdatedState(text)
-    val latestSaved by rememberUpdatedState(saved)
-    val latestOnSave by rememberUpdatedState(onSave)
-    LaunchedEffect(text) { if (text != saved) { delay(500); onSave(text) } }
-    DisposableEffect(Unit) { onDispose { if (latestText != latestSaved) latestOnSave(latestText) } }
-    Text(label, style = MaterialTheme.typography.titleSmall)
-    OutlinedTextField(value = text, onValueChange = { text = it.take(GameConfig.MAX_CRITERIA_LENGTH) },
-        modifier = Modifier.fillMaxWidth().semantics { contentDescription = label }, minLines = 3,
-        placeholder = { Text(placeholder) }, shape = RoundedCornerShape(16.dp))
 }
 
 @Composable

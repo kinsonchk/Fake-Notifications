@@ -8,6 +8,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
@@ -50,10 +51,19 @@ enum class Tab(val label: String, @param:DrawableRes val icon: Int, val debugOnl
     Debug("Debug", R.drawable.ic_tab_debug, debugOnly = true),
 }
 
-/** Root app shell. Opens directly into Home, which surfaces first-run setup when needed. */
+/** Root app shell. Shows the first-run tutorial once, then opens the app tabs. */
 @Composable
 fun TaptationApp(debug: Boolean) {
-    AppTabs(debug)
+    val context = LocalContext.current
+    var tutorialComplete by remember { mutableStateOf(isTutorialComplete(context)) }
+    if (tutorialComplete) {
+        AppTabs(debug)
+    } else {
+        OnboardingScreen(startAtSetup = false) {
+            completeTutorial(context)
+            tutorialComplete = true
+        }
+    }
 }
 
 /** Bottom tabs. Debug-only tabs are hidden in release builds. */
