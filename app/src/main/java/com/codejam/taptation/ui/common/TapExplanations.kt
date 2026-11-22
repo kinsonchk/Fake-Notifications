@@ -9,7 +9,10 @@ object TapExplanations {
     fun rule(code: String): String = when (code) {
         "app_always_important" -> "App set to Always important"
         "app_always_bait" -> "App set to Always bait"
-        "let_us_decide" -> "Let us decide: counted as non-essential for now"
+        "let_us_decide" -> "Let us decide: counted as non-essential (AI judge not set up)"
+        "ai_important" -> "Let us decide: the AI judged it important"
+        "ai_bait" -> "Let us decide: the AI judged it bait"
+        "ai_unsure" -> "Let us decide: the AI was unsure, still judging or unreachable"
         "whitelisted" -> "App is whitelisted"
         "important_category" -> "Call, alarm, reminder or event"
         "vip_title" -> "Title matches a VIP name"

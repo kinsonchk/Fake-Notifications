@@ -11,6 +11,8 @@
 
     <!-- Android 13+: debug notifications and the caught-feedback fallback. -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- "Let us decide" asks Cloudflare Workers AI to judge notifications. -->
+    <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
 
     <application

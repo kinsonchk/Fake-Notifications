@@ -12,6 +12,8 @@ package com.codejam.taptation.logic
  *   [ageMillis] when the listener didn't see the first post (e.g. it was restarted).
  * @property actions titles of the notification's action buttons (e.g. "Reply", "Mark as read"),
  *   in display order. Empty when the notification has none.
+ * @property judged the AI judge's verdict for "Let us decide", set by the listener at removal. Null
+ *   when no judge is set up (no API key); Unknown when it is pending, failed or unsure.
  */
 data class NotificationContext(
     val packageName: String,
@@ -25,6 +27,7 @@ data class NotificationContext(
     val ageMillis: Long? = null,
     val firstSeenAgeMillis: Long? = null,
     val actions: List<String> = emptyList(),
+    val judged: Classification? = null,
     /** Transient user action for the original notification; never persisted or invoked automatically. */
     val openOriginal: (() -> Unit)? = null,
 )

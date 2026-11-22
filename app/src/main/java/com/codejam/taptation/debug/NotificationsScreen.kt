@@ -40,6 +40,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.codejam.taptation.TaptationApplication
 import com.codejam.taptation.logic.GameConfig
 import com.codejam.taptation.logic.NotificationClassifier
 import com.codejam.taptation.logic.NotificationContext
@@ -79,6 +80,8 @@ fun NotificationsScreen(contentPadding: PaddingValues) {
     val snapshot by repository.state.collectAsStateWithLifecycle()
     val presets by presetStore.presets.collectAsStateWithLifecycle()
     val observations by TapListenerService.observations.collectAsStateWithLifecycle()
+    val judges = remember(context) { (context.applicationContext as TaptationApplication).judges }
+    val verdicts by judges.verdicts.collectAsStateWithLifecycle()
     val config = snapshot?.config ?: GameConfig()
 
     var draft by rememberSaveable(stateSaver = DraftSaver) { mutableStateOf(NotificationPreset()) }
@@ -231,7 +234,8 @@ fun NotificationsScreen(contentPadding: PaddingValues) {
                 style = MaterialTheme.typography.bodySmall)
         }
         if (observations.isEmpty()) item { Text("Nothing observed since the listener connected.") }
-        items(observations) { ObservedRow(it, config) }
+        // Live AI verdicts for "Let us decide" apps, as the tap would see them.
+        items(observations) { ObservedRow(it.copy(judged = judges.classificationFor(it, verdicts)), config) }
     }
 }
 
