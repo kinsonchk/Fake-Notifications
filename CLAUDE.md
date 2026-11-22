@@ -19,7 +19,7 @@ debug overrides are separate, activation has a repository-enforced 10-second con
 known stale taps skip classification/roll, and catches present two destination choices.
 Home now uses a grass meadow driven by health. Touch affects appearance only. The user authorized this frontend revision across owners.
 
-**Fake Notifications** (Gradle project `Taptation`, package `com.codejam.taptation`): 1-day hackathon Android app, team of 4. App watches other apps' notifications; tapping a "bait" notification (social, games) has a small random chance (5-10%) to "catch" the user, lowering a health state (tree/pet) and showing a short lockout. Urgent apps (family, work, rides, banking) are whitelisted and never penalized.
+**Fake Notifications** (Gradle project `Taptation`, package `com.codejam.taptation`): 1-day hackathon Android app, team of 4. App watches other apps' notifications; tapping a distracting notification may catch the user, lowering health and starting a 15-second catch cooldown. Urgent apps (family, work, rides, banking) can be set to Always important and are never penalized.
 
 Planning docs live in `docs/`, one folder per person (`docs/person-1` … `docs/person-4`), each with a `README.md` listing that person's docs, status and remaining work. Read the relevant one before working on a teammate's area:
 - `docs/features-by-person.md`: core vs priority features per person, shared interfaces, go/no-go checkpoint (tap detection on a real phone by hour 4), cut list.

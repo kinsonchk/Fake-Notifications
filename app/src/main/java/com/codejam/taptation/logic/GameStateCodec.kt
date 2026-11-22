@@ -177,7 +177,9 @@ object GameStateCodec {
                 mediumDamage = input.readInt(),
                 savageDamage = input.readInt(),
                 recoveryPerHour = input.readInt(),
-                lockoutSeconds = input.readInt(),
+                // Existing snapshots may contain the former 30-second default. Normalize the
+                // saved setting so catches after upgrading use the new 15-second cooldown.
+                lockoutSeconds = input.readInt().let { 15 },
                 whitelistedPackages = input.strings(),
                 baitPackages = input.strings(),
                 baitKeywords = input.strings(),
