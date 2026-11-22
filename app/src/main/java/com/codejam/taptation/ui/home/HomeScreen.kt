@@ -73,7 +73,7 @@ fun HomeScreen(contentPadding: PaddingValues, onSettings: () -> Unit = {}, onTut
         if (state == null) {
             item { Text(if (error == null) "Loading saved game…" else "Saved game unavailable") }
         } else {
-            item { ActivationControls(repository, state.config) }
+            item { ActivationControls(repository, state.config, now) }
             item { SetupBanner() }
             item {
                 SectionCard("Want a refresher?", "Review how Taptation works and revisit the access settings.") {

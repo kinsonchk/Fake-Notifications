@@ -8,6 +8,7 @@ import android.os.SystemClock
 import android.provider.Settings
 import android.view.accessibility.AccessibilityNodeInfo
 import androidx.test.platform.app.InstrumentationRegistry
+import com.codejam.taptation.R
 import com.codejam.taptation.logic.GameRepository
 import com.codejam.taptation.logic.NotificationContext
 import com.codejam.taptation.logic.TapOutcome
@@ -16,7 +17,10 @@ import org.junit.Test
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 
-/** Real TYPE_APPLICATION_OVERLAY, real saved catch, explicit original-action callback. */
+/**
+ * Real TYPE_APPLICATION_OVERLAY, real saved catch, explicit original-action callback. Continuing in
+ * the original app costs the catch's extra penalty once, on top of the already-applied catch.
+ */
 class CaughtOverlayTest {
     @Test fun backgroundCatchShowsTwoButtonsAndOriginalChoiceDoesNotApplyDamageAgain() {
         val instrumentation = InstrumentationRegistry.getInstrumentation()
@@ -58,20 +62,22 @@ class CaughtOverlayTest {
             fun node(text: String): AccessibilityNodeInfo? = automation.windows.asSequence()
                 .mapNotNull { it.root }.flatMap { it.findAccessibilityNodeInfosByText(text).asSequence() }
                 .firstOrNull { it.text?.toString() == text }
+            val extra = result.state.pendingCatch!!.continueExtraDamage
+            val continueLabel = original.getString(R.string.caught_original_app_with_penalty, extra)
             val deadline = SystemClock.elapsedRealtime() + 10_000
             var originalButton: AccessibilityNodeInfo? = null
             while (originalButton == null && SystemClock.elapsedRealtime() < deadline) {
-                originalButton = node("Go to original app")
+                originalButton = node(continueLabel)
                 if (originalButton == null) SystemClock.sleep(100)
             }
             assertNotNull("Native caught overlay was not shown", originalButton)
-            assertNotNull(node("Go to Taptation"))
+            assertNotNull(node(original.getString(R.string.caught_our_app)))
             assertTrue(originalButton!!.performAction(AccessibilityNodeInfo.ACTION_CLICK))
             val openedDeadline = SystemClock.elapsedRealtime() + 5_000
             while (!opened.get() && SystemClock.elapsedRealtime() < openedDeadline) SystemClock.sleep(50)
             assertTrue("Original action wasn't invoked", opened.get())
             assertNull(repository.state.value!!.pendingCatch)
-            assertEquals(90, repository.state.value!!.health)
+            assertEquals(90 - extra, repository.state.value!!.health)
             assertEquals(1L, repository.state.value!!.totalCatches)
         } finally {
             if (initialized) instrumentation.runOnMainSync { feedback.close() }

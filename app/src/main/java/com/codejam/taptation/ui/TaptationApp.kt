@@ -8,7 +8,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
@@ -49,7 +48,10 @@ enum class Tab(val label: String, @param:DrawableRes val icon: Int, val debugOnl
     Debug("Debug", R.drawable.ic_tab_debug, debugOnly = true),
 }
 
-/** Shows the tutorial once, then requires both system grants on every app launch. */
+/**
+ * Shows the tutorial once, then requires notification access on every app launch. Overlay access
+ * is optional: without it, CatchFeedback falls back to a notification.
+ */
 @Composable
 fun TaptationApp(debug: Boolean) {
     val context = LocalContext.current
@@ -59,9 +61,7 @@ fun TaptationApp(debug: Boolean) {
     var showTutorial by rememberSaveable { mutableStateOf(false) }
 
     androidx.lifecycle.compose.LifecycleEventEffect(androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
-        val notificationGranted = com.codejam.taptation.service.PermissionHelper.isNotificationAccessGranted(context)
-        val overlayGranted = android.provider.Settings.canDrawOverlays(context)
-        accessReady = notificationGranted && overlayGranted
+        accessReady = com.codejam.taptation.service.PermissionHelper.isNotificationAccessGranted(context)
         checkAccess = true
     }
 
@@ -88,13 +88,13 @@ private fun AppTabs(debug: Boolean, onTutorial: () -> Unit) {
     val tabs = Tab.entries.filter { debug || !it.debugOnly }
     val compact = LocalConfiguration.current.screenWidthDp < 380
     var selected by rememberSaveable { mutableStateOf(Tab.Home) }
-    var postponedCatchId by remember { mutableStateOf<String?>(null) }
+    // Each catch has a new id, so a postponed id never hides a later catch; no reset needed.
+    var postponedCatchId by rememberSaveable { mutableStateOf<String?>(null) }
     val app = LocalContext.current.applicationContext as TaptationApplication
     val snapshot by app.game.state.collectAsStateWithLifecycle()
     val requests by app.feedback.homeRequests.collectAsStateWithLifecycle()
     var handledRequest by rememberSaveable { mutableStateOf(0L) }
     LaunchedEffect(requests) { if (requests > handledRequest) { selected = Tab.Home; handledRequest = requests } }
-    LaunchedEffect(snapshot?.pendingCatch?.id) { postponedCatchId = null }
     // Keeps each tab's scroll position and typed text while another tab is shown.
     val tabState = rememberSaveableStateHolder()
 

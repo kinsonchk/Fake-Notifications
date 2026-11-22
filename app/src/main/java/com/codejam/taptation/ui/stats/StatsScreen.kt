@@ -4,6 +4,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
@@ -23,20 +24,23 @@ import com.codejam.taptation.stats.StatsSummary
 import com.codejam.taptation.ui.common.LabelValue
 import com.codejam.taptation.ui.common.SectionCard
 import com.codejam.taptation.ui.common.TabScreen
+import kotlinx.coroutines.CancellationException
 
 /** Real SQLite history, including zero-catch days; no invented home-visual metric. */
 @Composable
 fun StatsScreen(contentPadding: PaddingValues) {
     val stats = (LocalContext.current.applicationContext as TaptationApplication).stats
     val changes by stats.changes.collectAsStateWithLifecycle()
-    var month by remember { mutableStateOf(false) }
-    var includeImportant by remember { mutableStateOf(false) }
+    var month by rememberSaveable { mutableStateOf(false) }
+    var includeImportant by rememberSaveable { mutableStateOf(false) }
     var summary by remember { mutableStateOf<StatsSummary?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
     LaunchedEffect(changes, month, includeImportant) {
         try {
             summary = if (month) stats.monthly(includeImportant) else stats.weekly(includeImportant)
             error = null
+        } catch (cancelled: CancellationException) {
+            throw cancelled
         } catch (failure: Exception) { error = failure.localizedMessage ?: "Could not load history" }
     }
     TabScreen(contentPadding, "Your attention,\nin perspective.", eyebrow = "Understand the pattern") {

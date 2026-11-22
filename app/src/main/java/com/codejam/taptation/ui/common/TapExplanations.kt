@@ -13,6 +13,7 @@ object TapExplanations {
         "ai_important" -> "Let us decide: the AI judged it important"
         "ai_bait" -> "Let us decide: the AI judged it bait"
         "ai_unsure" -> "Let us decide: the AI was unsure, still judging or unreachable"
+        "ai_pending" -> "Let us decide: the AI judges it once it is posted"
         "whitelisted" -> "App is whitelisted"
         "important_category" -> "Call, alarm, reminder or event"
         "vip_title" -> "Title matches a VIP name"

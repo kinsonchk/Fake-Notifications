@@ -126,4 +126,16 @@ class TapDetectionTest {
             ownPackageName = own,
             includeOwnPackage = debug,
         )
+
+    @Test
+    fun onlyCountableNotificationsAreWorthJudging() {
+        fun countable(flags: Int = 0, pkg: String = other, channel: String? = "chat", debug: Boolean = false) =
+            TapDetection.isCountable(flags, channel, pkg, own, debug)
+        assertTrue(countable())
+        assertFalse(countable(flags = Notification.FLAG_ONGOING_EVENT))
+        assertFalse(countable(flags = Notification.FLAG_GROUP_SUMMARY))
+        assertFalse(countable(pkg = own, debug = true))
+        assertTrue(countable(pkg = own, channel = TapDetection.OWN_TEST_CHANNEL_ID, debug = true))
+        assertFalse(countable(pkg = own, channel = TapDetection.OWN_TEST_CHANNEL_ID, debug = false))
+    }
 }

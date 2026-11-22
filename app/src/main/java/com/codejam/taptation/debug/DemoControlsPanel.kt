@@ -58,7 +58,8 @@ private fun RecoveryIntervalChoice(minutes: Int, selected: Boolean, modifier: Mo
 @Composable
 private fun ConnectedDemoControls(controls: DemoControls) {
     val state by controls.state.collectAsStateWithLifecycle()
-    var healthInput by remember { mutableStateOf(state.health.toString()) }
+    // Re-keyed on health so the field follows catches, recovery and resets.
+    var healthInput by remember(state.health) { mutableStateOf(state.health.toString()) }
     var confirmReset by remember { mutableStateOf(false) }
 
     Text("Health: ${state.health}   Catch chance: ${state.catchProbabilityPercent}%   Catches: ${state.catches}")

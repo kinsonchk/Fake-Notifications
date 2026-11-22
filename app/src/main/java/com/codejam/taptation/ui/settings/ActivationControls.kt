@@ -1,8 +1,6 @@
 package com.codejam.taptation.ui.settings
 
 import android.Manifest
-import android.content.Intent
-import android.net.Uri
 import android.os.Build
 import android.os.SystemClock
 import android.provider.Settings
@@ -25,6 +23,8 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.Saver
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
@@ -37,16 +37,23 @@ import com.codejam.taptation.logic.DisableGate
 import com.codejam.taptation.logic.GameConfig
 import com.codejam.taptation.logic.GameRepository
 import com.codejam.taptation.ui.common.SectionCard
+import com.codejam.taptation.ui.common.openOverlaySettings
 import com.codejam.taptation.ui.common.rememberNow
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
+/** Keeps an open disable confirmation across rotation; the repository's gate still enforces the wait. */
+private val ChallengeSaver = Saver<DisableGate.Challenge?, List<Any>>(
+    save = { challenge -> challenge?.let { listOf(it.id, it.readyAtMillis) } },
+    restore = { DisableGate.Challenge(it[0] as String, it[1] as Long) },
+)
+
+/** Pass [now] when the caller already ticks a clock (Home), so the screen runs one ticker. */
 @Composable
-fun ActivationControls(repository: GameRepository, config: GameConfig) {
-    val now = rememberNow(repository)
+fun ActivationControls(repository: GameRepository, config: GameConfig, now: Long = rememberNow(repository)) {
     val active = config.isActive(now)
     val scope = rememberCoroutineScope()
-    var challenge by remember { mutableStateOf<DisableGate.Challenge?>(null) }
+    var challenge by rememberSaveable(stateSaver = ChallengeSaver) { mutableStateOf<DisableGate.Challenge?>(null) }
     var busy by remember { mutableStateOf(false) }
     Surface(shape = RoundedCornerShape(22.dp), color = MaterialTheme.colorScheme.surfaceContainerLowest,
         contentColor = MaterialTheme.colorScheme.onSurface,
@@ -118,10 +125,7 @@ fun CatchPermissionCard() {
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { overlayGranted = Settings.canDrawOverlays(context) }
     SectionCard("Caught feedback", "Choose where to go after a catch.") {
         Text(if (overlayGranted) "Caught overlays are enabled." else "Allow display over other apps for the two-button caught overlay.")
-        if (!overlayGranted) Button(onClick = {
-            context.startActivity(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                Uri.fromParts("package", context.packageName, null)))
-        }) { Text("Allow caught overlay") }
+        if (!overlayGranted) Button(onClick = { openOverlaySettings(context) }) { Text("Allow caught overlay") }
         if (Build.VERSION.SDK_INT >= 33) TextButton(onClick = {
             permission.launch(Manifest.permission.POST_NOTIFICATIONS)
         }) { Text("Enable notification fallback") }

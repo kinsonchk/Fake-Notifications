@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -26,6 +27,7 @@ import com.codejam.taptation.stats.StatsSummary
 import com.codejam.taptation.ui.common.LabelValue
 import com.codejam.taptation.ui.common.SectionCard
 import com.codejam.taptation.ui.common.formatDuration
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import kotlin.random.Random
 
@@ -43,10 +45,25 @@ fun StatsHarnessPanel() {
     var includeImportant by rememberSaveable { mutableStateOf(false) }
     var summary by remember { mutableStateOf<StatsSummary?>(null) }
     var rows by remember { mutableIntStateOf(0) }
+    var error by remember { mutableStateOf<String?>(null) }
+
+    // Debug buttons: a database error is shown, never thrown out of the click's coroutine.
+    fun launchReporting(action: suspend () -> Unit) = scope.launch {
+        try {
+            action()
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (failure: Exception) { error = failure.localizedMessage ?: "Stats action failed" }
+    }
 
     LaunchedEffect(changes, month, includeImportant) {
-        summary = if (month) stats.monthly(includeImportant) else stats.weekly(includeImportant)
-        rows = stats.count()
+        try {
+            summary = if (month) stats.monthly(includeImportant) else stats.weekly(includeImportant)
+            rows = stats.count()
+            error = null
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (failure: Exception) { error = failure.localizedMessage ?: "Could not load history" }
     }
 
     SectionCard("Stats harness", "StatsRepository over SQLite: one row per tap or dismissal ($rows rows).") {
@@ -59,6 +76,7 @@ fun StatsHarnessPanel() {
                 label = { Text("Include important") },
             )
         }
+        error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
         summary?.let { s ->
             LabelValue("Taps / dismissals", "${s.taps} / ${s.dismissals}")
             LabelValue("Tap rate", s.tapRatePercent?.let { "$it%" } ?: "no data")
@@ -70,13 +88,13 @@ fun StatsHarnessPanel() {
         }
         OutlinedButton(
             onClick = {
-                scope.launch {
+                launchReporting {
                     stats.insertForDebug(FakeStatsHistory.generate(System.currentTimeMillis(), 30, Random.Default))
                 }
             },
             modifier = Modifier.fillMaxWidth(),
         ) { Text("Generate 30 days of fake history") }
-        TextButton(onClick = { scope.launch { stats.clearForDebug() } }) { Text("Clear stats") }
+        TextButton(onClick = { launchReporting { stats.clearForDebug() } }) { Text("Clear stats") }
     }
 }
 

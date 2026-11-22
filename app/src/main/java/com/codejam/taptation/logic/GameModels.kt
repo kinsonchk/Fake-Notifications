@@ -8,7 +8,7 @@ enum class AppProfile { Outlook, Instagram, Discord }
 /** The user's choice for one app on the Notification rules page. Apps not in [GameConfig.appRules] are LetUsDecide. */
 enum class AppRule { AlwaysBait, AlwaysImportant, LetUsDecide }
 
-/** How readily "Let us decide" marks an unclear notification as bait. Saved, not used yet. */
+/** How readily "Let us decide" marks an unclear notification as bait (AI judge thresholds, see ai/ClefQuestion). */
 enum class Strictness { Relaxed, Balanced, Strict }
 enum class Difficulty(val probability: Double) { Easy(0.20), Medium(0.40), Hard(0.70) }
 data class PendingCatch(val id: String, val packageName: String?, val continueExtraDamage: Int = 0) {

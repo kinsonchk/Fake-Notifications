@@ -23,8 +23,9 @@ class RevisedUiTest {
         compose.setContent { MaterialTheme {
             CatchChoiceDialog(continueExtraDamage = 0, onTaptation = { ours++ }, onOriginal = { original++ }, onLater = {})
         } }
-        compose.onNodeWithText("Go to Taptation").assertIsDisplayed().performClick()
-        compose.onNodeWithText("Go to original app").assertIsDisplayed().performClick()
+        val context = androidx.test.platform.app.InstrumentationRegistry.getInstrumentation().targetContext
+        compose.onNodeWithText(context.getString(com.codejam.taptation.R.string.caught_our_app)).assertIsDisplayed().performClick()
+        compose.onNodeWithText(context.getString(com.codejam.taptation.R.string.caught_original_app)).assertIsDisplayed().performClick()
         compose.runOnIdle { assertEquals(1, ours); assertEquals(1, original) }
     }
 

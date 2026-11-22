@@ -395,11 +395,65 @@ class GameEngineTest {
 
     @Test fun codecV5WhitelistAndBaitAppsBecomeAppRules() {
         val legacy = GameState(config = GameConfig(whitelistedPackages = setOf("safe"), baitPackages = setOf("bait")))
-        val bytes = java.util.Base64.getDecoder().decode(GameStateCodec.encode(legacy))
-        // v6 tail for empty rules: count (4) + two empty strings (2 + 2) + "Balanced" (2 + 8).
-        val v5 = bytes.copyOf(bytes.size - 18).also { it[3] = 5 }
-        val config = GameStateCodec.decode(java.util.Base64.getEncoder().encodeToString(v5)).config
+        val config = GameStateCodec.decode(GameStateCodec.encode(legacy, GameStateCodec.Layout.V5)).config
         assertEquals(mapOf("safe" to AppRule.AlwaysImportant, "bait" to AppRule.AlwaysBait), config.appRules)
         assertTrue(config.whitelistedPackages.isEmpty() && config.baitPackages.isEmpty())
+    }
+
+    /** All three v6 layouts that parallel branches wrote must still load, including a pending catch. */
+    @Test fun everyV6LayoutLoadsWithAPendingCatch() {
+        val state = GameState(
+            config = GameConfig(appRules = mapOf("app" to AppRule.AlwaysBait), essentialCriteria = "family"),
+            pendingCatch = PendingCatch("1-1", "app", GameEngine.CONTINUE_EXTRA_DAMAGE),
+        )
+        val merged = GameStateCodec.decode(GameStateCodec.encode(state, GameStateCodec.Layout.V6_MERGED))
+        assertEquals(state, merged)
+        val rules = GameStateCodec.decode(GameStateCodec.encode(state, GameStateCodec.Layout.V6_RULES))
+        assertEquals(state.copy(pendingCatch = state.pendingCatch!!.copy(continueExtraDamage = 0)), rules)
+        val penalty = GameStateCodec.decode(GameStateCodec.encode(
+            state.copy(config = GameConfig(baitPackages = setOf("app"))), GameStateCodec.Layout.V6_PENALTY))
+        assertEquals(state.pendingCatch, penalty.pendingCatch)
+        assertEquals(mapOf("app" to AppRule.AlwaysBait), penalty.config.appRules)
+    }
+
+    @Test fun pendingCatchRoundTripsInTheCurrentLayout() {
+        val state = GameState(pendingCatch = PendingCatch("9-3", "pkg", GameEngine.CONTINUE_EXTRA_DAMAGE),
+            config = GameConfig(debugRecoveryIntervalMinutes = 5))
+        assertEquals(state, GameStateCodec.decode(GameStateCodec.encode(state)))
+    }
+
+    @Test fun tapCatchIdMatchesTheCatchCountAndKeepsThePackage() {
+        val f = Fixture()
+        f.configure()
+        val pending = f.tap("bait").state.pendingCatch!!
+        assertEquals("${f.now}-1", pending.id)
+        assertEquals("bait", pending.packageName)
+        assertEquals(GameEngine.CONTINUE_EXTRA_DAMAGE, pending.continueExtraDamage)
+    }
+
+    @Test fun forcedCatchAlsoCostsTheExtraPenaltyWhenContinuing() {
+        val f = Fixture()
+        val pending = f.game.applyCatch(CatchLevel.Mild).pendingCatch!!
+        assertEquals(GameEngine.CONTINUE_EXTRA_DAMAGE, pending.continueExtraDamage)
+        assertEquals(90 - GameEngine.CONTINUE_EXTRA_DAMAGE, f.game.settleCatchChoice(pending.id, true).health)
+    }
+
+    @Test fun staleNotificationsAreUnknownForTapsAndDismissalsAlike() {
+        val config = GameConfig(appRules = mapOf("bait" to AppRule.AlwaysBait), freshnessSeconds = 60)
+        val stale = NotificationContext("bait", ageMillis = 61_000)
+        assertEquals(Assessment(Classification.Unknown, "stale"), NotificationClassifier.assessTap(stale, config))
+        assertEquals(Classification.Bait, NotificationClassifier.assessTap(stale.copy(ageMillis = 1_000), config).classification)
+    }
+
+    @Test fun debugIntervalOnlyResetsRecoveryWhenTheIntervalInUseChanges() {
+        val f = Fixture()
+        f.configure()
+        val anchor = f.game.state.recoveryAnchorMillis
+        f.now += 10 * GameEngine.MINUTE_MILLIS
+        // Explicitly choosing the interval already in use (60) is no change.
+        f.game.updateConfig(f.game.state.config.copy(recoveryIntervalMinutes = 60))
+        assertEquals(anchor, f.game.state.recoveryAnchorMillis)
+        f.game.setDebugRecoveryInterval(5)
+        assertEquals(f.now, f.game.state.recoveryAnchorMillis)
     }
 }

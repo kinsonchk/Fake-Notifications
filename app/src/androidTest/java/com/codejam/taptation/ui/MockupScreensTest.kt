@@ -9,6 +9,9 @@ import com.codejam.taptation.MainActivity
 import com.codejam.taptation.ui.common.CatchChoiceDialog
 import com.codejam.taptation.ui.theme.TaptationTheme
 import java.io.File
+import com.codejam.taptation.R
+import com.codejam.taptation.service.TapListenerService
+import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 
@@ -16,9 +19,27 @@ import org.junit.Test
 class MockupScreensTest {
     @get:Rule val compose = createAndroidComposeRule<MainActivity>()
 
+    /** The tabs sit behind the one-time tutorial and notification access (see TaptationApp). */
+    @Before fun skipOnboarding() {
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        val context = instrumentation.targetContext
+        completeTutorial(context)
+        // Read the output so the grant has finished before the test renders TaptationApp.
+        android.os.ParcelFileDescriptor.AutoCloseInputStream(instrumentation.uiAutomation.executeShellCommand(
+            "cmd notification allow_listener ${context.packageName}/${TapListenerService::class.java.name}"))
+            .use { it.readBytes() }
+    }
+
+    /** The first test after a cold start renders while the game state is still loading. */
+    private fun awaitDisplayed(text: String) {
+        compose.waitUntil(10_000) { runCatching { compose.onNodeWithText(text).assertIsDisplayed() }.isSuccess }
+    }
+
+    private fun text(id: Int) = InstrumentationRegistry.getInstrumentation().targetContext.getString(id)
+
     @Test fun lightScreensKeepSettingsAndDebugReachable() {
         compose.activity.setContent { TaptationTheme(darkTheme = false) { TaptationApp(debug = true) } }
-        compose.onNodeWithText("Room to grow.").assertIsDisplayed()
+        awaitDisplayed("Room to grow.")
         capture("home-light")
         compose.onNodeWithText("Stats").performClick()
         compose.onNodeWithText("Your attention,\nin perspective.").assertIsDisplayed()
@@ -44,7 +65,7 @@ class MockupScreensTest {
 
     @Test fun darkScreensAndCaughtChoicesRender() {
         compose.activity.setContent { TaptationTheme(darkTheme = true) { TaptationApp(debug = true) } }
-        compose.onNodeWithText("Room to grow.").assertIsDisplayed()
+        awaitDisplayed("Room to grow.")
         capture("home-dark")
         compose.onNodeWithText("Stats").performClick()
         compose.onNodeWithText("Your attention,\nin perspective.").assertIsDisplayed()
@@ -52,8 +73,8 @@ class MockupScreensTest {
         compose.activity.setContent { TaptationTheme(darkTheme = false) {
             CatchChoiceDialog(continueExtraDamage = 0, onTaptation = {}, onOriginal = {}, onLater = {})
         } }
-        compose.onNodeWithText("Go to Taptation").assertIsDisplayed()
-        compose.onNodeWithText("Go to original app").assertIsDisplayed()
+        compose.onNodeWithText(text(R.string.caught_our_app)).assertIsDisplayed()
+        compose.onNodeWithText(text(R.string.caught_original_app)).assertIsDisplayed()
         capture("caught-light")
     }
 

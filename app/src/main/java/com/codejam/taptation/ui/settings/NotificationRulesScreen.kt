@@ -39,6 +39,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.codejam.taptation.BuildConfig
 import com.codejam.taptation.logic.AppRule
 import com.codejam.taptation.logic.GameConfig
 import com.codejam.taptation.logic.GameRepository
@@ -191,11 +192,18 @@ private fun CriteriaCard(config: GameConfig, repository: GameRepository) {
             config.nonEssentialCriteria,
         ) { text -> repository.updateConfig { it.copy(nonEssentialCriteria = text) } }
         Text(
-            "For now, “Let us decide” counts every notification as bait. Your answers are saved for when it learns to judge.",
+            if (aiJudgeConfigured) "The AI reads each notification from these apps and weighs it against your answers. " +
+                "When it can’t tell, the tap is never penalized."
+            else "The AI judge isn’t set up in this build, so “Let us decide” counts every notification as bait " +
+                "until an API key is set up. Your answers are saved for then.",
             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
 }
+
+/** True when the Cloudflare keys were set at build time, so "Let us decide" is judged by the AI. */
+private val aiJudgeConfigured: Boolean =
+    BuildConfig.CF_ACCOUNT_ID.isNotBlank() && BuildConfig.CF_API_TOKEN.isNotBlank()
 
 /** Saves half a second after typing stops, and when the page closes, so there is no save button. */
 @Composable
@@ -223,9 +231,9 @@ private fun CriteriaField(label: String, placeholder: String, saved: String, onS
 }
 
 private val strictnessText = mapOf(
-    Strictness.Relaxed to "Relaxed: only clear bait is marked as bait. When unsure, the message is treated as important, so few messages count as bait.",
-    Strictness.Balanced to "Balanced: obvious bait is marked as bait, obvious important messages get through, and unclear ones are left alone.",
-    Strictness.Strict to "Strict: anything that isn’t clearly important is marked as bait, so more messages count as bait.",
+    Strictness.Relaxed to "Relaxed: only clear bait is marked as bait. Unclear messages are never penalized, so few messages count as bait.",
+    Strictness.Balanced to "Balanced: likely bait is marked as bait, likely important messages get through, and unclear ones are never penalized.",
+    Strictness.Strict to "Strict: messages that lean toward bait are marked as bait, so more messages count as bait.",
 )
 
 @Composable
@@ -254,5 +262,7 @@ private fun StrictnessCard(config: GameConfig, repository: GameRepository) {
             }
         }
         Text(strictnessText.getValue(current), style = MaterialTheme.typography.bodyMedium)
+        if (!aiJudgeConfigured) Text("Used once the AI judge is set up.",
+            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
