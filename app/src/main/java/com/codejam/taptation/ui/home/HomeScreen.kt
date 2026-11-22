@@ -68,7 +68,7 @@ fun HomeScreen(contentPadding: PaddingValues, onOpenSettings: (String) -> Unit =
     var access by remember { mutableStateOf(PermissionHelper.isNotificationAccessGranted(context)) }
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { access = PermissionHelper.isNotificationAccessGranted(context) }
 
-    TabScreen(contentPadding, "Home") {
+    TabScreen(contentPadding, "Welcome to Taptation") {
         error?.let { message -> item { Text(message, color = MaterialTheme.colorScheme.error) } }
         val state = snapshot
         if (state == null) {
