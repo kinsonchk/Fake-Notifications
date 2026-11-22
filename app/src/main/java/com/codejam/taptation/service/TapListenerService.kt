@@ -53,6 +53,16 @@ class TapListenerService : NotificationListenerService() {
 
     override fun onListenerConnected() {
         super.onListenerConnected()
+        // Android can bind this listener twice (seen on a Pixel 10 during an app update: two "binding" lines from
+        // NotificationListeners.onPackagesChanged, then two connects), so every callback arrives twice. A second
+        // connect while already connected means a duplicate: unbind once; onListenerDisconnected then asks for a
+        // single rebind. Tried once per process so a repeat of the bug can't loop. DuplicateEventFilter covers the gap.
+        if (_connected.value && !collapseAttempted) {
+            collapseAttempted = true
+            Log.w(TAG, "second onListenerConnected: collapsing duplicate listener connection")
+            try { requestUnbind() } catch (e: RuntimeException) { Log.w(TAG, "requestUnbind failed", e) }
+            return
+        }
         Log.d(TAG, "onListenerConnected")
         _connected.value = true
         judgeActiveNotifications()
@@ -307,6 +317,8 @@ class TapListenerService : NotificationListenerService() {
         }
 
         private val _connected = MutableStateFlow(false)
+        /** Duplicate-connection collapse already tried in this process (see onListenerConnected). */
+        @Volatile private var collapseAttempted = false
 
         /** True while the system has this listener bound. For the debug screen. */
         val connected: StateFlow<Boolean> = _connected.asStateFlow()
