@@ -36,7 +36,7 @@ data class GameConfig(
     val level: CatchLevel = CatchLevel.Mild,
     val mildDamage: Int = 10,
     val mediumDamage: Int = 20,
-    val savageDamage: Int = 35,
+    val savageDamage: Int = 10,
     val recoveryPerHour: Int = 5,
     val lockoutSeconds: Int = 15,
     val whitelistedPackages: Set<String> = emptySet(),

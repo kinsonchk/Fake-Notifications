@@ -175,7 +175,9 @@ object GameStateCodec {
                 level = CatchLevel.valueOf(input.readUTF()),
                 mildDamage = input.readInt(),
                 mediumDamage = input.readInt(),
-                savageDamage = input.readInt(),
+                // Existing snapshots may contain the former 35-damage Savage default. Normalize
+                // it to 10 so upgraded devices show and apply Catch: −10 instead of −35.
+                savageDamage = input.readInt().let { if (it == 35) 10 else it },
                 recoveryPerHour = input.readInt(),
                 // Existing snapshots may contain the former 30-second default. Normalize the
                 // saved setting so catches after upgrading use the new 15-second cooldown.

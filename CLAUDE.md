@@ -141,7 +141,7 @@ and what is still to move: [docs/ui-backend-contract.md](docs/ui-backend-contrac
 | Topic | Brief | Code on `main` |
 |---|---|---|
 | Catch probability default | 10% | Easy 20%; Medium 40%; Hard 70% |
-| Damage Mild/Medium/Savage | 5 / 10 / 20 | 10 / 20 / 35 |
+| Damage Mild/Medium/Savage | 5 / 10 / 20 | 10 / 20 / 10 |
 | Default level | Medium | Mild |
 | Bypass rules | whitelist, call/alarm/reminder/event, VIP title, urgent keyword | only apps set to Always important (`appRules`); the old rules live in `assessByRules`, off the tap path |
 | Urgent keywords default | urgent, emergency, code, verification | urgent, code, meeting invite, meeting invitation |

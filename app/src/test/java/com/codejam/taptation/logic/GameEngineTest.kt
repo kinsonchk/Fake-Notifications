@@ -135,7 +135,7 @@ class GameEngineTest {
     }
 
     @Test fun eachLevelAppliesExactlyOneDamageAndCatch() {
-        listOf(CatchLevel.Mild to 90, CatchLevel.Medium to 80, CatchLevel.Savage to 65).forEach { (level, health) ->
+        listOf(CatchLevel.Mild to 90, CatchLevel.Medium to 80, CatchLevel.Savage to 90).forEach { (level, health) ->
             val f = Fixture()
             f.configure { it.copy(level = level) }
             val result = f.tap("bait")
