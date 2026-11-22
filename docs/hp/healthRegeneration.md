@@ -9,11 +9,11 @@ The interval selector and catch-only timer reset in this document are implemente
 ## Current project behavior
 
 - `GameConfig.recoveryPerHour` still stores the amount (**5** by default); the new `recoveryIntervalMinutes` defaults to **60 minutes**. The compatibility property `recoveryAmount` names the amount clearly in game logic.
-- `GameEngine.recovered()` applies complete elapsed hours when game state is refreshed or another game operation runs. It is lazy; it does not need a background timer waking the app every hour.
+- `GameEngine.recovered()` applies complete configured intervals when game state is refreshed or another game operation runs. It is lazy; it does not need a background timer waking the app.
 - A successful catch resets the recovery timer; an uncaught Bait tap preserves it.
 - Pausing Taptation stops recovery. Health is capped at 100, and natural recovery does not revive a dead tree.
 - `GameRepository.onDismiss()` records notification dismissals in stats and has no health effect.
-- `DemoControlsPanel` now offers debug intervals of 1, 5, and 15 minutes, plus the normal 60-minute rate.
+- `DemoControlsPanel` now offers debug intervals of 1, 5, and 15 minutes, plus the normal 60-minute rate. Scroll down the Debug page to see the controls.
 
 Relevant code: `logic/GameModels.kt`, `logic/GameEngine.kt`, `logic/GameRepository.kt`, and `debug/DemoControlsPanel.kt`.
 
@@ -55,25 +55,28 @@ The existing `recoveryPerHour` remains in its saved/API slot for compatibility a
 
 ```kotlin
 data class GameConfig(
-    val recoveryAmount: Int = 5,
+    // Kept under its old name so existing callers and saved snapshots still work.
+    val recoveryPerHour: Int = 5,
     val recoveryIntervalMinutes: Int = 60,
     val debugRecoveryIntervalMinutes: Int? = null,
     // existing fields...
-)
+) {
+    val recoveryAmount: Int get() = recoveryPerHour
 
-fun GameConfig.effectiveRecoveryIntervalMinutes(debugBuild: Boolean): Int =
-    if (debugBuild) debugRecoveryIntervalMinutes ?: recoveryIntervalMinutes
-    else recoveryIntervalMinutes
+    fun effectiveRecoveryIntervalMinutes(debugBuild: Boolean): Int =
+        if (debugBuild) debugRecoveryIntervalMinutes ?: recoveryIntervalMinutes
+        else recoveryIntervalMinutes
+}
 ```
 
 Validate the amount in `0..100` and intervals in a safe range such as `1..1440` minutes. The debug UI can offer only the four choices above; domain validation protects other callers.
 
 ### 2. Calculate completed intervals
 
-Replace the fixed-hour calculation in `GameEngine.recovered()` with interval math:
+`GameEngine.recovered()` uses interval math equivalent to:
 
 ```kotlin
-val intervalMillis = config.effectiveRecoveryIntervalMinutes(allowDebugOverrides) * 60_000L
+val intervalMillis = config.effectiveRecoveryIntervalMinutes(allowDebugOverrides) * MINUTE_MILLIS
 val intervals = (now - source.recoveryAnchorMillis).coerceAtLeast(0) / intervalMillis
 val gained = intervals * config.recoveryAmount
 val health = (source.health.toLong() + gained).coerceAtMost(100).toInt()
@@ -84,25 +87,25 @@ Keep disabled/dead checks. When the normal amount or interval changes, settle el
 
 ### 3. Reset progress only on a successful catch
 
-In `GameEngine.onTap()`, the current code sets `recoveryAnchorMillis = now` before the catch roll for any Bait tap. Move that reset into the branch where the random roll succeeds and a catch is created. Do not move it into the generic Bait branch. A missed roll must preserve the previous anchor. `caught()` already records the catch and applies damage; place the anchor update in that same successful-catch state change.
+`GameEngine.onTap()` does not reset the anchor before a Bait catch roll. A missed roll preserves the anchor. The successful branch calls `caught()`, which records the catch, applies damage, and sets `recoveryAnchorMillis = now` as part of the same state change.
 
 Do not alter `GameRepository.onDismiss()` to award health. It should continue recording dismissal stats only. User swipe, clear-all, and Android timeout do not grant or remove health.
 
 ### 4. Debug API and UI
 
-Extend `DemoControlState` with the effective recovery interval and extend `DemoControls` with a method such as:
+`DemoControlState` exposes the recovery amount and effective interval. `DemoControls` includes:
 
 ```kotlin
 fun setRecoveryIntervalForDebug(minutes: Int?)
 ```
 
-`RepositoryDemoControls` should call a debug-only `GameRepository` method. That method must verify `ApplicationInfo.FLAG_DEBUGGABLE` and update only the debug override. Add a dropdown or segmented control in `DemoControlsPanel`; show the selected interval beside health.
+`RepositoryDemoControls` calls a debug-only `GameRepository` method. That method checks `ApplicationInfo.FLAG_DEBUGGABLE` and updates only the debug override. `DemoControlsPanel` shows selectable 1, 5, 15, and 60-minute buttons; selecting 60 clears the override and restores the normal interval.
 
 Keep the existing architecture: Compose calls `DemoControls`; the repository serializes the update; the game engine and store remain the source of truth. Do not edit preferences directly from the UI.
 
 ### 5. Save compatibility
 
-`GameStateCodec` is currently version **6**. If the model changes to an amount plus interval and debug override, write version **7**.
+`GameStateCodec` writes version **7**. It keeps the existing amount field and appends the normal interval and nullable debug override.
 
 - Decode v1-v6 without losing health, timestamps, history, or settings.
 - Keep old `recoveryPerHour` as the recovery amount; v1-v6 snapshots default to `recoveryIntervalMinutes = 60` and no debug override.
@@ -147,7 +150,7 @@ If schema simplicity is preferred, keep the persisted `recoveryPerHour` as the n
 
 ## Implementation status
 
-Implemented in `GameEngine`, `GameRepository`, `GameStateCodec` v7, and the Debug demo controls. Notification dismissals remain stats-only. `assembleDebug` succeeds; automated tests and device behavior have not been checked in this implementation pass.
+Implemented in `GameEngine`, `GameRepository`, `GameStateCodec` v7, and the Debug demo controls. Notification dismissals remain stats-only. `assembleDebug` succeeded. The Debug screen was opened on an emulator and the recovery text and interval choices were visible; the choice buttons continue below the first viewport in the page's scrollable list. Automated tests were not run in this implementation pass, and the timed recovery scenarios still need the manual checks listed above.
 
 ## Recommendation
 
