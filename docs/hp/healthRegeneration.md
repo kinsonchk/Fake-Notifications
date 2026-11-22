@@ -24,7 +24,7 @@ Keep normal recovery at **5 health every 60 clean minutes**. A clean interval is
 - A successful catch resets clean-time progress to zero.
 - An uncaught Bait tap preserves progress.
 - Important, whitelisted, and Unknown taps preserve progress.
-- A notification swipe, clear-all, or Android timeout has no health effect and does not reset clean-time progress. Dismissal stats continue to work as they do today.
+- A notification swipe, clear-all, or Android timeout has no health effect and does not reset clean-time progress. Swipes and clear-all are recorded as dismissals in stats; timeouts are ignored entirely (`TapDetection` only counts `REASON_CANCEL` / `REASON_CANCEL_ALL`).
 - Inactive time does not count. Health at zero stays at zero until the existing reset action.
 - Apply complete intervals when game state is next refreshed or changed. Do not add a periodic background worker just to update health.
 - Cap health at 100 and advance the recovery anchor even while health is full, so time at full health cannot accumulate into a hidden bonus.
@@ -125,7 +125,7 @@ If schema simplicity is preferred, keep the persisted `recoveryPerHour` as the n
 - Important/whitelisted/Unknown taps and notification dismissals do not reset the timer.
 - Multiple complete intervals catch up correctly; health caps at 100 and does not revive from zero.
 - Inactive time does not regenerate health.
-- User swipe, clear-all, and Android timeout continue to affect stats as before, but none changes health.
+- User swipe and clear-all continue to be recorded in stats; Android timeouts are ignored. None changes health.
 - Codec v1-v6 migration and v7 round-trip preserve the recovery anchor and rate.
 
 ### Manual emulator/phone demo
@@ -135,7 +135,7 @@ If schema simplicity is preferred, keep the persisted `recoveryPerHour` as the n
 3. Set health to 50 and select **60 minutes**. Use **Fast-forward 1 clean hour**. Health should become 55.
 4. Set health to 50 and fast-forward 45 minutes. Trigger a Bait tap with the debug catch chance set to 0%. The timer should keep its 45 minutes; after 15 more clean minutes, health should increase by 5.
 5. Set health to 50 and fast-forward 45 minutes again. Set the debug catch chance to 100% and trigger a Bait tap. The successful catch should reset the timer. Fast-forwarding 15 more minutes should not regenerate health; completing a new clean interval should.
-6. Swipe a notification, clear all notifications, and let a test notification time out. Confirm these removals affect stats only and never change health.
+6. Swipe a notification, clear all notifications, and let a test notification time out. Confirm swipes and clear-all appear as dismissals in stats, the timeout is not recorded, and none changes health.
 7. Disable Taptation, wait, and re-enable it. Confirm disabled time did not regenerate health.
 8. Confirm the interval control is absent in a release build and release behavior stays at the normal rate.
 
@@ -154,4 +154,4 @@ Implemented in `GameEngine`, `GameRepository`, `GameStateCodec` v7, and the Debu
 
 ## Recommendation
 
-Keep normal recovery at **5 health per 60 clean minutes**. Reset the clean-time timer only when a Bait tap actually results in a catch; preserve progress after a missed roll. Add a debug-only interval selector with 1/5/15/60-minute choices. Keep all notification dismissals stats-only, including user swipes, clear-all, and Android timeouts.
+Keep normal recovery at **5 health per 60 clean minutes**. Reset the clean-time timer only when a Bait tap actually results in a catch; preserve progress after a missed roll. Add a debug-only interval selector with 1/5/15/60-minute choices. Keep all notification removals free of health effects: user swipes and clear-all are stats-only dismissals, and Android timeouts are ignored.
