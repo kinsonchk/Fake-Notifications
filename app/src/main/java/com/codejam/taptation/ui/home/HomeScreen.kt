@@ -92,6 +92,7 @@ fun HomeScreen(contentPadding: PaddingValues, onOpenSettings: (String) -> Unit =
             }
         }
         item { HealthCard(state, now, repository.recoveryIntervalMinutes(state.config)) }
+        meadowState?.let { world -> item { MeadowValleyCard(world) } }
         meadowState?.let { world -> item { MeadowGrowthCard(world) } }
         if (state.taps.isEmpty()) item { FirstUseCard(state.config.difficulty, onOpenSettings) }
         if (state.taps.isNotEmpty()) item { RecentActivity(state, labels) }

@@ -73,6 +73,9 @@ class MeadowRepository(
                 checkpointMillis = preferences.getLong("checkpoint", 0).coerceAtLeast(0),
                 checkpointFull = preferences.getBoolean("full", false),
                 checkpointMonitoring = preferences.getBoolean("monitoring", false),
+                cleanMillis = preferences.getLong("clean", 0).coerceAtLeast(0),
+                checkpointCatches = preferences.getLong("catches", -1),
+                revealedStage = preferences.getInt("revealed", 0).coerceIn(0, ValleyStage.entries.size - 1),
                 discoveries = preferences.getStringSet("discoveries", emptySet()).orEmpty()
                     .mapNotNull { name -> MeadowDiscovery.entries.find { it.name == name } }.toSet())
             _error.value = null
@@ -95,6 +98,7 @@ class MeadowRepository(
         try {
             check(preferences.edit().putLong("healthy", next.healthyMillis).putLong("checkpoint", next.checkpointMillis)
                 .putBoolean("full", next.checkpointFull).putBoolean("monitoring", next.checkpointMonitoring)
+                .putLong("clean", next.cleanMillis).putLong("catches", next.checkpointCatches).putInt("revealed", next.revealedStage)
                 .putStringSet("discoveries", next.discoveries.map { it.name }.toSet()).commit())
             _state.value = next
             _error.value = null
