@@ -37,32 +37,13 @@ class MonitoringStatusTest {
 }
 
 class CatchDetailsTest {
-    private fun tap(pkg: String, outcome: TapOutcome, before: Int, after: Int, rule: String = "bait_channel") =
-        TapRecord(1, pkg, Classification.Bait, outcome, before, after, before - after, "caught", rule = rule)
-
-    @Test fun usesNewestCaughtTapFromThePendingApp() {
-        val state = GameState(health = 80, taps = listOf(
-            tap("a", TapOutcome.Caught, 100, 90), tap("b", TapOutcome.Caught, 90, 80, "configured_bait"),
-            tap("b", TapOutcome.NoPenalty, 80, 80, "bait_category")))
-        val details = CatchDetails.from(state, PendingCatch("1", "b"), "Likes")!!
-        assertEquals(CatchDetails("b", 90, 80, 10, "configured_bait", "Likes"), details)
+    // Catch details are recorded on the PendingCatch at catch time (GameEngineTest covers the engine).
+    @Test fun catchDetailsComeFromThePendingCatchItself() {
+        val pending = PendingCatch("1", "b", 5, healthBefore = 90, healthAfter = 80, rule = "configured_bait", channel = "Likes")
+        assertEquals(CatchDetails("b", 90, 80, 10, "configured_bait", "Likes"), CatchDetails.of(pending))
     }
 
-    @Test fun fallsBackToNewestCatchOfAnyApp() {
-        val state = GameState(taps = listOf(tap("a", TapOutcome.Caught, 100, 90)))
-        assertEquals("zzz", CatchDetails.from(state, PendingCatch("1", "zzz"))!!.packageName)
-        assertEquals(10, CatchDetails.from(state, PendingCatch("1", "zzz"))!!.damage)
-    }
-
-    @Test fun manualCatchUsesHealthHistory() {
-        val state = GameState(healthHistory = listOf(HealthRecord(5, 100, 90, "manual")))
-        val details = CatchDetails.from(state, PendingCatch("1", null))!!
-        assertEquals(90, details.healthAfter)
-        assertEquals(10, details.damage)
-        assertNull(details.packageName)
-    }
-
-    @Test fun noCatchRecordGivesNothing() {
-        assertNull(CatchDetails.from(GameState(), PendingCatch("1", "a")))
+    @Test fun catchesSavedWithoutDetailsGiveNothing() {
+        assertNull(CatchDetails.of(PendingCatch("1", "a")))
     }
 }

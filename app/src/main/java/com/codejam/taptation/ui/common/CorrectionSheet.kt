@@ -22,22 +22,18 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.codejam.taptation.logic.RuleBehavior
-import com.codejam.taptation.logic.RuleTarget
-import com.codejam.taptation.service.CorrectionRequest
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import kotlinx.coroutines.launch
+import com.codejam.taptation.logic.CorrectionRequest
 
 /**
- * "This should be important" after a catch: pick how far the rule reaches (this notification type,
- * or the whole app). It only changes future notifications; the catch stays in the history.
+ * "This should be important" after a catch: confirms the backend's correction for the app in
+ * [request] (GameRepository.markAppImportant). It only changes future notifications; the catch stays
+ * in the history.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CorrectionSheet(request: CorrectionRequest, onDone: () -> Unit) {
     val repository = rememberGameRepository()
-    val labels = rememberAppLabels()
-    val app = labels.label(request.packageName)
+    val app = request.appLabel
     var saving by remember { mutableStateOf(false) }
     val error by repository.error.collectAsStateWithLifecycle()
     val scope = androidx.compose.runtime.rememberCoroutineScope()
@@ -51,7 +47,7 @@ fun CorrectionSheet(request: CorrectionRequest, onDone: () -> Unit) {
             error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
             Button(enabled = !saving, onClick = {
                 saving = true
-                repository.setAppRule(request.packageName, com.codejam.taptation.logic.AppRule.AlwaysImportant).whenComplete { _, failure ->
+                repository.markAppImportant(request.packageName).whenComplete { _, failure ->
                     scope.launch {
                         saving = false
                         if (failure == null) onDone()
