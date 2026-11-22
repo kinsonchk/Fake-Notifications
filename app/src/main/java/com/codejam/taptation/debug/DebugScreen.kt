@@ -1,5 +1,6 @@
 ﻿package com.codejam.taptation.debug
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.Button
@@ -13,6 +14,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -35,6 +38,27 @@ import com.codejam.taptation.ui.common.rememberGameRepository
 /** "Is the system OK?" plus demo cheats. Debug builds only; not the real UI. */
 @Composable
 fun DebugScreen(contentPadding: PaddingValues = PaddingValues(), controls: DemoControls? = null) {
+    var notificationTools by rememberSaveable { mutableStateOf(false) }
+    val sectionStates = rememberSaveableStateHolder()
+    BackHandler(enabled = notificationTools) { notificationTools = false }
+
+    if (notificationTools) {
+        sectionStates.SaveableStateProvider("notification-tools") {
+            NotificationsScreen(contentPadding) { notificationTools = false }
+        }
+    } else {
+        sectionStates.SaveableStateProvider("debug-tools") {
+            DebugToolsScreen(contentPadding, controls) { notificationTools = true }
+        }
+    }
+}
+
+@Composable
+private fun DebugToolsScreen(
+    contentPadding: PaddingValues,
+    controls: DemoControls?,
+    onOpenNotificationTools: () -> Unit,
+) {
     val context = LocalContext.current
     val repository = rememberGameRepository()
     val scope = rememberCoroutineScope()
@@ -61,6 +85,13 @@ fun DebugScreen(contentPadding: PaddingValues = PaddingValues(), controls: DemoC
 
     TabScreen(contentPadding, "Debug") {
         error?.let { message -> item { Text(message, color = MaterialTheme.colorScheme.error) } }
+        item {
+            SectionCard("Notification tools", "Post test notifications, inspect observed notifications, and review tap reasons.") {
+                OutlinedButton(onClick = onOpenNotificationTools, modifier = Modifier.fillMaxWidth()) {
+                    Text("Open notification tools")
+                }
+            }
+        }
         item {
             SectionCard("System") {
                 LabelValue("Notification access", if (accessGranted) "granted" else "NOT granted")
@@ -120,7 +151,7 @@ fun DebugScreen(contentPadding: PaddingValues = PaddingValues(), controls: DemoC
         item { StatsHarnessPanel() }
 
         item {
-            SectionCard("Shortcuts", "Skip the notification shade. Custom taps are on the Notifications tab.") {
+            SectionCard("Shortcuts", "Skip the notification shade. Custom notification tests are in Notification tools.") {
                 OutlinedButton(
                     onClick = {
                         repository.setAppRule("com.test.fake", AppRule.AlwaysBait)

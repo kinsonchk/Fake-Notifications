@@ -50,6 +50,7 @@ import com.codejam.taptation.logic.NotificationContext
 import com.codejam.taptation.logic.TapDispatcher
 import com.codejam.taptation.service.TapListenerService
 import com.codejam.taptation.service.TapLog
+import com.codejam.taptation.ui.common.BackLink
 import com.codejam.taptation.ui.common.ClassificationBadge
 import com.codejam.taptation.ui.common.SectionCard
 import com.codejam.taptation.ui.common.TabScreen
@@ -75,7 +76,7 @@ private val DraftSaver = Saver<NotificationPreset, String>(
  * with the classification they would get now.
  */
 @Composable
-fun NotificationsScreen(contentPadding: PaddingValues) {
+fun NotificationsScreen(contentPadding: PaddingValues, onBack: (() -> Unit)? = null) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val repository = rememberGameRepository()
@@ -143,6 +144,9 @@ fun NotificationsScreen(contentPadding: PaddingValues) {
     }
 
     TabScreen(contentPadding, "Notifications") {
+        onBack?.let { back ->
+            item { BackLink("Debug", back) }
+        }
         item {
             SectionCard("Quick test", "Plain notification from this app. Tap it: one tap. Swipe it: nothing.") {
                 Button(

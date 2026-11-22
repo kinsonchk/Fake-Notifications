@@ -170,7 +170,7 @@ brief, nonjudgmental copy; keep package names and implementation details in supp
 - Do not use tiny text to force everything onto one screen. Important explanations must remain legible.
 - Reserve the actual scroll viewport above the bottom bar. Bottom content padding alone does
   not stop a focused/scrolled control from sitting behind an overlapping bar.
-- Narrow debug navigation may use "Notifs". Do not split a tab label over several lines.
+- Do not split a tab label over several lines.
 - Check long app names, category names, VIP names, translated-length labels and large numbers.
 - Keep touch targets at least 48dp, label icon-only actions, expose selected/disabled states
   to accessibility services and never use color as the only indicator.

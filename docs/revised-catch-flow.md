@@ -72,7 +72,7 @@ app's external-files `ui-previews` directory (collect before the test APK is uni
 
 ## Debug and compatibility
 
-Notifications and Debug tabs remain debug-only. The notification composer, presets, system
+The Debug tab remains debug-only and hosts Notification tools. The notification composer, presets, system
 signals, force catch, health editing, fast-forward and history harness remain available.
 The debug tab adds a 0–100% probability override, a clear-override action, and a stale-tap
 scenario. Release GameEngine ignores debug probability overrides, even if one remains in

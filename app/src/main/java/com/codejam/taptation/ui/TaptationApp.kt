@@ -17,18 +17,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import com.codejam.taptation.R
 import com.codejam.taptation.debug.DebugScreen
-import com.codejam.taptation.debug.NotificationsScreen
 import com.codejam.taptation.ui.home.HomeScreen
 import com.codejam.taptation.ui.settings.SettingsScreen
 import com.codejam.taptation.ui.stats.StatsScreen
 import com.codejam.taptation.TaptationApplication
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.codejam.taptation.ui.common.CatchChoiceDialog
 import com.codejam.taptation.ui.common.CorrectionSheet
-import com.codejam.taptation.ui.common.rememberAppLabels
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.selection.selectable
@@ -46,7 +43,6 @@ import androidx.compose.ui.unit.sp
 enum class Tab(val label: String, @param:DrawableRes val icon: Int, val debugOnly: Boolean) {
     Home("Home", R.drawable.ic_tab_home, debugOnly = false),
     Stats("Stats", R.drawable.ic_tab_stats, debugOnly = false),
-    Notifications("Notifications", R.drawable.ic_tab_notifications, debugOnly = true),
     Settings("Settings", R.drawable.ic_tab_settings, debugOnly = false),
     Debug("Debug", R.drawable.ic_tab_debug, debugOnly = true),
 }
@@ -72,7 +68,6 @@ fun TaptationApp(debug: Boolean) {
 @Composable
 internal fun AppTabs(debug: Boolean, onShowTutorial: () -> Unit = {}) {
     val tabs = Tab.entries.filter { debug || !it.debugOnly }
-    val compact = LocalConfiguration.current.screenWidthDp < 380
     var selected by rememberSaveable { mutableStateOf(Tab.Home) }
     val app = LocalContext.current.applicationContext as TaptationApplication
     val snapshot by app.game.state.collectAsStateWithLifecycle()
@@ -115,7 +110,7 @@ internal fun AppTabs(debug: Boolean, onShowTutorial: () -> Unit = {}) {
                         verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         Icon(painterResource(tab.icon), contentDescription = null, modifier = Modifier.size(20.dp),
                             tint = if (active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
-                        Text(if (compact && tab == Tab.Notifications) "Notifs" else tab.label,
+                        Text(tab.label,
                             maxLines = 1, overflow = TextOverflow.Ellipsis,
                             style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
                             color = if (active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
@@ -130,7 +125,6 @@ internal fun AppTabs(debug: Boolean, onShowTutorial: () -> Unit = {}) {
             when (selected) {
                 Tab.Home -> HomeScreen(padding, onOpenSettings = { page -> settingsRequest = page; selected = Tab.Settings })
                 Tab.Stats -> StatsScreen(padding)
-                Tab.Notifications -> NotificationsScreen(padding)
                 Tab.Settings -> SettingsScreen(padding, openPage = settingsRequest, onPageOpened = { settingsRequest = null }, onShowTutorial = onShowTutorial)
                 Tab.Debug -> DebugScreen(padding)
             }
