@@ -42,6 +42,25 @@ object TapDetection {
             reason == NotificationListenerService.REASON_CANCEL_ALL
 
     /**
+     * Whether a notification could ever count as a tap or dismissal: not a group summary, not
+     * ongoing, and not ours unless it is the debug test channel. The listener judges only these
+     * with the AI, so music/navigation updates and our own alerts never spend quota.
+     */
+    fun isCountable(
+        flags: Int,
+        channelId: String?,
+        packageName: String,
+        ownPackageName: String,
+        includeOwnPackage: Boolean,
+    ): Boolean {
+        // Summaries are containers, not something the user meant to open or dismiss.
+        if (flags and Notification.FLAG_GROUP_SUMMARY != 0) return false
+        // Ongoing notifications (music, navigation, downloads) aren't tapped or swiped away meaningfully.
+        if (flags and Notification.FLAG_ONGOING_EVENT != 0) return false
+        return packageName != ownPackageName || (includeOwnPackage && channelId == OWN_TEST_CHANNEL_ID)
+    }
+
+    /**
      * Classifies a removal with the same filters for taps and dismissals: group summaries,
      * ongoing notifications and our own non-test notifications are always [RemovalKind.Ignored].
      */
@@ -58,14 +77,8 @@ object TapDetection {
             isDismiss(reason) -> RemovalKind.Dismiss
             else -> return RemovalKind.Ignored
         }
-        // Summaries are containers, not something the user meant to open or dismiss.
-        if (flags and Notification.FLAG_GROUP_SUMMARY != 0) return RemovalKind.Ignored
-        // Ongoing notifications (music, navigation, downloads) aren't tapped or swiped away meaningfully.
-        if (flags and Notification.FLAG_ONGOING_EVENT != 0) return RemovalKind.Ignored
-        if (packageName == ownPackageName &&
-            (!includeOwnPackage || channelId != OWN_TEST_CHANNEL_ID)
-        ) return RemovalKind.Ignored
-        return kind
+        return if (isCountable(flags, channelId, packageName, ownPackageName, includeOwnPackage)) kind
+        else RemovalKind.Ignored
     }
 
     /**
