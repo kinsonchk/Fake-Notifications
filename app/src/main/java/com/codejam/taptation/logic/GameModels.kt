@@ -43,7 +43,13 @@ data class GameConfig(
     val essentialCriteria: String = "",
     val nonEssentialCriteria: String = "",
     val strictness: Strictness = Strictness.Balanced,
+    val recoveryIntervalMinutes: Int = 60,
+    val debugRecoveryIntervalMinutes: Int? = null,
 ) {
+    /** Existing field name is kept for save/API compatibility; it is the amount per interval. */
+    val recoveryAmount: Int get() = recoveryPerHour
+    fun effectiveRecoveryIntervalMinutes(debugBuild: Boolean): Int =
+        if (debugBuild) debugRecoveryIntervalMinutes ?: recoveryIntervalMinutes else recoveryIntervalMinutes
     fun ruleFor(packageName: String): AppRule = appRules[packageName] ?: AppRule.LetUsDecide
 
     val catchProbability: Double get() = debugCatchProbability ?: difficulty.probability
@@ -53,6 +59,8 @@ data class GameConfig(
         require(catchProbability.isFinite() && catchProbability in 0.0..1.0)
         require(listOf(mildDamage, mediumDamage, savageDamage).all { it in 1..100 })
         require(recoveryPerHour in 0..100)
+        require(recoveryIntervalMinutes in 1..1440)
+        require(debugRecoveryIntervalMinutes == null || debugRecoveryIntervalMinutes in setOf(1, 5, 15))
         require(lockoutSeconds in 1..3600)
         require(freshnessSeconds in 0..MAX_FRESHNESS_SECONDS)
         require(essentialCriteria.length <= MAX_CRITERIA_LENGTH && nonEssentialCriteria.length <= MAX_CRITERIA_LENGTH)

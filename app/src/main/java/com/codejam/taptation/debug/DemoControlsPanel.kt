@@ -1,4 +1,4 @@
-﻿package com.codejam.taptation.debug
+package com.codejam.taptation.debug
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -46,6 +46,16 @@ fun DemoControlsPanel(controls: DemoControls?) {
 }
 
 @Composable
+private fun RecoveryIntervalChoice(minutes: Int, selected: Boolean, modifier: Modifier = Modifier, onClick: () -> Unit) {
+    val label = if (minutes == 60) "60 min · normal" else "$minutes min"
+    if (selected) {
+        Button(onClick = onClick, modifier = modifier.fillMaxWidth()) { Text(label) }
+    } else {
+        OutlinedButton(onClick = onClick, modifier = modifier.fillMaxWidth()) { Text(label) }
+    }
+}
+
+@Composable
 private fun ConnectedDemoControls(controls: DemoControls) {
     val state by controls.state.collectAsStateWithLifecycle()
     var healthInput by remember { mutableStateOf(state.health.toString()) }
@@ -68,6 +78,19 @@ private fun ConnectedDemoControls(controls: DemoControls) {
             onClick = { healthInput.toIntOrNull()?.let(controls::setHealth) },
             enabled = healthInput.toIntOrNull() != null,
         ) { Text("Set health") }
+    }
+    Text("Health recovery: +${state.recoveryAmount} every ${state.recoveryIntervalMinutes} clean minutes",
+        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    Text("Debug recovery interval", style = MaterialTheme.typography.titleSmall)
+    listOf(1, 5, 15, 60).chunked(2).forEach { rowIntervals ->
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            rowIntervals.forEach { minutes ->
+                val selected = state.recoveryIntervalMinutes == minutes
+                RecoveryIntervalChoice(minutes, selected, Modifier.weight(1f)) {
+                    controls.setRecoveryIntervalForDebug(if (minutes == 60) null else minutes)
+                }
+            }
+        }
     }
     Button(onClick = controls::forceCatch, modifier = Modifier.fillMaxWidth()) {
         Text("Force catch")

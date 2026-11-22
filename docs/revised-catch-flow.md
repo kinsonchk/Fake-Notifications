@@ -6,8 +6,9 @@ settings and lockout instructions in the older briefs.
 ## User-facing behavior
 
 - Settings offers **Easy 20%, Medium 40%, Hard 70%**. No probability slider is shown there.
-  Difficulty changes catch probability only. Existing health/damage rules remain unchanged;
-  a graphic driven by time since catch, taps or dismissals has not been selected.
+  Difficulty changes catch probability only. Catch damage is unchanged. Health regenerates at
+  +5 per 60 clean minutes; only a successful Bait catch resets the timer. A missed Bait roll
+  preserves partial progress. The debug panel can use 1/5/15-minute intervals; release uses 60.
 - A caught notification creates one persistent pending choice: **Go to Taptation** or
   **Go to original app**. The choice acknowledges an already-applied catch and never applies
   damage again. The internal 30-second catch cooldown prevents repeated penalties; it is not
@@ -74,10 +75,10 @@ The debug tab adds a 0–100% probability override, a clear-override action, and
 scenario. Release GameEngine ignores debug probability overrides, even if one remains in
 local storage after installing a different build. Selecting difficulty clears the override.
 
-Game snapshot format v5 reads v1–v4, preserves health/history/rules/freshness, and maps old arbitrary
-probabilities to the closest fixed difficulty. New activation, freshness, debug override and
-pending-choice fields are saved atomically with game state. Main's v4 first-seen freshness
-layout is kept intact as the prefix, with new fields appended in v5. Notification actions/title/text
+Game snapshot format v7 reads v1–v6, preserves health/history/rules/freshness, and maps old arbitrary
+probabilities to the closest fixed difficulty. New activation, freshness, debug overrides,
+pending-choice fields and recovery intervals are saved atomically with game state. Existing
+v6 fields remain in their original order; v7 appends recovery interval and debug override fields. Notification actions/title/text
 remain transient. SQLite v2 adds the category column with ALTER TABLE and preserves old rows.
 
 ## Verification

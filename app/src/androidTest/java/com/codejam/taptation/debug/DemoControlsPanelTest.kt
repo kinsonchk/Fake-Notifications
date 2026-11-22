@@ -1,4 +1,4 @@
-﻿package com.codejam.taptation.debug
+package com.codejam.taptation.debug
 
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.test.assertIsDisplayed
@@ -70,6 +70,7 @@ private class RecordingDemoControls : DemoControls {
     override fun setHealth(value: Int) { health = value }
     override fun forceCatch() { forcedCatch = true }
     override fun advanceCleanTime(minutes: Long) { advancedMinutes = minutes }
+    override fun setRecoveryIntervalForDebug(minutes: Int?) { }
     override fun resetDemoData() { reset = true }
 }
 

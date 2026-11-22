@@ -1,4 +1,4 @@
-﻿package com.codejam.taptation.debug
+package com.codejam.taptation.debug
 
 import kotlinx.coroutines.flow.StateFlow
 
@@ -7,6 +7,8 @@ data class DemoControlState(
     val health: Int,
     val catchProbabilityPercent: Int,
     val catches: Int,
+    val recoveryAmount: Int = 5,
+    val recoveryIntervalMinutes: Int = 60,
 )
 
 /**
@@ -20,5 +22,6 @@ interface DemoControls {
     fun setHealth(value: Int)
     fun forceCatch()
     fun advanceCleanTime(minutes: Long)
+    fun setRecoveryIntervalForDebug(minutes: Int?)
     fun resetDemoData()
 }

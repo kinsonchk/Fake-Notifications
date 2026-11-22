@@ -161,7 +161,7 @@ class GameEngineTest {
         assertEquals(1, restored.state.healthHistory.count { it.reason == "recovery" })
     }
 
-    @Test fun missedRollStillResetsRecoveryButBypassAndUnknownDoNot() {
+    @Test fun missedRollPreservesRecoveryButBypassAndUnknownDoNot() {
         val f = Fixture()
         f.configure { it.copy(debugCatchProbability = 0.0, appRules = it.appRules + ("urgent" to AppRule.AlwaysImportant)) }
         f.game.setHealthForDebug(50)
@@ -171,7 +171,7 @@ class GameEngineTest {
         f.game.onTap("urgent")
         // Too old for the freshness window: Unknown, so the clean timer keeps running.
         f.game.onTap(NotificationContext("unknown", ageMillis = 3_600_000))
-        assertEquals(50, f.game.getHealth())
+        assertEquals(55, f.game.getHealth())
         f.hours(0.25)
         assertEquals(55, f.game.getHealth())
     }
@@ -277,7 +277,7 @@ class GameEngineTest {
         assertThrows(Exception::class.java) { GameStateCodec.decode("broken") }
         val encoded = GameStateCodec.encode(GameState())
         val bytes = java.util.Base64.getDecoder().decode(encoded)
-        bytes[3] = 7
+        bytes[3] = 8
         assertThrows(IllegalArgumentException::class.java) {
             GameStateCodec.decode(java.util.Base64.getEncoder().encodeToString(bytes))
         }

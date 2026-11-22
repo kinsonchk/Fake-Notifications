@@ -149,6 +149,10 @@ class GameRepository(context: Context, private val stats: StatsRepository? = nul
         check(debug) { "Debug overrides are disabled in release builds" }
         updateConfig(state.config.copy(debugCatchProbability = value))
     }
+    fun setDebugRecoveryInterval(minutes: Int?): CompletableFuture<GameState> = submit {
+        check(debug) { "Debug overrides are disabled in release builds" }
+        this.setDebugRecoveryInterval(minutes)
+    }
 
     /** Kept for callers of the old whitelist API: on = Always important, off = Let us decide. */
     fun setWhitelisted(packageName: String, enabled: Boolean): CompletableFuture<GameState> =

@@ -11,7 +11,7 @@ object GameStateCodec {
     fun encode(state: GameState): String {
         val buffer = ByteArrayOutputStream()
         DataOutputStream(buffer).use { out ->
-            out.writeInt(6)
+            out.writeInt(7)
             out.writeInt(state.health)
             out.writeLong(state.recoveryAnchorMillis)
             out.writeLong(state.lastObservedMillis)
@@ -68,7 +68,7 @@ object GameStateCodec {
                 out.writeUTF(it.reason)
                 out.writeUTF(it.level?.name.orEmpty())
             }
-            // Keep the v4 freshness tail; v5 adds revised-flow fields and v6 stores the choice penalty.
+            // Keep the existing field order; v6 stores app rules/catch-choice data and v7 appends recovery intervals.
             out.writeInt(state.config.freshnessSeconds)
             out.writeBoolean(state.config.freshnessFromFirstSeen)
             out.writeUTF(state.config.difficulty.name)
@@ -90,6 +90,9 @@ object GameStateCodec {
                 out.writeUTF(essentialCriteria)
                 out.writeUTF(nonEssentialCriteria)
                 out.writeUTF(strictness.name)
+                out.writeInt(recoveryIntervalMinutes)
+                out.writeBoolean(debugRecoveryIntervalMinutes != null)
+                debugRecoveryIntervalMinutes?.let(out::writeInt)
             }
         }
         return Base64.getEncoder().encodeToString(buffer.toByteArray())
@@ -98,7 +101,7 @@ object GameStateCodec {
     fun decode(encoded: String): GameState =
         DataInputStream(ByteArrayInputStream(Base64.getDecoder().decode(encoded))).use { input ->
             val version = input.readInt()
-            require(version in 1..6) { "Unsupported game store version" }
+            require(version in 1..7) { "Unsupported game store version" }
             val health = input.readInt().also { require(it in 0..100) }
             val anchor = input.readLong()
             val observed = input.readLong()
@@ -166,13 +169,18 @@ object GameStateCodec {
                 disabledUntilMillis = if (input.readBoolean()) input.readLong() else null,
             )
             val pending = if (version >= 5 && input.readBoolean()) PendingCatch(input.readUTF(),
-                if (input.readBoolean()) input.readUTF() else null) else null
+                if (input.readBoolean()) input.readUTF() else null,
+                if (version >= 6) input.readInt() else 0) else null
             config = if (version >= 6) config.copy(
                 appRules = buildMap { repeat(input.count()) { put(input.readUTF(), AppRule.valueOf(input.readUTF())) } },
                 essentialCriteria = input.readUTF(),
                 nonEssentialCriteria = input.readUTF(),
                 strictness = Strictness.valueOf(input.readUTF()),
             ) else config.withLegacyAppLists()
+            if (version >= 7) config = config.copy(
+                recoveryIntervalMinutes = input.readInt(),
+                debugRecoveryIntervalMinutes = if (input.readBoolean()) input.readInt() else null,
+            )
             require(input.available() == 0) { "Trailing game store data" }
             GameState(health, config, anchor, observed, lockout, lastCatch, catches, counts, taps, history, pending)
         }

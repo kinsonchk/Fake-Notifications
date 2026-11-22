@@ -43,7 +43,6 @@ class GameEngine(
                 reason = assessment.reason
             }
             else -> {
-                next = next.copy(recoveryAnchorMillis = now)
                 when {
                     next.isDead -> {
                         outcome = TapOutcome.NoPenalty
@@ -94,9 +93,17 @@ class GameEngine(
         val now = now()
         // Settle recovery under the old rate; don't apply a new rate to old partial hours.
         val next = recovered(state, now)
+        val rateChanged = config.recoveryPerHour != state.config.recoveryPerHour ||
+            config.recoveryIntervalMinutes != state.config.recoveryIntervalMinutes ||
+            config.debugRecoveryIntervalMinutes != state.config.debugRecoveryIntervalMinutes
         return commit(next.copy(config = config,
-            recoveryAnchorMillis = if (config.recoveryPerHour != state.config.recoveryPerHour)
-                now else next.recoveryAnchorMillis))
+            recoveryAnchorMillis = if (rateChanged) now else next.recoveryAnchorMillis))
+    }
+
+    fun setDebugRecoveryInterval(minutes: Int?): GameState {
+        check(allowDebugOverrides) { "Debug recovery overrides are disabled" }
+        require(minutes == null || minutes in setOf(1, 5, 15))
+        return updateConfig(state.config.copy(debugRecoveryIntervalMinutes = minutes))
     }
 
     fun setActive(active: Boolean, disabledUntilMillis: Long? = null): GameState {
@@ -174,15 +181,16 @@ class GameEngine(
             return recovered(source.copy(config = source.config.copy(active = true, disabledUntilMillis = null),
                 recoveryAnchorMillis = maxOf(source.recoveryAnchorMillis, until)), now)
         }
-        val hours = (now - source.recoveryAnchorMillis).coerceAtLeast(0) / HOUR_MILLIS
+        val intervalMillis = source.config.effectiveRecoveryIntervalMinutes(allowDebugOverrides) * MINUTE_MILLIS
+        val intervals = (now - source.recoveryAnchorMillis).coerceAtLeast(0) / intervalMillis
         var next = source.copy(lastObservedMillis = now)
-        if (hours > 0) {
+        if (intervals > 0) {
             if (!source.isDead) {
-                val health = (source.health.toLong() + hours * source.config.recoveryPerHour)
+                val health = (source.health.toLong() + intervals * source.config.recoveryAmount)
                     .coerceAtMost(100).toInt()
                 if (health != source.health) next = withHealth(next, health, now, "recovery")
             }
-            next = next.copy(recoveryAnchorMillis = source.recoveryAnchorMillis + hours * HOUR_MILLIS)
+            next = next.copy(recoveryAnchorMillis = source.recoveryAnchorMillis + intervals * intervalMillis)
         }
         return next
     }
@@ -209,5 +217,6 @@ class GameEngine(
         const val CONTINUE_EXTRA_DAMAGE = 5
         const val HISTORY_LIMIT = 1000
         const val HOUR_MILLIS = 3_600_000L
+        const val MINUTE_MILLIS = 60_000L
     }
 }

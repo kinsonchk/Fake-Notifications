@@ -42,6 +42,10 @@ class RepositoryDemoControls(
         repository.advanceTimeForDebug(minutes.coerceAtLeast(0))
     }
 
+    override fun setRecoveryIntervalForDebug(minutes: Int?) {
+        repository.setDebugRecoveryInterval(minutes)
+    }
+
     override fun resetDemoData() {
         repository.resetDemoDataForDebug()
     }
@@ -53,5 +57,7 @@ private fun GameState?.toDemoState(): DemoControlState {
         health = state.health,
         catchProbabilityPercent = (state.config.catchProbability * 100).roundToInt(),
         catches = state.totalCatches.coerceAtMost(Int.MAX_VALUE.toLong()).toInt(),
+        recoveryAmount = state.config.recoveryAmount,
+        recoveryIntervalMinutes = state.config.effectiveRecoveryIntervalMinutes(debugBuild = true),
     )
 }
