@@ -64,9 +64,9 @@ fun HomeScreen(contentPadding: PaddingValues, onOpenSettings: (String) -> Unit =
     val now = rememberNow(repository)
     val labels = rememberAppLabels()
     val pause = rememberPauseFlow(repository)
-    val connected by TapListenerService.connected.collectAsStateWithLifecycle()
-    var access by remember { mutableStateOf(PermissionHelper.isNotificationAccessGranted(context)) }
-    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { access = PermissionHelper.isNotificationAccessGranted(context) }
+    // Setup / paused / interrupted / monitoring is decided by the backend (service/SystemStatus).
+    val monitoring by (context.applicationContext as com.codejam.taptation.TaptationApplication).system.monitoring
+        .collectAsStateWithLifecycle()
 
     TabScreen(contentPadding, "Home") {
         error?.let { message -> item { Text(message, color = MaterialTheme.colorScheme.error) } }
@@ -75,10 +75,9 @@ fun HomeScreen(contentPadding: PaddingValues, onOpenSettings: (String) -> Unit =
             item { Text(if (error == null) "Loading saved game…" else "Saved game unavailable") }
             return@TabScreen
         }
-        val status = MonitoringStatus.from(access, connected, state.config, now)
-        item { StatusArea(status, pause) }
+        monitoring?.let { status -> item { StatusArea(status, pause) } }
         item { GrassMeadow(health = state.health) }
-        item { HealthCard(state, now) }
+        item { HealthCard(state, now, repository.recoveryIntervalMinutes(state.config)) }
         if (state.taps.isEmpty()) item { FirstUseCard(state.config.difficulty, onOpenSettings) }
         if (state.taps.isNotEmpty()) item { RecentActivity(state, labels) }
         if (state.totalCatches > 0 || state.tapsPerApp.isNotEmpty()) item { AllTimeCard(state, now) }
@@ -163,7 +162,7 @@ private fun SetupRow(title: String, hint: String, onClick: () -> Unit) {
 }
 
 @Composable
-private fun HealthCard(state: GameState, now: Long) {
+private fun HealthCard(state: GameState, now: Long, recoveryIntervalMinutes: Int) {
     val config = state.config
     androidx.compose.material3.Surface(shape = RoundedCornerShape(20.dp),
         color = MaterialTheme.colorScheme.surfaceContainerLowest, contentColor = MaterialTheme.colorScheme.onSurface,
@@ -177,9 +176,9 @@ private fun HealthCard(state: GameState, now: Long) {
                 modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Health ${state.health} out of 100" },
                 color = MaterialTheme.colorScheme.primary)
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text("Catch: −${config.damage(config.level)}", Modifier.weight(1f), style = MaterialTheme.typography.bodySmall,
+                Text("Catch: −${config.currentDamage}", Modifier.weight(1f), style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Text("Recovery: +${config.recoveryAmount} / ${config.effectiveRecoveryIntervalMinutes(com.codejam.taptation.BuildConfig.DEBUG)} clean min",
+                Text("Recovery: +${config.recoveryAmount} / $recoveryIntervalMinutes clean min",
                     Modifier.weight(1f), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.End)
             }
