@@ -13,9 +13,23 @@ The app monitors and keeps track of your taps on notifications. There is a gamif
 </p>
 
 
-# Inspiration for _Taptation_
-We've all opened our phones to check one thing and then ended up scrolling far longer than planned. Notifications from social media apps can make that especially easy. They are often designed to grab your attention to make you stick with the app as long as possible.
+# Our Inspiration
+We've all opened our phones to check one thing and then ended up scrolling far longer than intended. Notifications from social media apps can make that especially easy. They are often designed to grab your attention to make you stick with the app for as long as possible.
 
 Now, you could just enable "Do Not Disturb" on your phone to get rid of all notifications, but it would silence the important ones too, like an important text from your friend reminding you that you should study for your exam.
 
 We believe it is important for people to be able to distinguish between distracting and important notifications. This is why we wanted to build an app to help people practise choosing which notifications deserve their attention, and make that practice engaging and sustained through a gamification feature.
+
+
+# How we built it
+The app was developed using Android Studio (https://developer.android.com/studio) with Kotlin.
+
+In order for the app to determine whether a notification is distracting or important, we need to use Cloudflare Workers AI (https://www.cloudflare.com/products/workers-ai/), which processes and analyses the context of the notifications sent to it.
+
+
+# What's next
+As this app was developed as a prototype over the course of just under two days during a hackathon, we could refine the user experience and add more features if we have time in the future.
+
+We are also considering putting the app into production and releasing it on the Google Play Store. However, we would need to address privacy issues relating to notification data being processed by a third-party AI service.
+
+Lastly, as _Taptation_ is an Android app, it only benefits Android users. We could also create an iOS version of the app for iPhone users.
