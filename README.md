@@ -3,7 +3,7 @@ _Taptation_ is an Android app designed to help you break the habit of impulsivel
 
 The app is able to automatically determine whether a notification is a distracting one or an important one based on its context, such as its text content, the app it was sent from, and whether it contains media (photos, reels, links, etc.). Users can also define their own criteria for what constitutes a distracting notification.
 
-The app keeps track of your notification taps and displays a pop-up prompt whenever you tap on a distracting one. There is a gamification feature in the form of a health bar that shows how successful you have been at avoiding distracting notifications. The higher the bar, the better. So, the aim is to keep the health bar full, which would hopefully encourage users to stop impulsively tapping on notifications and think before doing so each time moving forward.
+The app monitors and keeps track of your taps on notifications. There is a gamification feature in the form of a health bar that shows how successful you have been at avoiding distracting notifications. The higher the health bar, the better. If you tap on a distracting notification, you may be "caught", in which case a pop-up prompt will appear and the health bar will decrease. The aim is to keep the health bar full, which will hopefully encourage users to stop impulsively tapping on notifications and to think before doing so each time moving forward.
 
 <p align="center">
   <img alt="Screenshot_20261122-154826" src="https://github.com/user-attachments/assets/fe864b49-fd6f-4ec1-a41c-4eb27b87e49d" width="23%" />
