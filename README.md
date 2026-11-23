@@ -1,9 +1,9 @@
-# About _Taptation_
+# About Taptation
 _Taptation_ is an Android app designed to help you break the habit of impulsively tapping on phone notifications. Instead, it helps you build the habit of always checking the context of a notification before tapping on it. The app aims to train you to avoid distracting social media notifications while ensuring you don't ignore important ones.
 
-The app is able to automatically determine whether a notification is a distracting one or an important one based on its context, such as its text content, the app it was sent from, and whether it contains media (photos, reels, links, etc.). Users can also define their own criteria for what constitutes a distracting notification.
+The app is able to automatically determine whether a notification is a distracting one or an important one based on its context, such as its text content, the app it was sent from, and whether it contains media (photos, reels, links, etc.). Users can also define their own criteria for what constitutes a distracting notification, as well as manage rules for individual apps.
 
-The app monitors and keeps track of your taps on notifications. There is a gamification feature in the form of a health bar that shows how successful you have been at avoiding distracting notifications. The higher the health bar, the better. If you tap on a distracting notification, you may be "caught", in which case a pop-up prompt will appear and the health bar will decrease. The aim is to keep the health bar full, which will hopefully encourage users to stop impulsively tapping on notifications and to think before doing so each time moving forward.
+The app monitors and keeps track of your taps on notifications. There is a gamification feature in the form of a health bar that shows how successful you have been at avoiding distracting notifications. The higher the health bar, the better. If you tap on a notification determined to be distracting, you may be "caught", in which case a pop-up prompt will appear and the health bar will decrease. The aim is to keep the health bar full, which will hopefully encourage users to stop impulsively tapping on notifications and to think before doing so each time moving forward.
 
 <p align="center">
   <img alt="Screenshot_20261122-154826" src="https://github.com/user-attachments/assets/fe864b49-fd6f-4ec1-a41c-4eb27b87e49d" width="23%" />
@@ -16,9 +16,9 @@ The app monitors and keeps track of your taps on notifications. There is a gamif
 # Our Inspiration
 We've all opened our phones to check one thing and then ended up scrolling far longer than intended. Notifications from social media apps can make that especially easy. They are often designed to grab your attention to make you stick with the app for as long as possible.
 
-Now, you could just enable "Do Not Disturb" on your phone to get rid of all notifications, but it would silence the important ones too, like an important text from your friend reminding you that you should study for your exam.
+Now, you could just enable "Do Not Disturb" on your phone to stop all notifications, but this would block the important ones too, like a text from a friend reminding you that you should study for your exam.
 
-We believe it is important for people to be able to distinguish between distracting and important notifications. This is why we wanted to build an app to help people practise choosing which notifications deserve their attention, and make that practice engaging and sustained through a gamification feature.
+We believe it is important for people to be able to distinguish between distracting and important notifications. Simply turning on "Do Not Disturb" and silencing all notifications merely pushes the problem for later rather than solving it in the long term. This is why we wanted to build an app to help people practise choosing which notifications deserve their attention, and make that practice engaging and sustained through a gamification feature.
 
 
 # How we built it
