@@ -31,6 +31,14 @@ class DemoControlsPanelTest {
         composeRule.onNodeWithTag("health-input").performTextClearance()
         composeRule.onNodeWithTag("health-input").performTextInput("1")
         composeRule.onNodeWithText("Set health").performClick()
+        composeRule.onNodeWithTag("damage-input").performTextClearance()
+        composeRule.onNodeWithTag("damage-input").performTextInput("25")
+        composeRule.onNodeWithText("Set damage").performClick()
+        composeRule.onNodeWithText("Default damage").performClick()
+        composeRule.onNodeWithTag("lockout-input").performTextClearance()
+        composeRule.onNodeWithTag("lockout-input").performTextInput("60")
+        composeRule.onNodeWithText("Set lockout").performClick()
+        composeRule.onNodeWithText("Default lockout").performClick()
         composeRule.onNodeWithText("Force catch").performClick()
         composeRule.onNodeWithText("Fast-forward 1 clean hour").performClick()
         composeRule.onNodeWithText("Reset demo data").performClick()
@@ -41,6 +49,8 @@ class DemoControlsPanelTest {
         composeRule.runOnIdle {
             assertEquals(listOf(0, 100), controls.probabilities)
             assertEquals(1, controls.health)
+            assertEquals(listOf<Int?>(25, null), controls.damages)
+            assertEquals(listOf<Int?>(60, null), controls.lockouts)
             assertTrue(controls.forcedCatch)
             assertEquals(60L, controls.advancedMinutes)
             assertTrue(controls.reset)
@@ -53,7 +63,7 @@ class DemoControlsPanelTest {
             MaterialTheme { DemoControlsPanel(controls = null) }
         }
 
-        composeRule.onNodeWithText("Not connected yet. These controls need Person 2's health and consequence logic.")
+        composeRule.onNodeWithText("Not connected yet. These controls need the game repository.")
             .assertIsDisplayed()
     }
 }
@@ -65,12 +75,16 @@ private class RecordingDemoControls : DemoControls {
     var forcedCatch = false
     var advancedMinutes: Long? = null
     var reset = false
+    val damages = mutableListOf<Int?>()
+    val lockouts = mutableListOf<Int?>()
 
     override fun setCatchProbability(percent: Int) { probabilities += percent }
     override fun setHealth(value: Int) { health = value }
     override fun forceCatch() { forcedCatch = true }
     override fun advanceCleanTime(minutes: Long) { advancedMinutes = minutes }
     override fun setRecoveryIntervalForDebug(minutes: Int?) { }
+    override fun setCatchDamage(damage: Int?) { damages += damage }
+    override fun setLockoutSeconds(seconds: Int?) { lockouts += seconds }
     override fun resetDemoData() { reset = true }
 }
 

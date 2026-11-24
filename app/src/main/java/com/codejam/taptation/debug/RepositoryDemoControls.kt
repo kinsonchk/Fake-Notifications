@@ -46,6 +46,14 @@ class RepositoryDemoControls(
         repository.setDebugRecoveryInterval(minutes)
     }
 
+    override fun setCatchDamage(damage: Int?) {
+        repository.setCatchDamageForDebug(damage?.coerceIn(1, 100))
+    }
+
+    override fun setLockoutSeconds(seconds: Int?) {
+        repository.setLockoutForDebug(seconds?.coerceIn(1, 3600))
+    }
+
     override fun resetDemoData() {
         repository.resetDemoDataForDebug()
     }
@@ -59,5 +67,7 @@ private fun GameState?.toDemoState(debugBuild: Boolean): DemoControlState {
         catches = state.totalCatches.coerceAtMost(Int.MAX_VALUE.toLong()).toInt(),
         recoveryAmount = state.config.recoveryAmount,
         recoveryIntervalMinutes = state.config.effectiveRecoveryIntervalMinutes(debugBuild),
+        catchDamage = state.config.currentDamage,
+        lockoutSeconds = state.config.lockoutSeconds,
     )
 }

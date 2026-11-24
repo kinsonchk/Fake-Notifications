@@ -206,6 +206,30 @@ class GameRepository(context: Context, private val stats: StatsRepository? = nul
         this.setDebugRecoveryInterval(minutes)
     }
 
+    /**
+     * Debug only: catch lockout in seconds (1–3600); null restores the default. Applies to the next
+     * catch; a lockout already running keeps its deadline.
+     */
+    fun setLockoutForDebug(seconds: Int?): CompletableFuture<GameState> = submit {
+        check(debug) { "Debug controls are disabled in release builds" }
+        updateConfig(state.config.copy(lockoutSeconds = (seconds ?: GameConfig().lockoutSeconds).coerceIn(1, 3600)))
+    }
+
+    /**
+     * Debug only: health lost per catch at the selected level (1–100); null restores that level's
+     * default. Applies to tap catches and forced catches alike; the continue penalty is unchanged.
+     */
+    fun setCatchDamageForDebug(damage: Int?): CompletableFuture<GameState> = submit {
+        check(debug) { "Debug controls are disabled in release builds" }
+        val config = state.config
+        val value = (damage ?: GameConfig().damage(config.level)).coerceIn(1, 100)
+        updateConfig(when (config.level) {
+            CatchLevel.Mild -> config.copy(mildDamage = value)
+            CatchLevel.Medium -> config.copy(mediumDamage = value)
+            CatchLevel.Savage -> config.copy(savageDamage = value)
+        })
+    }
+
     /** Kept for callers of the old whitelist API: on = Always important, off = Let us decide. */
     fun setWhitelisted(packageName: String, enabled: Boolean): CompletableFuture<GameState> =
         setAppRule(packageName, if (enabled) AppRule.AlwaysImportant else AppRule.LetUsDecide)

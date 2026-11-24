@@ -35,7 +35,7 @@ fun DemoControlsPanel(controls: DemoControls?) {
             Text("Demo controls", style = MaterialTheme.typography.titleMedium)
             if (controls == null) {
                 Text(
-                    "Not connected yet. These controls need Person 2's health and consequence logic.",
+                    "Not connected yet. These controls need the game repository.",
                     style = MaterialTheme.typography.bodyMedium,
                 )
             } else {
@@ -60,6 +60,8 @@ private fun ConnectedDemoControls(controls: DemoControls) {
     val state by controls.state.collectAsStateWithLifecycle()
     // Re-keyed on health so the field follows catches, recovery and resets.
     var healthInput by remember(state.health) { mutableStateOf(state.health.toString()) }
+    var damageInput by remember(state.catchDamage) { mutableStateOf(state.catchDamage.toString()) }
+    var lockoutInput by remember(state.lockoutSeconds) { mutableStateOf(state.lockoutSeconds.toString()) }
     var confirmReset by remember { mutableStateOf(false) }
 
     Text("Health: ${state.health}   Catch chance: ${state.catchProbabilityPercent}%   Catches: ${state.catches}")
@@ -80,6 +82,43 @@ private fun ConnectedDemoControls(controls: DemoControls) {
             enabled = healthInput.toIntOrNull() != null,
         ) { Text("Set health") }
     }
+    Text("Damage per catch: -${state.catchDamage}",
+        style = MaterialTheme.typography.titleSmall)
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        OutlinedTextField(
+            value = damageInput,
+            onValueChange = { input -> if (input.length <= 3 && input.all(Char::isDigit)) damageInput = input },
+            label = { Text("Damage (1-100)") },
+            modifier = Modifier.weight(1f).testTag("damage-input"),
+            singleLine = true,
+        )
+        Button(
+            onClick = { damageInput.toIntOrNull()?.let(controls::setCatchDamage) },
+            enabled = damageInput.toIntOrNull() in 1..100,
+        ) { Text("Set damage") }
+    }
+    OutlinedButton(onClick = { controls.setCatchDamage(null) }, modifier = Modifier.fillMaxWidth()) {
+        Text("Default damage")
+    }
+    Text("Catch lockout: ${state.lockoutSeconds} s", style = MaterialTheme.typography.titleSmall)
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        OutlinedTextField(
+            value = lockoutInput,
+            onValueChange = { input -> if (input.length <= 4 && input.all(Char::isDigit)) lockoutInput = input },
+            label = { Text("Seconds (1-3600)") },
+            modifier = Modifier.weight(1f).testTag("lockout-input"),
+            singleLine = true,
+        )
+        Button(
+            onClick = { lockoutInput.toIntOrNull()?.let(controls::setLockoutSeconds) },
+            enabled = lockoutInput.toIntOrNull() in 1..3600,
+        ) { Text("Set lockout") }
+    }
+    OutlinedButton(onClick = { controls.setLockoutSeconds(null) }, modifier = Modifier.fillMaxWidth()) {
+        Text("Default lockout")
+    }
+    Text("Applies to the next catch; a running lockout keeps its end time.",
+        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     Text("Health recovery: +${state.recoveryAmount} every ${state.recoveryIntervalMinutes} clean minutes",
         style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     Text("Debug recovery interval", style = MaterialTheme.typography.titleSmall)
