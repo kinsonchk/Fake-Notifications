@@ -59,6 +59,7 @@ All objects below come from `(context.applicationContext as TaptationApplication
 | Settings wrote `updateConfig { copy(...) }` with UI-chosen rules (clear debug chance, default 600, allowed time limits) | Typed actions + constants |
 | Pause dialog repeated 15/60 min and the 10 s wait | `DisableGate` constants |
 | Rules page read `BuildConfig.CF_*`; Home read `BuildConfig.DEBUG` for the recovery interval | `judges.isConfigured`, `game.recoveryIntervalMinutes` |
+| Onboarding stored "tutorial complete" in its own SharedPreferences | `system.tutorialComplete`, `system.markTutorialComplete()` |
 | `rememberNow` refreshed the game on resume | `TaptationApplication` refreshes game, permissions and apps on every activity resume |
 
 ## Still to do
@@ -72,8 +73,6 @@ All objects below come from `(context.applicationContext as TaptationApplication
 - **Stats text in the backend:** `stats/StatsText` holds display names and sentences; move the
   wording to `ui/stats` and keep numbers (`opensPerDismissal`, emptiness) in `StatsSummary`.
   `StatsScreen` computes "no activity" differently from `StatsText.emptiness`.
-- **Tutorial flag:** `OnboardingScreen` stores "tutorial complete" in its own SharedPreferences (the
-  screen currently has no caller).
 - **Ineffective or dead logic (delete or rebuild):** `logic/RuleChoices` writes
   `whitelistedPackages` / `baitPackages` / channel sets that the tap path no longer reads (per-app
   rules are `appRules`); `logic/ObservedTypes` is never recorded or persisted; unused screens

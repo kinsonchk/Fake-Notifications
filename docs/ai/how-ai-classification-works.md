@@ -67,7 +67,22 @@ Any score below the cutoff becomes **Important** — erring on the side of prote
 
 ---
 
-## 5. Short Oral Script (~45–60 seconds)
+## 5. Idea, not implemented: adaptive tap wait
+
+A tap on a "Let us decide" notification whose verdict hasn't arrived waits a fixed
+`JudgeQueue.TAP_GRACE_MILLIS` (1 s), then goes through as `ai_pending_timeout` (no penalty). The wait
+could adapt instead:
+
+- Verdict arrived within the wait: shorten the next wait towards the observed latency (for example
+  `max(latency × 1.5, 300 ms)`), so fast connections don't hold taps longer than needed.
+- Wait expired without a verdict: lengthen the next wait (for example × 1.5, capped around 3 s), so a
+  slow network stops turning every quick tap into a free pass.
+- Keep it in memory in `JudgeQueue` (resets to 1 s on restart), never block the listener callback,
+  and log only the wait length. Trade-off: a longer wait delays the catch overlay after a tap.
+
+---
+
+## 6. Short Oral Script (~45–60 seconds)
 
 > "For apps left on **'Let us decide,'** we don't rely on static keyword lists — we use **Cloudflare's Clef**, a specialized decision model that scores every incoming notification in the background as soon as it arrives.
 >

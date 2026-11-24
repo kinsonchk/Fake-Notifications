@@ -36,7 +36,7 @@ settings and lockout instructions in the older briefs.
   strictly greater than the window skips classification and the catch roll. Equality remains
   eligible. Stale actions can be recorded as unsure but do not reset the clean-hour timer.
   Legacy package-only calls retain the conservative metadata classifier behavior.
-  Person 1's first-seen tracker is preserved: choose latest-update age (default), or age
+  The listener's first-seen tracker is preserved: choose latest-update age (default), or age
   since the listener first observed that notification key. If first-seen time is unavailable,
   the rule falls back to update age.
 
@@ -78,10 +78,10 @@ The debug tab adds a 0–100% probability override, a clear-override action, and
 scenario. Release GameEngine ignores debug probability overrides, even if one remains in
 local storage after installing a different build. Selecting difficulty clears the override.
 
-Game snapshot format v7 reads v1–v6, preserves health/history/rules/freshness, and maps old arbitrary
+Game snapshot format v9 (current; `GameStateCodec.Layout.CURRENT`) reads v1–v8, preserves health/history/rules/freshness, and maps old arbitrary
 probabilities to the closest fixed difficulty. New activation, freshness, debug overrides,
 pending-choice fields and recovery intervals are saved atomically with game state. Existing
-v6 fields remain in their original order; v7 appends recovery interval and debug override fields. Notification actions/title/text
+v6 fields remain in their original order; v7 appends recovery interval and debug override fields; v8 adds the pending catch details (health before/after, rule, channel); v9 has the same fields and only marks that a 30 s lockout or 35 Savage damage is a real choice (older snapshots normalize them to 15 s / 10). Notification actions/title/text
 remain transient. SQLite v2 adds the category column with ALTER TABLE and preserves old rows.
 
 ## Verification

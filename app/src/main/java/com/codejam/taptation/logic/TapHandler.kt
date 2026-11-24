@@ -4,7 +4,7 @@ import android.util.Log
 import java.util.concurrent.CompletableFuture
 
 /**
- * Contract between the notification service (Person 1) and the consequence logic (Person 2).
+ * Contract between the notification service and the consequence logic.
  *
  * The service calls [onTap] once for every notification the user opened by tapping it.
  * Whitelisting, bait classification, the random roll and health all live behind this interface.
@@ -33,7 +33,7 @@ interface ResultTapHandler : TapHandler {
 }
 
 /**
- * Single entry point the service uses. Person 2 plugs in the real logic at app start:
+ * Single entry point the service uses. The real logic is plugged in at app start:
  *
  * ```
  * TapDispatcher.handler = MyRealTapHandler(...)
@@ -53,7 +53,7 @@ object TapDispatcher {
             }
 }
 
-/** Placeholder until Person 2's handler is installed. Only logs. */
+/** Placeholder until the real handler is installed. Only logs. */
 class LoggingTapHandler : TapHandler {
     override fun onTap(packageName: String) {
         Log.d("FakeNotifs", "TAP (stub handler): $packageName")

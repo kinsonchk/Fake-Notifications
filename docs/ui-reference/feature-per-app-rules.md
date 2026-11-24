@@ -54,9 +54,9 @@ Store only the apps the user changed. A missing app means the default, so newly 
 4. The three choices persist across an app restart.
 5. The two text fields and the strictness slider are saved and readable by the classifier.
 
-## Owners
-- **Person 3:** the settings screen and storage.
-- **Person 2:** reads `RuleSettings` in the classifier.
+## Where it lives
+- Settings screen: `ui/settings/NotificationRulesScreen.kt`, writing through `GameRepository.setAppRule` / `clearAppRule`.
+- Storage and classification: `GameConfig.appRules` (`logic/GameModels.kt`), read by `NotificationClassifier.assess`.
 
 ## Open question
 How the "Let us decide" judge uses the two text fields and the slider (rules only, or a Gemini or on-device model for unclear cases) is still undecided. Until it is, "Let us decide" falls back to the category, VIP, and keyword rules, and returns `NoPenalty` when unsure.

@@ -1,22 +1,40 @@
 # Docs
 
-One folder per team member. Each folder's `README.md` lists that person's docs, current status and what is left.
+Start with the root [CLAUDE.md](../CLAUDE.md) (architecture and rules for contributors) and the
+[developer guide](developer-guide.md) (build, install, grant access, verify on a phone, read logs).
+Code is the source of truth; when a doc disagrees with it, fix the doc.
 
-| Folder | Owner | Area |
-|---|---|---|
-| [person-1/](person-1/README.md) | Person 1 | Notification service (`service/`, `debug/DebugScreen.kt`, `debug/NotificationsScreen.kt`, `debug/TestNotification.kt`) |
-| [person-2/](person-2/README.md) | Person 2 | Classification, game rules, storage (`logic/`, `TaptationApplication.kt`) |
-| [person-3/](person-3/README.md) | Person 3 | UI: onboarding, settings, tree/pet, lockout, stats (`ui/`) |
-| [person-4/](person-4/README.md) | Person 4 | Testing, debug menu, demo |
+## Current behaviour
 
-Shared docs (whole team):
+- [revised-catch-flow.md](revised-catch-flow.md): latest agreed product behaviour (difficulties, activation gate, freshness, two-choice caught feedback, statistics). Supersedes older docs.
+- [logic/game-rules.md](logic/game-rules.md): exact game rules and defaults, listener -> logic contract, backend API for the UI, storage.
+- [ui-backend-contract.md](ui-backend-contract.md): what the UI reads and calls; everything else lives in the backend.
+- [ai/how-ai-classification-works.md](ai/how-ai-classification-works.md): "Let us decide" AI judge (Clef), inputs, prompt, strictness cutoffs, fail-safe behaviour.
+- [ai/clef-prompt-alternatives.md](ai/clef-prompt-alternatives.md): the old Clef prompt and three alternatives (Option A implemented).
+- [app-rule-and-catch-flow-findings.md](app-rule-and-catch-flow-findings.md): Always important, Always bait and Let us decide traced through classification, AI use and catch chance.
+- [decision-stats-handler.md](decision-stats-handler.md): why stats are a repository, not a service; SQLite event store and summaries.
+- [hp/healthRegeneration.md](hp/healthRegeneration.md): health recovery over time and the debug recovery interval.
+- [living-meadow.md](living-meadow.md): health-driven meadow, earned growth, discoveries, underground play, debug preview.
+- [caught-fishing-scenes.md](caught-fishing-scenes.md): fishing/cameo caught scenes shared by overlay and in-app dialog.
 
-- [caught-fishing-scenes.md](caught-fishing-scenes.md): shared fishing/cameo renderer, headline, earned visitor eligibility, unchanged catch actions and isolated preview.
-- [living-meadow.md](living-meadow.md): earned meadow growth, permanent discoveries, creature stories, underground play and isolated debug preview.
-- [ai/tutorial-personal-ai-criteria-design.md](ai/tutorial-personal-ai-criteria-design.md): onboarding page for collecting the user's important/non-essential notification preferences and feeding the existing AI judge.
-- [onboarding-and-app-copy-options.md](onboarding-and-app-copy-options.md): current onboarding and catch/settings wording, with three alternatives per main copy section and a short spoken demo script.
-- [app-rule-and-catch-flow-findings.md](app-rule-and-catch-flow-findings.md): traces Always important, Always bait, and Let us decide through classification, AI use, catch chance, and the guaranteed-catch fix.
-- [ai/clef-prompt-alternatives.md](ai/clef-prompt-alternatives.md): three candidate prompts for the active Clef notification classifier, with their improvements, tradeoffs and evaluation guidance.
-- [UI_DESIGN_GUIDE.md](UI_DESIGN_GUIDE.md): required visual rules for UI work, component recipes, reference screenshots, review checklist and a reusable AI prompt.
-- [features-by-person.md](features-by-person.md): core vs priority features per person, shared interfaces, go/no-go checkpoint, cut list.
-- [classification-and-settings-brief.md](classification-and-settings-brief.md): classification rules (Section A, Person 2), settings page (Section B, Person 3), open questions (Section C, Persons 1 and 2). Written after the first logic version: see "Brief vs current code" in the root `CLAUDE.md` before building from it.
+## UI
+
+- [UI_DESIGN_GUIDE.md](UI_DESIGN_GUIDE.md): required visual rules, component recipes, reference screenshots, review checklist and a reusable AI prompt.
+- [ui-reference/feature-per-app-rules.md](ui-reference/feature-per-app-rules.md) and [notification-settings.html](ui-reference/notification-settings.html): per-app notification rules and their mockup.
+- [ui-reference/onboarding-slides-3-5-mockup.html](ui-reference/onboarding-slides-3-5-mockup.html), [grass-screen-mockup.html](grass-screen-mockup.html), [underground-mockup.html](underground-mockup.html), [valley-reveal-mockup.html](valley-reveal-mockup.html): interactive mockups.
+- [design-reference/](design-reference/): reference screenshots and [branding](design-reference/branding/README.md).
+- [onboarding-and-app-copy-options.md](onboarding-and-app-copy-options.md): current onboarding and catch/settings wording with alternatives and a short demo script.
+- [ai/tutorial-personal-ai-criteria-design.md](ai/tutorial-personal-ai-criteria-design.md): onboarding page collecting the user's essential / non-essential criteria for the AI judge.
+
+## Design proposals (partly superseded)
+
+- [caught/caught-feedback-presentation-design.md](caught/caught-feedback-presentation-design.md), [caught/caught-choice-penalty-design.md](caught/caught-choice-penalty-design.md), [caught/catch-chance-settings-design.md](caught/catch-chance-settings-design.md): caught overlay, continue penalty and catch-chance settings proposals.
+- [whitelist/](whitelist/): app whitelist picker and demo notes. The whitelist was replaced by per-app rules (Always important / Always bait / Let us decide); codec v6 migrates old whitelists into `appRules`.
+
+## Testing
+
+- [debug-controls-and-testing.md](debug-controls-and-testing.md): Java/Gradle setup, debug demo controls, test notification, unit and instrumented test commands.
+
+## Archive
+
+- [archive/](archive/README.md): hackathon-era plans and briefs (team split, first classification brief, original listener brief, early test plan). Historical only.

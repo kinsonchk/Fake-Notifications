@@ -33,7 +33,7 @@ import kotlin.random.Random
 
 /**
  * Debug view of StatsRepository: week/month summary, fake history, clear.
- * TODO(Person 3): the real stats screen calls only weekly()/monthly() the same way.
+ * The real stats screen (ui/stats) calls weekly()/monthly() the same way.
  */
 @Composable
 fun StatsHarnessPanel() {

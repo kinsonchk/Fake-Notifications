@@ -3,7 +3,7 @@
 Implemented from the interactive living-meadow mockup. The [fishing/caught revision](caught-fishing-scenes.md)
 uses earned meadow visitors for cosmetic caught cameos through the same backend scene resolver.
 
-## Ownership
+## Where it lives
 
 - `logic/meadow/MeadowState`: earned growth, discoveries and derived story milestones.
 - `logic/meadow/MeadowProgression`: pure accounting from the existing game's health history.

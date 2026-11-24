@@ -42,7 +42,7 @@ The section needs:
 4. A small **Refresh apps** action, or refresh the list when the section becomes visible again.
 5. A loading/error state while game state or the app list is unavailable.
 
-The switch reads from `GameRepository.state.config.whitelistedPackages` and writes through `GameRepository.setWhitelisted`. Do not create a second `SettingsRepository` or DataStore. Person 2 already owns the source of truth; Person 3's UI should reuse it.
+The switch reads from `GameRepository.state.config.whitelistedPackages` and writes through `GameRepository.setWhitelisted`. Do not create a second `SettingsRepository` or DataStore. The game repository is already the source of truth; the UI should reuse it.
 
 A simple, separately testable Compose list can receive the current set and a callback:
 

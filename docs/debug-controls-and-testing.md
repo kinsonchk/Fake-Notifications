@@ -1,4 +1,4 @@
-# Person 4: What Was Done and How to Test It
+# Debug controls and how to test the app
 
 ## Set up Java and Android for Gradle
 
@@ -32,23 +32,23 @@ The earlier error named a VS Code Java **runtime** that did not contain `jlink.e
 You do not need a `.env` file for this. PowerShell and Gradle do not load a `.env` file automatically; it is commonly used by web projects or tools that explicitly support it. Here, setting `$env:...` is simple and applies only to this window. When the window closes, these temporary settings go away. You could set them as permanent Windows user variables or choose the Gradle JDK in Android Studio if you want to avoid entering them each time. Keep the Java path local to your machine rather than adding a machine-specific path to shared project files.
 ## In plain words
 
-Person 4's job is to help the team prove the app works and to make the demo easier to repeat. Person 4 does not build the main catch/health rules. Those belong to Person 2.
+The debug tools exist to prove the app works and to make the demo easy to repeat. They do not contain the catch/health rules: those live in `logic/` (see [logic/game-rules.md](logic/game-rules.md)).
 
 The work in this project gives you a debug screen, a test notification, and checks that can tell whether the app handled a notification tap correctly.
 
-## What Person 4 added
+## What the debug tools provide
 
 ### 1. A panel for setting up a demo
 
-The **Debug** tab has a **Demo controls** panel. It sets catch chance to 0% or 100%, sets health, chooses a debug recovery interval, forces a catch, fast-forwards one clean hour, and resets demo data.
+The **Debug** tab has a **Demo controls** panel. It sets catch chance to 0% or 100%, sets health, sets damage per catch (1–100, or back to default), sets the catch lockout (1–3600 s, or back to 15 s), chooses a debug recovery interval, forces a catch, fast-forwards one clean hour, and resets demo data.
 
-The buttons call a shared Kotlin interface named `DemoControls`. This is like a set of agreed buttons that Person 2's real health and catch code can connect to. The screen does not change the database by itself.
+The buttons call a shared Kotlin interface named `DemoControls`. This is like a set of agreed buttons that the real health and catch code connects to. The screen does not change the database by itself.
 
 The demo controls are connected to the real `GameRepository` and game store. The interval selector is debug-only: choose 1, 5, or 15 clean minutes for a quick demo, or **60 min · normal** for production timing. A successful catch resets clean-time progress; an uncaught Bait tap does not.
 
 ### 2. A better repeatable test notification
 
-The app already had a **Post test notification** button. Person 4's changes keep that as the real tap test and give each notification its own action ID. The notification opens the app and disappears after a tap.
+The app already had a **Post test notification** button. It is the real tap test and give each notification its own action ID. The notification opens the app and disappears after a tap.
 
 A real tap and a swipe are different:
 
@@ -63,7 +63,7 @@ The app shows bottom tabs: Home, Stats, Settings, Debug. The Debug tab (includin
 
 ### 4. A test for the new panel
 
-`DemoControlsPanelTest` presses the panel buttons using a fake `DemoControls`. It checks that the interface receives the expected requests. This test checks that the buttons are connected to the interface; it does not test Person 2's real catch or health rules.
+`DemoControlsPanelTest` presses the panel buttons using a fake `DemoControls`. It checks that the interface receives the expected requests. This test checks that the buttons are connected to the interface; it does not test the real catch or health rules.
 
 ## How to test the work
 
@@ -255,7 +255,7 @@ Run:
 
 ## Results already obtained in this project
 
-These commands succeeded after the Person 4 changes:
+These commands succeeded after the debug tools were added:
 
 - `testDebugUnitTest` — unit tests passed. After the `jlink.exe` error, setting `JAVA_HOME` to the full JDK at `C:\Program Files\Java\jdk-25` fixed the build; rerunning the unit test command ended with `BUILD SUCCESSFUL`.
 - `connectedDebugAndroidTest` — all 3 instrumentation tests passed on `Medium_Phone_API_37.0(AVD)`: the app context test and both `DemoControlsPanelTest` cases. The first run failed because Espresso 3.5.1 used a removed reflective API; upgrading to Espresso 3.7.0 fixed it.
@@ -265,7 +265,7 @@ The instrumentation tests have now run successfully on the API 37 emulator. The 
 
 ## Demo controls are now connected
 
-`RepositoryDemoControls` implements `DemoControls` with Person 2's `GameRepository`, and the Debug tab uses it. The buttons now change real game state through the same engine and store as normal taps:
+`RepositoryDemoControls` implements `DemoControls` with the real `GameRepository`, and the Debug tab uses it. The buttons now change real game state through the same engine and store as normal taps:
 
 - **Set 0% / Set 100%**: catch chance (`updateConfig`).
 - **Set health**: `setHealthForDebug` (values outside 0-100 are clamped).

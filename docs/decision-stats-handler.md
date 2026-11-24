@@ -33,16 +33,16 @@ class StatsRepository(private val dao: EventDao) {
 
 `StatsSummary` holds tap rate, average and median acknowledge times, and counts, so the UI computes nothing.
 
-## Who does what
-- **Person 1:** the listener calls `onTap(...)` and, new, `onDismiss(packageName, ageMillis)`. Tell Person 2 early, since it changes the agreed interface.
-- **Person 2:** owns `StatsRepository`, the Room table, and the queries. Calls `recordTap` and `recordDismiss` after classification. Bypassed and unsure events are logged too, with a flag.
-- **Person 3:** the stats screen calls only `weekly()` and `monthly()`, with a week/month toggle.
-- **Person 4:** a debug button that generates fake history (a one-day build can't produce weeks of data), writing through the repository.
+## Where each piece lives
+- **Listener (`service/`):** calls `onTap(...)` for taps and `onDismiss(...)` for swipes and clear-all.
+- **Game logic (`logic/`, `stats/`):** `StatsRepository`, the SQLite table and the queries. Events are recorded after classification. Bypassed and unsure events are logged too, with a flag.
+- **UI (`ui/stats`):** the stats screen calls only `weekly()` and `monthly()`, with a week/month toggle.
+- **Debug (`debug/StatsHarnessPanel.kt`):** generates fake history (a one-day build can't produce weeks of data), writing through the repository.
 
 ## Rules
 - Database writes happen off the main thread. The listener callback hands the event to a coroutine and returns quickly.
 - Build the repository once at app start (for example in the `Application` class) and share it.
-- Person 2 owns it. Person 3 only reads it.
+- The backend writes it; the UI only reads it.
 
 ## Definitions to settle
 - **Ratio:** show tap rate (taps divided by taps plus dismissals) as a percentage, not a raw ratio, which breaks at zero taps.
@@ -55,7 +55,7 @@ Build this week's stats first, then the month view, after the core (listener, cl
 
 ## Implementation status (harness)
 
-Built: the pipeline from the listener to a SQLite table, the summary math, and a debug view. Not built: the real stats screen (Person 3).
+Built: the pipeline from the listener to a SQLite table, the summary math, and a debug view. The real stats screen (`ui/stats`) reads the same `weekly()` / `monthly()` summaries.
 
 | Piece | Where | Notes |
 |---|---|---|
