@@ -221,11 +221,13 @@ internal fun MeadowCanvas(health: Int, modifier: Modifier = Modifier, world: Mea
         // Underground open: this canvas draws the soil's top slice; the underground canvas continues it below.
         if (soilOpen > 0f && world != null) drawIntoCanvas { canvas ->
             val native = canvas.nativeCanvas; val w = size.width / scale; val ground = groundY / scale
-            native.save(); native.scale(scale, scale); native.translate(0f, ground)
+            // restoreToCount: the fade layer adds a second save while the soil animates; one restore()
+            // would leave the scale/translate/clip active and misplace the edge fade below.
+            val saved = native.save(); native.scale(scale, scale); native.translate(0f, ground)
             native.clipRect(0f, -20f, w, logicalHeight - ground)
             if (soilOpen < 1f) native.saveLayerAlpha(0f, -20f, w, logicalHeight - ground, (soilOpen * 255).toInt())
             painter.soil(native, w, logicalHeight - ground, health, world, effects, motion, field.blades)
-            native.restore()
+            native.restoreToCount(saved)
         }
         drawPath(turfPath, Brush.verticalGradient(listOf(grass(bladeColor).copy(alpha = .85f), Color.Transparent),
             startY = groundY - 8f * unit, endY = groundY + 12f * unit))
