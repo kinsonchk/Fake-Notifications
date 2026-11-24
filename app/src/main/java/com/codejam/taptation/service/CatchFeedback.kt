@@ -96,7 +96,11 @@ class CatchFeedback(private val context: Context, private val apps: AppDirectory
                 _prompt.value = prompt
                 hideEverywhere()
                 if (prompt == null) { targets.clear(); postponedId.value = null }
-                else if (!foreground && !prompt.postponed) present(prompt)
+                else {
+                    // A newer catch superseded the old one: drop the old destination with it.
+                    targets.keys.retainAll(setOf(prompt.catchId))
+                    if (!foreground && !prompt.postponed) present(prompt)
+                }
             }
         }
     }

@@ -30,7 +30,7 @@ class JudgeQueue(
     /** [requested] identifies the input of the last request (content + judging settings). */
     private class Candidate(
         var context: NotificationContext,
-        var requested: Int? = null,
+        var requested: List<Any?>? = null,
         var pendingResult: CompletableFuture<JudgeResult>? = null,
     )
 
@@ -38,6 +38,9 @@ class JudgeQueue(
     private var config: GameConfig? = null
     private val _verdicts = MutableStateFlow<Map<String, Verdict>>(emptyMap())
     private val reasons = mutableMapOf<String, String>()
+    // Requests a tap is waiting on, with the content to judge: they still run if the notification
+    // was removed (the tap removes it) or updated before the executor got to them.
+    private val awaited = HashMap<CompletableFuture<JudgeResult>, NotificationContext>()
     private val tapTimeouts: ScheduledExecutorService = Executors.newSingleThreadScheduledExecutor { task ->
         Thread(task, "ai-tap-grace").apply { isDaemon = true }
     }
@@ -77,6 +80,19 @@ class JudgeQueue(
         }
     }
 
+    /**
+     * Ranking data (channel, conversation flag) changed for a notification. Re-judges it only if it
+     * is already a candidate, so non-countable notifications never spend quota.
+     */
+    fun onUpdated(context: NotificationContext) {
+        val key = context.key ?: return
+        synchronized(lock) {
+            val candidate = candidates[key] ?: return
+            candidate.context = context
+            request(key)
+        }
+    }
+
     /** Settings changed: re-judge whatever the change affects. Cheap when nothing relevant changed. */
     fun onConfigChanged(config: GameConfig) = synchronized(lock) {
         this.config = config
@@ -95,15 +111,21 @@ class JudgeQueue(
         return context.key?.let { verdicts[it] }.toClassification()
     }
 
-    /** Current non-waiting result used for dismissals and debug previews. */
-    fun contextWithCurrentResult(context: NotificationContext): NotificationContext {
+    /**
+     * Current non-waiting result used for dismissals and debug previews. [verdicts] lets a screen
+     * pass the snapshot it collected, so it recomposes when a verdict lands.
+     */
+    fun contextWithCurrentResult(
+        context: NotificationContext,
+        verdicts: Map<String, Verdict> = _verdicts.value,
+    ): NotificationContext {
         if (!judge.isConfigured) return context.copy(
             judged = Classification.Unknown,
             judgingReason = "ai_not_configured",
         )
         synchronized(lock) {
             val key = context.key
-            val verdict = key?.let { _verdicts.value[it] }
+            val verdict = key?.let { verdicts[it] }
             return context.copy(
                 judged = verdict.toClassification(),
                 judgingReason = key?.let(reasons::get) ?: "ai_pending",
@@ -130,7 +152,7 @@ class JudgeQueue(
                     judgingReason = key?.let(reasons::get) ?: "ai_unsure",
                 ))
             }
-            key?.let { candidates[it]?.pendingResult }
+            key?.let { k -> candidates[k]?.let { c -> c.pendingResult?.also { if (!it.isDone) awaited[it] = c.context } } }
         } ?: return CompletableFuture.completedFuture(context.copy(
             judged = Classification.Unknown,
             judgingReason = "ai_pending",
@@ -164,6 +186,7 @@ class JudgeQueue(
     }
 
     fun clear() = synchronized(lock) {
+        // Taps already waiting keep their requests (see awaited); only the shade's state is dropped.
         candidates.clear()
         _verdicts.value = emptyMap()
         reasons.clear()
@@ -182,10 +205,18 @@ class JudgeQueue(
         _verdicts.value -= key
         reasons[key] = "ai_pending"
         executor.execute {
-            // Skip requests that became outdated while queued, before spending a network call.
-            val context = synchronized(lock) { candidates[key]?.takeIf { it.requested == input }?.context }
-                ?: return@execute
-            val result = judge.judgeWithReason(context, config)
+            // Skip requests that became outdated while queued, before spending a network call,
+            // unless a tap is waiting on this one.
+            val context = synchronized(lock) {
+                candidates[key]?.takeIf { it.requested == input }?.context ?: awaited.remove(pendingResult)
+            }
+            if (context == null) {
+                pendingResult.complete(JudgeResult(Verdict.Unsure, "ai_outdated"))
+                return@execute
+            }
+            val result = try { judge.judgeWithReason(context, config) }
+                catch (e: RuntimeException) { JudgeResult(Verdict.Unsure, "ai_request_failed") }
+                finally { synchronized(lock) { awaited.remove(pendingResult) } }
             synchronized(lock) {
                 val current = candidates[key]?.takeIf { it.requested == input }
                 if (current != null) {
@@ -207,13 +238,14 @@ class JudgeQueue(
         fun judgingSettings(config: GameConfig): Triple<String, String, Strictness> =
             Triple(config.essentialCriteria, config.nonEssentialCriteria, config.strictness)
 
-        private fun inputOf(context: NotificationContext, config: GameConfig): Int =
-            listOf(context.packageName, context.title, context.text, context.media, context.sender, context.isGroup,
-                judgingSettings(config)).hashCode()
+        /** Every field sent to the model, plus the judging settings; compared by value, not hash. */
+        private fun inputOf(context: NotificationContext, config: GameConfig): List<Any?> =
+            context.judgedFields() + judgingSettings(config)
 
-        private fun NotificationContext.sameContent(other: NotificationContext) =
-            packageName == other.packageName && title == other.title && text == other.text && media == other.media &&
-                sender == other.sender && isGroup == other.isGroup
+        private fun NotificationContext.judgedFields(): List<Any?> =
+            listOf(packageName, title, text, media, sender, isGroup, channelName, category, isConversation, actions)
+
+        private fun NotificationContext.sameContent(other: NotificationContext) = judgedFields() == other.judgedFields()
 
         private fun Verdict?.toClassification(): Classification = when (this) {
             Verdict.Important -> Classification.Important

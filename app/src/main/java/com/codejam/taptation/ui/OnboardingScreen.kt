@@ -70,8 +70,6 @@ import com.codejam.taptation.ui.home.MeadowScenery
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
-private const val PREFS = "first_run"
-private const val TUTORIAL_COMPLETE = "tutorial_complete"
 private const val PAGE_WELCOME = 0
 private const val PAGE_PERSONAL_CRITERIA = 1
 private const val PAGE_CATCHES = 2
@@ -79,12 +77,9 @@ private const val PAGE_APP_RULES = 3
 private const val PAGE_SETUP = 4
 private const val TUTORIAL_PAGE_COUNT = PAGE_SETUP
 
-internal fun isTutorialComplete(context: Context): Boolean =
-    context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean(TUTORIAL_COMPLETE, false)
-
+/** Marks the tutorial finished through the backend (also used by UI tests to skip onboarding). */
 internal fun completeTutorial(context: Context) {
-    context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
-        .putBoolean(TUTORIAL_COMPLETE, true).apply()
+    (context.applicationContext as TaptationApplication).system.markTutorialComplete()
 }
 
 @Composable

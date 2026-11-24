@@ -249,7 +249,7 @@ fun NotificationsScreen(contentPadding: PaddingValues, onBack: (() -> Unit)? = n
         }
         if (observations.isEmpty()) item { Text("Nothing observed since the listener connected.") }
         // Live AI verdicts for "Let us decide" apps, as the tap would see them.
-        items(observations) { ObservedRow(it.copy(judged = judges.classificationFor(it, verdicts)), config) }
+        items(observations) { ObservedRow(judges.contextWithCurrentResult(it, verdicts), config) }
     }
 }
 

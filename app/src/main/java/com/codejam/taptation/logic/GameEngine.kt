@@ -185,6 +185,10 @@ class GameEngine(
             recoveryAnchorMillis = now,
             // Same choice for tap catches and forced (debug) catches. Continuing can't cost more
             // health than is left, so at 0 the overlay shows no extra penalty.
+            // A catch still waiting for its choice (e.g. after "Not now") is superseded on purpose:
+            // its damage is already applied, it is settled as "back to Taptation" (no continue
+            // penalty), and only the newest catch is offered. Blocking new catches instead would let
+            // a never-answered prompt switch the game off.
             pendingCatch = PendingCatch("$now-${source.totalCatches + 1}", null, minOf(CONTINUE_EXTRA_DAMAGE, health),
                 healthBefore = source.health, healthAfter = health),
         )

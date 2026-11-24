@@ -7,6 +7,7 @@ import com.codejam.taptation.logic.NotificationContext
 import com.codejam.taptation.logic.Strictness
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class JudgeQueueTest {
@@ -106,6 +107,34 @@ class JudgeQueueTest {
         assertEquals(0, judge.calls)
         queue.onConfigChanged(config); runAll()
         assertEquals(Classification.Important, queue.classificationFor(post()))
+    }
+
+    @Test
+    fun tapStillGetsTheVerdictWhenTheNotificationIsRemovedWhileJudging() {
+        val judge = FakeJudge(Verdict.Bait)
+        val queue = JudgeQueue(judge) { tasks += it }
+        queue.onPosted(post(), config)
+        val tapped = queue.contextForTap(post())
+        // The listener drops the key's caches right after a tap; a re-post may follow at once.
+        queue.onRemoved("k1")
+        queue.onPosted(post(text = "next message"), config)
+        runAll()
+        assertTrue(tapped.isDone)
+        assertEquals(Classification.Bait, tapped.get().judged)
+        assertEquals(2, judge.calls)
+        assertEquals(Classification.Bait, queue.classificationFor(post(text = "next message")))
+    }
+
+    @Test
+    fun rankingChangesRejudgeOnlyKnownCandidates() {
+        val judge = FakeJudge(Verdict.Bait)
+        val queue = JudgeQueue(judge) { tasks += it }
+        queue.onPosted(post(), config); runAll()
+        queue.onUpdated(post().copy(channelName = "Direct messages", isConversation = true)); runAll()
+        assertEquals(2, judge.calls)
+        queue.onUpdated(post().copy(channelName = "Direct messages", isConversation = true)); runAll()
+        queue.onUpdated(NotificationContext("com.other", key = "k2", title = "x", text = "y")); runAll()
+        assertEquals(2, judge.calls)
     }
 
     @Test

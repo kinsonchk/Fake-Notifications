@@ -27,10 +27,19 @@ object GameStateCodec {
             val V6_PENALTY = Layout(6, pendingExtraDamage = true, rulesTail = false, recoveryTail = false)
             val V6_MERGED = Layout(6, pendingExtraDamage = true, rulesTail = true, recoveryTail = false)
             val V7 = Layout(7, pendingExtraDamage = true, rulesTail = true, recoveryTail = true)
-            val CURRENT = Layout(8, pendingExtraDamage = true, rulesTail = true, recoveryTail = true, pendingDetails = true)
+            val V8 = Layout(8, pendingExtraDamage = true, rulesTail = true, recoveryTail = true, pendingDetails = true)
+            /**
+             * v9: same fields as v8. Only marks snapshots whose lockout and Savage damage are real
+             * choices, so the old-default normalization (30 s -> 15 s, 35 -> 10) runs only before v9.
+             */
+            val CURRENT = Layout(9, pendingExtraDamage = true, rulesTail = true, recoveryTail = true, pendingDetails = true)
+
+            /** Before this version, 30 s lockout and 35 Savage damage were the old defaults. */
+            const val FIRST_WITH_EXACT_DEFAULTS = 9
 
             fun candidates(version: Int): List<Layout> = when (version) {
                 CURRENT.version -> listOf(CURRENT)
+                V8.version -> listOf(V8)
                 V7.version -> listOf(V7)
                 6 -> listOf(V6_MERGED, V6_RULES, V6_PENALTY)
                 else -> listOf(Layout(version, pendingExtraDamage = false, rulesTail = false, recoveryTail = false))
@@ -162,6 +171,7 @@ object GameStateCodec {
     private fun decode(bytes: ByteArray, layout: Layout): GameState =
         DataInputStream(ByteArrayInputStream(bytes)).use { input ->
             val version = input.readInt()
+            val oldDefaults = version < Layout.FIRST_WITH_EXACT_DEFAULTS
             val health = input.readInt().also { require(it in 0..100) }
             val anchor = input.readLong()
             val observed = input.readLong()
@@ -175,13 +185,13 @@ object GameStateCodec {
                 level = CatchLevel.valueOf(input.readUTF()),
                 mildDamage = input.readInt(),
                 mediumDamage = input.readInt(),
-                // Existing snapshots may contain the former 35-damage Savage default. Normalize
+                // Snapshots before v9 may contain the former 35-damage Savage default. Normalize
                 // it to 10 so upgraded devices show and apply Catch: −10 instead of −35.
-                savageDamage = input.readInt().let { if (it == 35) 10 else it },
+                savageDamage = input.readInt().let { if (it == 35 && oldDefaults) 10 else it },
                 recoveryPerHour = input.readInt(),
-                // Existing snapshots may contain the former 30-second default. Normalize the
-                // saved setting so catches after upgrading use the new 15-second cooldown.
-                lockoutSeconds = input.readInt().let { 15 },
+                // Snapshots before v9 may contain the former 30-second default. Normalize it so
+                // catches after upgrading use the 15-second cooldown; v9+ values are kept as saved.
+                lockoutSeconds = input.readInt().let { if (it == 30 && oldDefaults) 15 else it },
                 whitelistedPackages = input.strings(),
                 baitPackages = input.strings(),
                 baitKeywords = input.strings(),

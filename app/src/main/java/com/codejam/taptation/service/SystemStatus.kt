@@ -42,6 +42,16 @@ class SystemStatus(context: Context, listenerConnected: StateFlow<Boolean>, game
 
     val permissions: StateFlow<PermissionStatus> = _permissions.asStateFlow()
 
+    private val firstRun = appContext.getSharedPreferences(FIRST_RUN_PREFS, Context.MODE_PRIVATE)
+    private val _tutorialComplete = MutableStateFlow(firstRun.getBoolean(TUTORIAL_COMPLETE, false))
+    /** The first-run tutorial was finished once; the app then opens on its tabs. */
+    val tutorialComplete: StateFlow<Boolean> = _tutorialComplete.asStateFlow()
+
+    fun markTutorialComplete() {
+        firstRun.edit().putBoolean(TUTORIAL_COMPLETE, true).apply()
+        _tutorialComplete.value = true
+    }
+
     /**
      * Home's one status area: setup needed, paused, connection interrupted or monitoring. Follows
      * permissions, the listener connection and the game config (a timed pause ends on its own: the
@@ -71,5 +81,8 @@ class SystemStatus(context: Context, listenerConnected: StateFlow<Boolean>, game
         // Same file and key the Catch reminders page used, so an earlier "asked" answer is kept.
         const val PREFS = "catch_reminders"
         const val ASKED_NOTIFICATIONS = "asked_notifications"
+        // Same file and key the onboarding screen used, so finished tutorials stay finished.
+        const val FIRST_RUN_PREFS = "first_run"
+        const val TUTORIAL_COMPLETE = "tutorial_complete"
     }
 }

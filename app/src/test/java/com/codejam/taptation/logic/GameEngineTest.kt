@@ -421,6 +421,37 @@ class GameEngineTest {
         assertThrows(IllegalArgumentException::class.java) { GameConfig(freshnessSeconds = -1) }
     }
 
+    @Test fun codecKeepsLockoutButNormalizesTheOld30SecondDefault() {
+        val custom = GameState(config = GameConfig(lockoutSeconds = 60))
+        assertEquals(60, GameStateCodec.decode(GameStateCodec.encode(custom)).config.lockoutSeconds)
+        // v9+: 30 s (and Savage 35) are real choices, e.g. from the debug panel, and survive a restart.
+        val chosen = GameState(config = GameConfig(lockoutSeconds = 30, savageDamage = 35))
+        val current = GameStateCodec.decode(GameStateCodec.encode(chosen)).config
+        assertEquals(30, current.lockoutSeconds)
+        assertEquals(35, current.savageDamage)
+        // Before v9 those values were the old defaults and are normalized on load.
+        val old = GameStateCodec.decode(GameStateCodec.encode(chosen, GameStateCodec.Layout.V8)).config
+        assertEquals(15, old.lockoutSeconds)
+        assertEquals(10, old.savageDamage)
+        assertEquals(60, GameStateCodec.decode(GameStateCodec.encode(custom, GameStateCodec.Layout.V8)).config.lockoutSeconds)
+    }
+
+    @Test fun newCatchSupersedesAPendingChoice() {
+        val f = Fixture()
+        f.configure { it.copy(debugCatchProbability = 1.0) }
+        f.tap("bait")
+        val first = f.game.state.pendingCatch!!.id
+        f.game.advanceTimeForDebug(60_000) // past the catch lockout, choice still pending
+        f.tap("bait")
+        val second = f.game.state.pendingCatch!!.id
+        assertTrue(first != second)
+        val health = f.game.state.health
+        // The superseded catch can no longer be settled (no late continue penalty).
+        f.game.settleCatchChoice(first, continueOriginalApp = true)
+        assertEquals(health, f.game.state.health)
+        assertEquals(second, f.game.state.pendingCatch?.id)
+    }
+
     @Test fun debugFastForwardRecoversAndEndsLockout() {
         val f = Fixture()
         f.configure { it.copy(debugCatchProbability = 1.0) }

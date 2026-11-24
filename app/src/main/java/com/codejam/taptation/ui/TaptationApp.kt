@@ -51,14 +51,14 @@ enum class Tab(val label: String, @param:DrawableRes val icon: Int, val debugOnl
 @Composable
 fun TaptationApp(debug: Boolean) {
     val context = LocalContext.current
-    var tutorialComplete by remember { mutableStateOf(isTutorialComplete(context)) }
+    val app = context.applicationContext as TaptationApplication
+    val tutorialComplete by app.system.tutorialComplete.collectAsStateWithLifecycle()
     var replayTutorial by rememberSaveable { mutableStateOf(false) }
     if (tutorialComplete && !replayTutorial) {
         AppTabs(debug, onShowTutorial = { replayTutorial = true })
     } else {
         OnboardingScreen(startAtSetup = false) {
-            completeTutorial(context)
-            tutorialComplete = true
+            app.system.markTutorialComplete()
             replayTutorial = false
         }
     }

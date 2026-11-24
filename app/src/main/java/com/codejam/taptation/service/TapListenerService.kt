@@ -65,13 +65,15 @@ class TapListenerService : NotificationListenerService() {
         }
         Log.d(TAG, "onListenerConnected")
         _connected.value = true
+        instance = this
         judgeActiveNotifications()
     }
 
     /**
-     * After a (re)connect, notifications already in the shade got no posted callback. Hand them to
-     * the judge now so "Let us decide" has a verdict for them too. If the game is still loading, the
-     * judge waits for the first config (TaptationApplication forwards it).
+     * After a (re)connect or the end of a pause, notifications already in the shade got no posted
+     * callback (or were dropped while paused). Cache them and hand them to the judge now so "Let us
+     * decide" has a verdict for them too. If the game is still loading, the judge waits for the first
+     * config (TaptationApplication forwards it).
      */
     private fun judgeActiveNotifications() {
         if (skipWhileDisabled()) return
@@ -80,8 +82,14 @@ class TapListenerService : NotificationListenerService() {
         }
         val ranking = currentRanking
         val countable = active.filter(::isCountable)
-        countable.forEach { sbn -> judges().onPosted(contextFor(sbn, ranking), currentConfig()) }
-        Log.d(TAG, "judging ${countable.size} active notifications after connect")
+        countable.forEach { sbn ->
+            firstSeen.putIfAbsent(sbn.key, sbn.postTime)
+            val context = contextFor(sbn, ranking)
+            contexts[sbn.key] = context
+            TapDispatcher.handler.onNotificationPosted(context)
+            judges().onPosted(context, currentConfig())
+        }
+        Log.d(TAG, "judging ${countable.size} active notifications")
     }
 
     override fun onListenerDisconnected() {
@@ -95,6 +103,7 @@ class TapListenerService : NotificationListenerService() {
         _observations.value = emptyList()
         Log.d(TAG, "onListenerDisconnected")
         _connected.value = false
+        if (instance === this) instance = null
         // If access was revoked, there is nothing to rebind to: just stop quietly.
         if (!PermissionHelper.isNotificationAccessGranted(this)) {
             Log.d(TAG, "Notification access revoked, not requesting rebind")
@@ -116,6 +125,7 @@ class TapListenerService : NotificationListenerService() {
         TapDispatcher.handler.onListenerReset()
         _observations.value = emptyList()
         _connected.value = false
+        if (instance === this) instance = null
         super.onDestroy()
     }
 
@@ -148,6 +158,8 @@ class TapListenerService : NotificationListenerService() {
             if (updated != entry.value) {
                 entry.setValue(updated)
                 TapDispatcher.handler.onNotificationPosted(updated)
+                // Channel/conversation are sent to the model: re-judge (only keys already judged).
+                judges().onUpdated(updated)
             }
         }
         if (isDebugBuild()) {
@@ -188,24 +200,23 @@ class TapListenerService : NotificationListenerService() {
             ownPackageName = packageName,
             includeOwnPackage = isDebugBuild(),
         )
-        var cleanupAfterTap = false
         try {
             when (kind) {
                 TapDetection.RemovalKind.Tap -> {
                     TapLog.record(pkg)
-                    val resolvedContext = judges().contextForTap(context)
-                    cleanupAfterTap = true
-                    resolvedContext.whenComplete { resolved, _ ->
+                    // contextForTap holds on to the in-flight request, so this key's caches can be
+                    // dropped right away (finally below): a re-post with the same key during the
+                    // grace period then starts fresh instead of being wiped when the tap resolves.
+                    judges().contextForTap(context).whenComplete { resolved, failure ->
                         try {
+                            if (failure != null) Log.w(TAG, "AI tap resolution failed for $pkg", failure)
                             val ready = resolved ?: context.copy(
                                 judged = Classification.Unknown,
-                                judgingReason = "ai_pending_timeout",
+                                judgingReason = "ai_request_failed",
                             )
                             TapDispatcher.dispatch(ready)
                         } catch (e: Exception) {
                             Log.e(TAG, "TapHandler threw for $pkg (Tap)", e)
-                        } finally {
-                            finishRemoval(sbn.key)
                         }
                     }
                 }
@@ -218,7 +229,7 @@ class TapListenerService : NotificationListenerService() {
             // A bug in the handler must not take down the listener.
             Log.e(TAG, "TapHandler threw for $pkg ($kind)", e)
         } finally {
-            if (!cleanupAfterTap) finishRemoval(sbn.key)
+            finishRemoval(sbn.key)
         }
     }
 
@@ -313,6 +324,20 @@ class TapListenerService : NotificationListenerService() {
                 requestRebind(ComponentName(context, TapListenerService::class.java))
             } catch (e: RuntimeException) {
                 Log.w(TAG, "requestRebind failed", e)
+            }
+        }
+
+        /** The connected listener, so the app can ask it to re-judge the shade after a pause ends. */
+        @Volatile private var instance: TapListenerService? = null
+
+        /**
+         * The game became active again (manual resume or a timed pause ending): notifications posted
+         * while paused were never cached or judged, so scan the shade now. No-op when not connected.
+         */
+        fun onGameResumed() {
+            val service = instance ?: return
+            android.os.Handler(android.os.Looper.getMainLooper()).post {
+                if (instance === service) service.judgeActiveNotifications()
             }
         }
 

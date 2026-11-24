@@ -24,6 +24,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.distinctUntilChangedBy
 import kotlinx.coroutines.flow.mapNotNull
 import kotlinx.coroutines.flow.stateIn
@@ -92,6 +93,15 @@ class TaptationApplication : Application() {
             game.state.mapNotNull { it?.config }
                 .distinctUntilChangedBy { it.appRules to JudgeQueue.judgingSettings(it) }
                 .collect(judges::onConfigChanged)
+        }
+        // Notifications posted while paused were never judged: scan the shade when the game resumes
+        // (manual resume, or the repository's own refresh when a timed pause ends).
+        scope.launch {
+            var wasActive: Boolean? = null
+            game.state.mapNotNull { it?.config?.active }.distinctUntilChanged().collect { active ->
+                if (active && wasActive == false) TapListenerService.onGameResumed()
+                wasActive = active
+            }
         }
         // The user may come back from system settings or after the phone slept: re-read permissions
         // and installed apps, and catch up on recovery. Screens don't need to trigger any of this.
