@@ -1,3 +1,5 @@
+> Historical, kept for reference: the app whitelist was replaced by per-app rules (Always important / Always bait / Let us decide); see [ui-reference/feature-per-app-rules.md](../ui-reference/feature-per-app-rules.md).
+
 # App Whitelist Picker: User-Friendly Design
 
 ## The question

@@ -1,3 +1,5 @@
+> Historical, kept for reference: the design behind interval recovery and the debug recovery interval (codec v7). It is implemented; current rules are in [logic/game-rules.md](../logic/game-rules.md).
+
 # Health regeneration design
 
 ## Goal

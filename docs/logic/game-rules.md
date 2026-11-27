@@ -28,7 +28,7 @@ UI boundary: [UI <-> backend contract](../ui-backend-contract.md).
 | Death (health 0) | No recovery until `reset()`. Every Bait tap is caught without a roll (100%), with no further damage, and still starts the lockout and the pending choice |
 | Reset | Only allowed when dead: health 100, clears lockout and pending catch, restarts recovery; keeps settings, history and counters |
 | Pending catch | Every catch (tap or forced) records one `PendingCatch`: id `"<now>-<totalCatches>"`, package, health before/after, classifier rule, channel name. Its continue penalty is `min(CONTINUE_EXTRA_DAMAGE = 5, health after the catch)` |
-| Catch choice | `settleCatchChoice(id, continueOriginalApp)`: "Go to original app" subtracts the saved continue penalty (health record `continue_after_catch`); "Go to Taptation" costs nothing. Either way the pending catch is cleared. The catch damage itself is never applied again. A new catch while a choice is still pending (e.g. after "Not now") supersedes it: the old one is treated as "Go to Taptation" (no continue penalty) and only the newest is offered |
+| Catch choice | `settleCatchChoice(id, continueOriginalApp)`: "Go to original app" subtracts the saved continue penalty (health record `continue_after_catch`); "Go to Taptation" costs nothing. Either way the pending catch is cleared. The catch damage itself is never applied again. A new catch while a choice is still pending (e.g. after the in-app dialog was dismissed) supersedes it: the old one is treated as "Go to Taptation" (no continue penalty) and only the newest is offered |
 | Disabled game | `active = false` (optionally until `disabledUntilMillis`). Taps return `NoPenalty` `disabled` and are not recorded in stats; dismissals are ignored; recovery stops; disabling clears any pending catch. A timed disable re-activates itself when it ends |
 | Disable gate (`DisableGate`) | `beginDisable()` returns a single-use challenge; `confirmDisable(id, minutes)` succeeds only after a 10 s monotonic wait (`SystemClock.elapsedRealtime`). Durations: 15, 60 or null (until re-enabled). `enable()` is immediate and cancels any challenge. `updateConfig` refuses to change activation directly |
 | Clock | Wall-clock timestamps; the engine never moves its observed time backward, so a backward clock change cannot award recovery or shorten a lockout. A forward change can. Not tamper-resistant |
@@ -125,8 +125,10 @@ Catch presentation (`service/CatchFeedback`): turns `state.pendingCatch` into
 `feedback.prompt: StateFlow<CatchPrompt?>` (app label, `CatchDetails` from the pending catch,
 continue penalty, `postponed`, `animate` on first showing). In the background it shows the overlay
 (`CatchSurface`) when overlay permission is granted, otherwise a notification; in the foreground the
-app shows a dialog. Actions: `choose(ourApp)`, `postpone()`, `correct()` (opens Taptation with a
-`CorrectionRequest`), and `feedback.resume(id)`.
+app shows a dialog. Both surfaces offer only the two destinations. Actions: `choose(ourApp)`,
+`postpone()` (dismissing the in-app dialog), `feedback.resume(id)` ("Choose now"), and `correct()`
+(opens Taptation with a `CorrectionRequest`; no caught button calls it since the "This should be
+important" button was removed).
 
 **Do not call `applyCatch` in response to `Caught`: the damage is already applied.** Render the
 lockout from `lockoutUntilMillis` and the current time.

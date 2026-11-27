@@ -1,3 +1,5 @@
+> Historical, kept for reference: the first caught-overlay proposal (Continue in this app / Open Taptation, `CaughtFeedbackManager`). Current behaviour: [revised-catch-flow.md](../revised-catch-flow.md) and [logic/game-rules.md](../logic/game-rules.md).
+
 # Caught Feedback Overlay: Design Proposal
 
 ## Goal

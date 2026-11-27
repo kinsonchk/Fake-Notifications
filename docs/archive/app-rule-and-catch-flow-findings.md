@@ -1,3 +1,5 @@
+> Historical, kept for reference: a change note from when Always bait became a guaranteed catch. Current rules are in [logic/game-rules.md](../logic/game-rules.md).
+
 # App rule and catch-flow findings
 
 ## Request being checked

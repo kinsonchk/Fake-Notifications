@@ -17,7 +17,7 @@ tap a distracting one: health drops and a 15-second catch cooldown starts. Apps 
 | `service/TapListenerService.kt` | `NotificationListenerService`. Caches each notification's context, dispatches only `REASON_CLICK` removals as taps; swipes and clear-all are dismissals (stats only) |
 | `service/TapDetection.kt` | Pure filters (`isTap`, `shouldDispatch`, `isCountable`, `DuplicateEventFilter`), unit tested |
 | `service/NotificationSignals.kt` | Metadata for the `posted`/`removed` Logcat lines (never title/text) |
-| `service/CatchFeedback.kt` | Catch prompt state, overlay vs notification vs in-app dialog, "Not now", corrections |
+| `service/CatchFeedback.kt` | Catch prompt state, overlay vs notification vs in-app dialog, postponing a choice, corrections |
 | `service/PermissionHelper.kt`, `service/SystemStatus.kt` | Notification access, overlay and battery checks and settings intents |
 | `ai/` | "Let us decide" judge: `JudgeQueue`, `ClefJudge` (Cloudflare Workers AI Clef), `WorkersAi` HTTP client |
 | `logic/TapHandler.kt` | `TapHandler` contract and `TapDispatcher` |
@@ -37,7 +37,7 @@ Bottom tabs. Debug exists only in debug builds.
 | Tab | Shows |
 |---|---|
 | **Home** | Grass meadow driven by health, catch cooldown, monitoring status. Touch affects appearance only. |
-| **Stats** | Weekly/monthly tap rate, timing and per-app statistics from the SQLite store. |
+| **Stats** | 7-/30-day opened vs. swiped ratio, catches per day and per-category statistics from the SQLite store. |
 | **Settings** | Difficulty, freshness window, notification rules (per-app rule, essential/non-essential answers, strictness), pause/activation. |
 | **Debug** | Access/service/battery status, demo controls (catch chance, set health, force catch, fast-forward, reset), meadow preview, stats harness and **Notification tools** (test notification, custom notification composer with package overrides and attachments, saved presets, last 20 taps with reasons, observed notifications with a live classifier preview). |
 

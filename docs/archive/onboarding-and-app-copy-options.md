@@ -1,3 +1,5 @@
+> Historical, kept for reference: a wording worksheet. Some options were adopted, so its "Current wording" lines no longer match the app; the code is the source of truth.
+
 # Onboarding and app wording options
 
 This is a copywriting guide for Taptation's onboarding and the related app screens. It records the wording currently in the app and offers three alternatives for the main headings and explanations. The alternatives are suggestions only; the app still uses the **Current wording** until someone chooses and implements a revision.

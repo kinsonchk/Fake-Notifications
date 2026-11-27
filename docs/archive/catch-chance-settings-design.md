@@ -1,3 +1,5 @@
+> Historical, kept for reference: an early catch-chance proposal (5/10/20% presets and a custom slider). The app uses Easy/Medium/Hard 20/40/70% with no custom value; see [logic/game-rules.md](../logic/game-rules.md).
+
 # Catch Chance Settings: User-Facing Design
 
 ## Decision to make

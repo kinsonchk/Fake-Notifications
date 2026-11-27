@@ -1,4 +1,4 @@
-# Decision: Stats Handler (not a Service)
+# Decision: stats handler, not a service
 
 ## Decision
 Use a dedicated **`StatsRepository`** (a plain Kotlin class) for all stats logic. Do **not** create a separate Android `Service` for stats.
@@ -10,24 +10,27 @@ Use a dedicated **`StatsRepository`** (a plain Kotlin class) for all stats logic
 - A single handler gives stats one home, so the listener, the classifier, and the UI never touch the database directly.
 
 ## What it records
-One row per event in a Room table:
+One row per event in a SQLite table (`events` in `stats.db`):
 - timestamp
 - package name
 - type: `TAP` or `DISMISS`
 - age in ms (`System.currentTimeMillis() - sbn.postTime`)
-- bait or important
+- classification (bait, important or unknown)
 - caught or not
+- notification category (schema v2)
 
 Weekly and monthly stats are queries over these rows (counts and averages between two dates). Store events, not running totals.
 
 ## Interface
 
 ```kotlin
-class StatsRepository(private val dao: EventDao) {
-    suspend fun recordTap(pkg: String, ageMillis: Long, wasCaught: Boolean)
-    suspend fun recordDismiss(pkg: String, ageMillis: Long)
-    suspend fun weekly(): StatsSummary
-    suspend fun monthly(): StatsSummary
+class StatsRepository(store: StatsStore, ...) {
+    suspend fun recordTap(pkg: String, ageMillis: Long?, classification: Classification, wasCaught: Boolean)
+    suspend fun recordDismiss(pkg: String, ageMillis: Long?, classification: Classification)
+    fun submit(event: StatsEvent)                       // for non-coroutine callers
+    suspend fun weekly(includeImportant: Boolean = false): StatsSummary
+    suspend fun monthly(includeImportant: Boolean = false): StatsSummary
+    suspend fun summary(fromMillis: Long, toMillis: Long, includeImportant: Boolean = false): StatsSummary
 }
 ```
 
@@ -44,14 +47,11 @@ class StatsRepository(private val dao: EventDao) {
 - Build the repository once at app start (for example in the `Application` class) and share it.
 - The backend writes it; the UI only reads it.
 
-## Definitions to settle
-- **Ratio:** show tap rate (taps divided by taps plus dismissals) as a percentage, not a raw ratio, which breaks at zero taps.
+## Definitions
+- **Ratio:** `StatsSummary` has a tap rate (taps divided by taps plus dismissals) as a percentage. The Stats screen also shows opened vs. swiped (taps / dismissals, can exceed 100%; see [revised-catch-flow.md](revised-catch-flow.md#statistics)).
 - **Average time:** show tap and dismiss averages separately, plus a combined one. Use the median or cap times at about an hour, because "clear all" and time away from the phone skew averages.
 - **Which notifications count:** bait only by default, with a toggle to include important ones.
 - **Removal reasons:** count `REASON_CLICK` as a tap, and `REASON_CANCEL` (and probably `REASON_CANCEL_ALL`) as a dismissal. Ignore the rest. Action-button behavior (e.g. "Mark as read") is unverified, so log every removal reason on the Pixel and check.
-
-## Priority
-Build this week's stats first, then the month view, after the core (listener, classifier, grass health, lockout) works.
 
 ## Implementation status (harness)
 
@@ -68,7 +68,7 @@ Built: the pipeline from the listener to a SQLite table, the summary math, and a
 | Debug | Debug tab > *Stats harness* | Week/month, include important, generate 30 days of fake history, clear. |
 
 Choices made where this doc was open:
-- **Week / month** are the last 7 and 30 days up to now, not calendar weeks.
+- **Week / month** are today plus the previous 6 or 29 local calendar days (from local midnight), not calendar weeks.
 - **`recordTap` / `recordDismiss`** also take the classification, since stats split bait from important.
 - **Ages** come from `System.currentTimeMillis() - sbn.postTime`, set by the listener.
 

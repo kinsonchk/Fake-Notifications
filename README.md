@@ -1,7 +1,7 @@
 # About Taptation
 _Taptation_ is an Android app designed to help you break the habit of impulsively tapping on phone notifications. Instead, it helps you build the habit of always checking the context of a notification before tapping on it. The app aims to train you to avoid distracting social media notifications while ensuring you don't ignore important ones.
 
-The app is able to automatically determine whether a notification is a distracting one or an important one based on its context, such as its text content, the app it was sent from, and whether it contains media (photos, reels, links, etc.). Users can also define their own criteria for what constitutes a distracting notification, as well as manage rules for individual apps.
+The app is able to automatically determine whether a notification is a distracting one or an important one based on its context, such as its text content, the app it was sent from, and whether it contains media (photos, videos, GIFs, etc.). Users can also define their own criteria for what constitutes a distracting notification, as well as manage rules for individual apps.
 
 The app monitors and keeps track of your taps on notifications. There is a gamification feature in the form of a health bar that shows how successful you have been at avoiding distracting notifications. The higher the health bar, the better. If you tap on a notification determined to be distracting, you may be "caught", in which case a pop-up prompt will appear and the health bar will decrease. The aim is to keep the health bar full, which will hopefully encourage users to stop impulsively tapping on notifications and to think before doing so each time moving forward.
 
@@ -25,6 +25,8 @@ We believe it is important for people to be able to distinguish between distract
 The app was developed using Android Studio (https://developer.android.com/studio) with Kotlin.
 
 In order for the app to determine whether a notification is distracting or important, we need to use Cloudflare Workers AI (https://www.cloudflare.com/products/workers-ai/), which processes and analyses the context of the notifications sent to it.
+
+Build steps and developer documentation are indexed in [docs/README.md](docs/README.md).
 
 
 # What's next

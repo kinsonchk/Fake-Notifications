@@ -100,11 +100,6 @@ Unit tests cover time away, catch/recovery segments, paused monitoring, backward
 milestones, retained rewards and gesture recognition. Device tests cover preference reload,
 touch/accessible actions, light/dark/low-health renders, collection and isolated debug preview.
 
-## Native render references
+## Render references
 
-Android preview fixtures at 360dp width and 115% text size, using the production renderer with
-six hours of earned-growth state. These are preview fixtures, not a user's activity statistics.
-
-| Light meadow | Dark meadow | Underground |
-|---|---|---|
-| ![Light meadow](design-reference/meadow-world-light.png) | ![Dark meadow](design-reference/meadow-world-dark.png) | ![Underground](design-reference/meadow-underground.png) |
+Reference screenshots and the visual rules are in [UI_DESIGN_GUIDE.md](UI_DESIGN_GUIDE.md).

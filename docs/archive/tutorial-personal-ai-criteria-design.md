@@ -1,3 +1,5 @@
+> Historical, kept for reference: the design for the onboarding criteria page, now implemented in `ui/OnboardingScreen.kt` and `ui/common/CriteriaField.kt`. The Clef judge has no UNSURE answer any more; see [ai/how-ai-classification-works.md](../ai/how-ai-classification-works.md).
+
 # Tutorial: personalize what the AI calls important
 
 ## Purpose

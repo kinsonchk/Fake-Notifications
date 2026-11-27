@@ -1,3 +1,5 @@
+> Historical, kept for reference: the design for the continue penalty. It is implemented, but its "Not now" button, button labels and codec version are out of date. Current rules: [logic/game-rules.md](../logic/game-rules.md).
+
 # Design: Add a Small Extra Penalty for Continuing in the Original App
 
 ## Purpose

@@ -1,3 +1,5 @@
+> Historical, kept for reference: Option A was implemented and later revised; the prompt in use is `ai/ClefQuestion.kt`, described in [ai/how-ai-classification-works.md](../ai/how-ai-classification-works.md).
+
 # Better Clef prompts for notification classification
 
 This document records the old Clef classifier prompt and the three alternatives considered. **Option A is now implemented** in the app. Options B and C remain possible alternatives for later evaluation.

@@ -19,7 +19,7 @@ settings and lockout instructions in the older briefs.
 - With display-over-other-apps permission, background catches show an Android application
   overlay. In the foreground, the same two choices appear as a Compose dialog. Without
   overlay permission (or when adding the overlay fails), a notification opens the choice.
-  Allow overlay access and, on Android 13+, notification permission in Settings > Caught feedback.
+  Allow overlay access and, on Android 13+, notification permission in Settings > Catch reminders.
   Some apps/system surfaces may suppress overlays; no universal device-wide interception is promised.
 - Original-app navigation uses the original notification action when it is still available.
   After a process restart, it falls back to opening the source app. If the app/action no longer
@@ -35,7 +35,7 @@ settings and lockout instructions in the older briefs.
   demo windows and minute presets. A known age
   strictly greater than the window skips classification and the catch roll. Equality remains
   eligible. Stale actions can be recorded as unsure but do not reset the clean-hour timer.
-  Legacy package-only calls retain the conservative metadata classifier behavior.
+  Legacy package-only calls carry no AI verdict, so a Let us decide app gives Unknown (no penalty).
   The listener's first-seen tracker is preserved: choose latest-update age (default), or age
   since the listener first observed that notification key. If first-seen time is unavailable,
   the rule falls back to update age.
@@ -57,15 +57,13 @@ harness. Seven-/30-day views cover today and the preceding six/29 local calendar
 - Manual force-catch is a health/debug operation, not a notification tap, so it does not
   fabricate a tap in SQLite. Use 100% plus a simulated or real bait tap for end-to-end stats.
 
-## Mockup styling
+## Styling
 
-The native Compose screens now follow the revised mockup: a fixed cream/forest/sage palette,
-serif headings, rounded white cards, compact bottom navigation, difficulty tiles and a tree
-illustration. Dark mode uses the same green palette. Android wallpaper colors no longer override
-the design. Home, Stats, Settings and both caught presentations use this styling; settings
-sections open at the top and support Android Back. Debug controls remain accessible in debug builds.
+Visual rules (palette, type, components) live in [UI_DESIGN_GUIDE.md](UI_DESIGN_GUIDE.md).
+Android wallpaper colors do not override the design. Settings sections open at the top and
+support Android Back.
 
-Home now shows a seamless grass meadow whose height and density represent health. Brushing bends
+Home shows a seamless grass meadow whose height and density represent health. Brushing bends
 the grass without changing game state. Health and actual activity remain below it. Stats continue to display real SQLite history and honest empty states.
 `MockupScreensTest` exercises navigation and exports light/dark device screenshots into the test
 app's external-files `ui-previews` directory (collect before the test APK is uninstalled).
@@ -96,20 +94,17 @@ and SQLite v1 migration. The overlay test uses isolated preferences, restores th
 app-op and verifies the original callback fires without a second health penalty.
 
 On a demo phone: enable notification access; allow caught overlays; allow notification
-fallback; set debug override to 100%; tap a posted social/promo test notification. Verify both
+fallback; set debug override to 100%; set the source app (or the composer's package override) to
+Always bait, or configure the AI keys; tap a posted test notification. Verify both
 destinations, inactive behavior, stale-tap skip, and stats. Real-app notification metadata and
 OEM/background behavior still require the existing phone checklist.
-
-User-authorized cross-area work includes logic, service feedback, UI, debug support and tests.
 
 ## Meadow and notification-rule layout revision
 
 The frontend uses functional Home / Health / Caught / Stats headings without eyebrow labels.
-App rules follow the supplied notification-settings HTML layout: real launchable apps with a
-three-choice selector on each row, followed by essential/non-essential fields and strictness.
-Narrow layouts stack each selector below its app name; names and icons replace package IDs.
-Changes use the existing GameRepository API and save automatically. Existing AI behavior is retained;
-the attached feature brief's older judge fallback does not replace the backend.
+Notification rules list real launchable apps by name and icon (no package IDs), each with a
+three-choice rule picker, followed by essential/non-essential fields and strictness.
+Changes use the existing GameRepository API and save automatically.
 
 The Home meadow uses stable blade positions, gentle sway and non-consuming brush gestures.
 Height and density transition with health; animation pauses offscreen/in background and respects

@@ -1,6 +1,6 @@
 # Caught fishing scenes
 
-Both caught surfaces now use the **You got caught lacking!** headline and the fishing mockup:
+Both caught surfaces use the same headline (`R.string.caught_title`) and the fishing mockup:
 the fish takes a miniature notification card underwater, then resurfaces facing the user. The
 card contains only the app label and generic bait text, never notification title/text.
 
@@ -40,11 +40,6 @@ Unit checks cover earned cameo eligibility; repository tests cover stable select
 Device tests cover the real native overlay (including zero health and one continuing penalty),
 foreground callbacks, all four scenes in both themes, static postponed prompts and debug isolation.
 
-## Android references
+## Render references
 
-Actual 360dp/115% renders. Foreground images are isolated preview fixtures; the native image
-comes from the real overlay/catch/continuing-penalty test with an isolated game store.
-
-| In-app fish | Earned robin cameo | Native overlay |
-|---|---|---|
-| ![Fish](design-reference/caught-fishing-dark.png) | ![Robin](design-reference/caught-robin-dark.png) | ![Overlay](design-reference/caught-fishing-native.png) |
+Reference screenshots and the visual rules are in [UI_DESIGN_GUIDE.md](UI_DESIGN_GUIDE.md).

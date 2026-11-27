@@ -13,7 +13,7 @@ All objects below come from `(context.applicationContext as TaptationApplication
 |---|---|---|
 | Game state, errors, last tap | `game.state`, `game.error`, `game.lastResult` | Health recovers on its own (the repository schedules its refresh); screens don't poll. |
 | Caught dialog / overlay content | `feedback.prompt: StateFlow<CatchPrompt?>` | App label, `details` (health before/after, damage, rule, channel), `continueExtraDamage`, `postponed`, `animate` (first showing anywhere), `canCorrect`. Recorded on `PendingCatch` at catch time. |
-| "This should be important" sheet | `feedback.corrections: StateFlow<CorrectionRequest?>` | Package, app label, channel. |
+| "This should be important" sheet | `feedback.corrections: StateFlow<CorrectionRequest?>` | Package, app label, channel. Still wired in `TaptationApp`, but no caught button calls `correct()` any more. |
 | Notification rules list | `rulePicker: StateFlow<RulePicker>` | Eligible apps (launchable, not Taptation, allowed to notify on Android 13+) with their rule, `missingRules` (uninstalled), `notificationFilterSupported`, `search(query)`. |
 | App names and icons | `apps.label(pkg)`, `apps.icon(pkg)` (via `AppLabels` / `AppIcon` in `ui/common`) | `apps.apps` is the raw launchable list; `apps.reload()` on demand (also done on every resume). |
 | Permissions | `system.permissions: StateFlow<PermissionStatus>` | Notification access, overlay, post-notifications, battery, `notificationPromptAvailable`. |
@@ -76,6 +76,8 @@ All objects below come from `(context.applicationContext as TaptationApplication
 - **Ineffective or dead logic (delete or rebuild):** `logic/RuleChoices` writes
   `whitelistedPackages` / `baitPackages` / channel sets that the tap path no longer reads (per-app
   rules are `appRules`); `logic/ObservedTypes` is never recorded or persisted; unused screens
-  `SafeAppsPage` (reads the legacy `whitelistedPackages`), `RulesPage` helpers, `OnboardingScreen`,
-  `rememberReminderPermissions`, `HomeScreen` `Step` / `SetupRow`, `TreeIllustration`.
+  `SafeAppsPage` (reads the legacy `whitelistedPackages`), `RulesPage` helpers,
+  `rememberReminderPermissions`, `HomeScreen` `Step` / `SetupRow`, `TreeIllustration`. The
+  correction flow (`feedback.correct()`, `CorrectionSheet`) has no entry point since the caught
+  buttons were removed: re-add a button or delete it.
 - **Debug screens** (`debug/`) are UI too: `TapRecordRow` shows raw package names.
