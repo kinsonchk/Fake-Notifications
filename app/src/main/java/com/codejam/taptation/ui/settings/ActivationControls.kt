@@ -76,24 +76,15 @@ fun ActivationControls(repository: GameRepository, config: GameConfig) {
     val now = rememberNow(repository)
     val active = config.isActive(now)
     val flow = rememberPauseFlow(repository)
-    Surface(shape = RoundedCornerShape(20.dp), color = MaterialTheme.colorScheme.surfaceContainerLowest,
-        contentColor = MaterialTheme.colorScheme.onSurface,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) {
-        Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text("Monitoring notifications", style = MaterialTheme.typography.titleMedium)
-                Text(if (active) "Pausing takes a ${DisableGate.WAIT_MILLIS / 1000}-second confirmation." else "Paused. Turn on to start checking again.",
-                    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
+    com.codejam.taptation.ui.common.ListGroup {
+        com.codejam.taptation.ui.common.GroupRow("Watch notifications",
+            if (active) "Pausing takes a ${DisableGate.WAIT_MILLIS / 1000}-second confirmation"
+            else config.disabledUntilMillis?.let {
+                "Paused until " + java.text.DateFormat.getTimeInstance(java.text.DateFormat.SHORT).format(java.util.Date(it))
+            } ?: "Paused. Turn on to start checking again") {
             Switch(checked = active, enabled = !flow.busy,
                 modifier = Modifier.semantics { contentDescription = "Monitoring notifications" },
                 onCheckedChange = { enable -> if (enable) flow.resume() else flow.pause() })
-        }
-        config.disabledUntilMillis?.takeIf { !active }?.let {
-            Text("Automatically resumes at ${java.text.DateFormat.getTimeInstance(java.text.DateFormat.SHORT).format(java.util.Date(it))}")
-        }
         }
     }
 }
@@ -112,7 +103,7 @@ fun DisableConfirmation(challenge: DisableGate.Challenge, busy: Boolean,
         title = { Text("Disable with intention") },
         text = {
             androidx.compose.foundation.layout.Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text("Monitoring, new activity recording and catches will stop. Your existing history stays.")
+                Text("Monitoring, new activity recording and catches will stop. Your existing history stays")
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     // Allowed lengths come from the backend; only their wording lives here.
                     DisableGate.DURATION_CHOICES_MINUTES.forEach { value ->
@@ -120,7 +111,7 @@ fun DisableConfirmation(challenge: DisableGate.Challenge, busy: Boolean,
                         FilterChip(selected = duration == value, onClick = { duration = value }, label = { Text(label) })
                     }
                 }
-                Text(if (seconds > 0) "Take a moment. Confirm in $seconds seconds." else "Ready to confirm your choice.")
+                Text(if (seconds > 0) "Take a moment. Confirm in $seconds seconds" else "Ready to confirm your choice")
             }
         },
         confirmButton = { TextButton(enabled = seconds == 0L && !busy, onClick = { onConfirm(duration) }) { Text("Confirm disable") } },

@@ -53,7 +53,7 @@ fun CorrectionSheet(request: CorrectionRequest, onDone: () -> Unit) {
                         if (failure == null) onDone()
                     }
                 }
-            }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp), shape = RoundedCornerShape(16.dp)) { Text(if (saving) "Saving…" else "Save rule") }
+            }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp), shape = RoundedCornerShape(12.dp)) { Text(if (saving) "Saving…" else "Save rule") }
             TextButton(enabled = !saving, onClick = onDone, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("Cancel") }
         }
     }

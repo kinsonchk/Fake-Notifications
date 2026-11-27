@@ -10,8 +10,8 @@ import com.codejam.taptation.MainActivity
 import com.codejam.taptation.TaptationApplication
 import com.codejam.taptation.logic.Appearance
 import com.codejam.taptation.logic.AppearanceRepository
-import com.codejam.taptation.ui.theme.Cream
-import com.codejam.taptation.ui.theme.Night
+import com.codejam.taptation.ui.theme.LightBackground
+import com.codejam.taptation.ui.theme.DarkBackground
 import kotlinx.coroutines.*
 import org.junit.Assert.assertEquals
 import org.junit.Rule
@@ -31,7 +31,7 @@ class AppearanceTest {
             compose.waitUntil(5_000){app.appearance.mode.value==Appearance.Dark}
             compose.activityRule.scenario.recreate()
             compose.waitUntil(10_000){compose.onAllNodesWithTag("screen-title").fetchSemanticsNodes().isNotEmpty()}
-            assertBackground(Night.toArgb())
+            assertBackground(DarkBackground.toArgb())
             compose.onNodeWithText("Settings").performClick()
             compose.onNodeWithTag("tab-content").performScrollToNode(hasContentDescription("Light theme"))
             compose.onNodeWithContentDescription("Light theme").assertIsDisplayed()
@@ -40,12 +40,12 @@ class AppearanceTest {
             compose.onNodeWithContentDescription("Light theme").performClick()
             compose.waitUntil(5_000){app.appearance.mode.value==Appearance.Light}
             compose.onNodeWithContentDescription("Light theme").assertIsDisplayed().assertIsSelected()
-            assertBackground(Cream.toArgb())
+            assertBackground(LightBackground.toArgb())
             capture("appearance-light")
             compose.activityRule.scenario.recreate()
             compose.waitUntil(10_000){compose.onAllNodesWithTag("tab-content").fetchSemanticsNodes().isNotEmpty()}
             assertEquals(Appearance.Light,app.appearance.mode.value)
-            assertBackground(Cream.toArgb())
+            assertBackground(LightBackground.toArgb())
         } finally {
             app.appearance.setAppearance(previous)
             compose.waitUntil(5_000){app.appearance.mode.value==previous}

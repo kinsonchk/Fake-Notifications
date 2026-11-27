@@ -42,36 +42,37 @@ class CatchOverlay(private val context: Context,
         val density = context.resources.displayMetrics.density
         fun dp(value: Int) = (value * density).toInt()
         val dark = isDark()
-        val background = (if (dark) Night else Cream).toArgb()
-        val ink = (if (dark) NightInk else Ink).toArgb()
-        val muted = (if (dark) NightMuted else MutedGreen).toArgb()
-        val green = (if (dark) NightGreen else Forest).toArgb()
-        val onGreen = (if (dark) Night else androidx.compose.ui.graphics.Color.White).toArgb()
-        val border = (if (dark) NightBorder else BorderGreen).toArgb()
-        val warm = (if (dark) 0xFF403226.toInt() else Warm.toArgb())
-        val warmInk = (if (dark) NightInk.toArgb() else 0xFF723B2C.toInt())
-        val danger = (if (dark) 0xFFEFAAAA.toInt() else 0xFFA23D3D.toInt())
+        // Same tokens as the Compose theme (ui/theme): ink ramp, bobber orange for the catch, meadow green for health.
+        val background = (if (dark) DarkBackground else LightBackground).toArgb()
+        val ink = (if (dark) DarkText else LightText).toArgb()
+        val muted = (if (dark) DarkTextSecondary else LightTextSecondary).toArgb()
+        val raised = (if (dark) DarkRaised else LightRaised).toArgb()
+        val border = (if (dark) DarkLine else LightLine).toArgb()
+        val health = (if (dark) HealthDark else HealthLight).toArgb()
+        val catchColor = (if (dark) BobberDark else BobberLight).toArgb()
+        val plex = androidx.core.content.res.ResourcesCompat.getFont(context, R.font.ibm_plex_sans) ?: Typeface.DEFAULT
+        val plexMedium = if (android.os.Build.VERSION.SDK_INT >= 28) Typeface.create(plex, 500, false) else plex
         val details = prompt.details
         val appLabel = prompt.appLabel
         val panel = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dp(24), dp(24), dp(24), dp(24))
+            setPadding(dp(20), dp(24), dp(20), dp(20))
             this.background = GradientDrawable().apply {
-                setColor(background); cornerRadius = dp(26).toFloat(); setStroke(dp(1), border)
+                setColor(background); cornerRadius = dp(24).toFloat(); setStroke(dp(1), border)
             }
             elevation = dp(8).toFloat()
         }
         panel.addView(TextView(context).apply {
-            setText(R.string.caught_title); textSize = 34f; setTextColor(ink); typeface = Typeface.SERIF
+            setText(R.string.caught_title); textSize = 30f; setTextColor(ink); typeface = plexMedium
         })
         if (details != null && appLabel != null) {
             panel.addView(TextView(context).apply {
                 text = TapExplanations.catchReason(details.rule, appLabel, details.channel)
-                textSize = 14f; setTextColor(ink); setPadding(0, dp(12), 0, dp(4))
+                textSize = 14f; setTextColor(muted); typeface = plex; setPadding(0, dp(8), 0, dp(4))
             })
         } else {
             panel.addView(TextView(context).apply {
-                setText(R.string.caught_message_no_extra); textSize = 14f; setTextColor(muted); setPadding(0, dp(12), 0, dp(4))
+                setText(R.string.caught_message_no_extra); textSize = 14f; setTextColor(muted); typeface = plex; setPadding(0, dp(8), 0, dp(4))
             })
         }
         panel.addView(FishingSceneView(context).apply {
@@ -79,15 +80,15 @@ class CatchOverlay(private val context: Context,
             bind(prompt.catchId,sceneFor(prompt.catchId),appLabel,dark,prompt.animate)
         })
         if (details != null && details.damage > 0) {
-            panel.addView(healthBlock(details, prompt.animate, ink, muted, green, danger, warm, warmInk, border) { dp(it) })
+            panel.addView(healthBlock(details, prompt.animate, ink, muted, health, catchColor, raised, plex, plexMedium) { dp(it) })
         }
-        panel.addView(TextView(context).apply {setText(R.string.caught_destination_prompt);textSize=12f;setTextColor(muted);setPadding(0,dp(8),0,dp(4))})
+        panel.addView(TextView(context).apply {setText(R.string.caught_destination_prompt);textSize=13f;setTextColor(muted);typeface=plex;setPadding(0,dp(12),0,dp(4))})
         fun choice(label: String, primary: Boolean, action: () -> Unit) = Button(context).apply {
-            text = label; isAllCaps = false; textSize = 14f
-            setTextColor(if (primary) onGreen else green)
+            text = label; isAllCaps = false; textSize = 15f; typeface = plexMedium
+            setTextColor(if (primary) background else ink)
             backgroundTintList = null; stateListAnimator = null
             this.background = GradientDrawable().apply {
-                setColor(if (primary) green else background); cornerRadius = dp(16).toFloat()
+                setColor(if (primary) ink else raised); cornerRadius = dp(12).toFloat()
                 if (!primary) setStroke(dp(1), border)
             }
             layoutParams = LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(8) }
@@ -135,35 +136,32 @@ class CatchOverlay(private val context: Context,
         overlay = null
     }
 
-    /** Already-applied health loss with a shrinking bar and floating cost; static when motion is off. */
+    /** Already-applied health loss: "Health  90 / 100", a bar that shrinks, the cost in text. Static when motion is off. */
     private fun healthBlock(details: CatchDetails, animate: Boolean, ink: Int, muted: Int,
-        green: Int, danger: Int, warm: Int, warmInk: Int, track: Int, dp: (Int) -> Int,
+        health: Int, catchColor: Int, track: Int, plex: Typeface, plexMedium: Typeface, dp: (Int) -> Int,
     ): View {
         val lost = details.damage
-        val chip = TextView(context).apply {
-            text = "−$lost"; textSize = 12f; setTextColor(warmInk); typeface = Typeface.DEFAULT_BOLD
-            setPadding(dp(10), dp(3), dp(10), dp(3)); alpha = 0f
-            background = GradientDrawable().apply { setColor(warm); cornerRadius = dp(20).toFloat() }
-        }
-        val number = TextView(context).apply { textSize = 26f; setTextColor(ink); typeface = Typeface.SERIF }
+        val mono = androidx.core.content.res.ResourcesCompat.getFont(context, R.font.ibm_plex_mono_regular) ?: Typeface.MONOSPACE
+        val number = TextView(context).apply { textSize = 14f; setTextColor(ink); typeface = mono }
         val floating = TextView(context).apply {
-            text = "−$lost"; textSize = 14f; setTextColor(danger); typeface = Typeface.DEFAULT_BOLD; alpha = 0f
+            text = "−$lost"; textSize = 14f; setTextColor(catchColor); typeface = mono; alpha = 0f
         }
-        val row = LinearLayout(context).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.BOTTOM }
-        row.addView(TextView(context).apply { text = "💚 Health"; textSize = 14f; setTextColor(ink); typeface = Typeface.DEFAULT_BOLD })
-        row.addView(chip, LinearLayout.LayoutParams(-2, -2).apply { marginStart = dp(8) })
+        val row = LinearLayout(context).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
+        row.addView(android.widget.ImageView(context).apply {
+            setImageResource(R.drawable.ic_heart); setColorFilter(muted)
+        }, LinearLayout.LayoutParams(dp(18), dp(18)).apply { marginEnd = dp(8) })
+        row.addView(TextView(context).apply { text = "Health"; textSize = 15f; setTextColor(ink); typeface = plexMedium })
         row.addView(View(context), LinearLayout.LayoutParams(0, 1, 1f))
         row.addView(number)
-        row.addView(TextView(context).apply { text = " / 100"; textSize = 12f; setTextColor(muted) })
         val frame = FrameLayout(context).apply {
             contentDescription = "Health ${details.healthAfter} out of 100, down $lost"
             addView(row, FrameLayout.LayoutParams(-1, -2))
-            addView(floating, FrameLayout.LayoutParams(-2, -2, Gravity.TOP or Gravity.END))
+            addView(floating, FrameLayout.LayoutParams(-2, -2, Gravity.TOP or Gravity.END).apply { topMargin = -dp(18) })
         }
-        val bar = HealthBarView(context, track, green)
+        val bar = HealthBarView(context, track, health)
         fun setValue(k: Float) {
             val value = details.healthBefore + (details.healthAfter - details.healthBefore) * k
-            number.text = Math.round(value).toString(); bar.fraction = value / 100f; chip.alpha = k
+            number.text = "${Math.round(value)} / 100"; bar.fraction = value / 100f
         }
         setValue(0f)
         if (animate && ValueAnimator.areAnimatorsEnabled()) {
@@ -176,7 +174,7 @@ class CatchOverlay(private val context: Context,
             }
             run(1150, 0, android.view.animation.LinearInterpolator()) {
                 setValue(damageDropProgress(it))
-                bar.fillColor = androidx.core.graphics.ColorUtils.blendARGB(green, danger, damageFlashMix(it))
+                bar.fillColor = androidx.core.graphics.ColorUtils.blendARGB(health, catchColor, damageFlashMix(it))
             }
             run(900, 150, android.view.animation.LinearInterpolator()) {
                 floating.alpha = (if (it < .25f) it / .25f else 1f - (it - .25f) / .75f).coerceIn(0f, 1f)
@@ -187,10 +185,12 @@ class CatchOverlay(private val context: Context,
         }
         return LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(0, 0, 0, 0)
-            layoutParams = LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(12); bottomMargin = dp(8) }
+            layoutParams = LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(12); bottomMargin = dp(4) }
             addView(frame, LinearLayout.LayoutParams(-1, -2))
-            addView(bar, LinearLayout.LayoutParams(-1, dp(8)).apply { topMargin = dp(8) })
+            addView(bar, LinearLayout.LayoutParams(-1, dp(8)).apply { topMargin = dp(10) })
+            addView(TextView(context).apply {
+                text = "−$lost from this catch"; textSize = 13f; setTextColor(muted); typeface = plex; setPadding(0, dp(8), 0, 0)
+            })
         }
     }
 }

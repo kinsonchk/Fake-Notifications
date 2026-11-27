@@ -1,5 +1,6 @@
 package com.codejam.taptation.ui
 
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Surface
@@ -29,7 +30,7 @@ class GrassAndChartTest {
         compose.onNodeWithContentDescription("16 opened, 8 swiped. 67 percent opened.").assertIsDisplayed()
         compose.onNodeWithTag("daily-chart").performTouchInput { click(Offset(width / 14f, height / 2f)) }
         compose.onNodeWithText("Mon, Nov 16 · 0 catches").assertIsDisplayed()
-        compose.onNodeWithText("Later ›").performClick()
+        compose.onNodeWithContentDescription("Later day").performClick()
         compose.onNodeWithText("Tue, Nov 17 · 0 catches").assertIsDisplayed()
     }
 }

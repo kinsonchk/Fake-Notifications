@@ -26,7 +26,7 @@ fun CaughtPreviewDialog(onClose:()->Unit) {
     var replay by remember{mutableIntStateOf(0)}
     var result by remember{mutableStateOf("")}
     TaptationTheme(darkTheme=dark) {
-        Dialog(onDismissRequest=onClose){Surface(shape=RoundedCornerShape(26.dp),color=MaterialTheme.colorScheme.background){
+        Dialog(onDismissRequest=onClose){Surface(shape=RoundedCornerShape(24.dp),color=MaterialTheme.colorScheme.background){
             Column(Modifier.verticalScroll(rememberScrollState()).padding(24.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){
                 Text("Catch preview",style=MaterialTheme.typography.headlineSmall)
                 Text("Preview only. Your health and discoveries do not change.",style=MaterialTheme.typography.bodyMedium)

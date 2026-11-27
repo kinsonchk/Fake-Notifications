@@ -1,5 +1,6 @@
 package com.codejam.taptation.ui
 
+import androidx.compose.ui.test.onNodeWithContentDescription
 import android.graphics.Bitmap
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.*
@@ -69,12 +70,12 @@ class MeadowWorldTest {
         show()
         compose.onNodeWithText("Explore").performClick()
         compose.onNodeWithText("Explore").performClick()
-        compose.onNodeWithText("Discoveries 8 / 8").performClick()
+        compose.onNodeWithContentDescription("Discoveries 8 of 8").performClick()
         compose.onNodeWithText("Your discoveries stay, even after a catch.").assertIsDisplayed()
         compose.onNodeWithTag("meadow-collection").performScrollToNode(hasText("Young oak"))
         compose.onNodeWithText("Young oak").assertIsDisplayed()
         androidx.test.espresso.Espresso.pressBack()
-        compose.onNodeWithText("Below ground ↓").performClick()
+        compose.onNodeWithContentDescription("Below ground").performClick()
         compose.onNodeWithContentDescription("Underground:", substring = true).assertExists()
         compose.onNodeWithContentDescription("Underground:", substring = true).performTouchInput{click(Offset(width*.15f,height*.7f))}
         compose.onNodeWithText("The mushrooms answer with a soft glow.").assertExists()

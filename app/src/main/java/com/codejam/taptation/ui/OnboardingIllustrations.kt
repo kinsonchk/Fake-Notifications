@@ -65,7 +65,7 @@ private const val SAMPLE_TITLE = "sam.k liked your photo"
 @Composable
 internal fun MiniNotification(subtitle: String, modifier: Modifier = Modifier, rule: AppRule = AppRule.LetUsDecide,
     title: String = SAMPLE_TITLE, app: String = SAMPLE_APP) {
-    Surface(modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp), color = MaterialTheme.colorScheme.background,
+    Surface(modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp), color = MaterialTheme.colorScheme.background,
         contentColor = MaterialTheme.colorScheme.onSurface,
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) {
         Row(Modifier.height(IntrinsicSize.Min)) {
@@ -189,8 +189,8 @@ internal fun MiniButton(text: String, filled: Boolean, modifier: Modifier = Modi
 @Composable
 private fun IllustrationFrame(modifier: Modifier, content: @Composable BoxScope.() -> Unit) {
     Box(modifier.fillMaxWidth()
-        .background(MaterialTheme.colorScheme.background, RoundedCornerShape(14.dp))
-        .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(14.dp))
+        .background(MaterialTheme.colorScheme.background, RoundedCornerShape(12.dp))
+        .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(12.dp))
         .padding(1.dp), content = content)
 }
 
@@ -202,7 +202,7 @@ internal fun IllustratedCard(
     illustration: @Composable () -> Unit,
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(20.dp),
+    Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLowest,
             contentColor = MaterialTheme.colorScheme.onSurface),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) {

@@ -154,7 +154,7 @@ internal fun OnboardingScreen(startAtSetup: Boolean, onComplete: () -> Unit) {
                     },
                     enabled = page < PAGE_SETUP || canFinish,
                     modifier = Modifier.weight(1f).height(52.dp),
-                    shape = RoundedCornerShape(16.dp),
+                    shape = RoundedCornerShape(12.dp),
                 ) { Text(when (page) {
                     PAGE_APP_RULES -> "Set up notifications"
                     PAGE_SETUP -> "Finish setup"
@@ -332,7 +332,7 @@ private fun AppRulesPage(repository: GameRepository) {
             else -> "Your apps"
         }, style = MaterialTheme.typography.titleMedium)
         if (showAll) OutlinedTextField(search, onValueChange = { search = it }, label = { Text("Find an app") },
-            modifier = Modifier.fillMaxWidth(), singleLine = true, shape = RoundedCornerShape(16.dp))
+            modifier = Modifier.fillMaxWidth(), singleLine = true, shape = RoundedCornerShape(12.dp))
         when {
             picker.apps == null && picker.error != null -> {
                 Text("Couldn’t load installed apps.", color = MaterialTheme.colorScheme.error)
@@ -374,7 +374,7 @@ private fun SetupPage(notificationAccess: Boolean, overlayAccess: Boolean) {
         if (!notificationAccess) Button(
             onClick = { PermissionHelper.openNotificationAccessSettings(context) },
             modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
-            shape = RoundedCornerShape(16.dp),
+            shape = RoundedCornerShape(12.dp),
         ) { Text("Open notification access settings") }
     }
     IllustratedCard("Show reminders over other apps",
@@ -384,7 +384,7 @@ private fun SetupPage(notificationAccess: Boolean, overlayAccess: Boolean) {
         if (!overlayAccess) OutlinedButton(
             onClick = { openOverlaySettings(context) },
             modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
-            shape = RoundedCornerShape(16.dp),
+            shape = RoundedCornerShape(12.dp),
         ) { Text("Allow display over other apps") }
     }
     Text("Come back here after changing a setting. Taptation checks again automatically.",

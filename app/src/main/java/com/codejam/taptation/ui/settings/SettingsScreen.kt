@@ -42,6 +42,12 @@ import com.codejam.taptation.logic.GameRepository
 import com.codejam.taptation.ui.common.SectionCard
 import com.codejam.taptation.ui.common.TabScreen
 import com.codejam.taptation.ui.common.rememberGameRepository
+import com.codejam.taptation.ui.common.GroupRow
+import com.codejam.taptation.ui.common.LineIcon
+import com.codejam.taptation.ui.common.ListGroup
+import com.codejam.taptation.ui.common.RowDivider
+import com.codejam.taptation.ui.common.SectionLabel
+import com.codejam.taptation.ui.common.SegmentedChoice
 
 /**
  * "How does the game behave?" Every control writes through GameRepository.updateConfig, the single
@@ -79,7 +85,7 @@ fun SettingsScreen(contentPadding: PaddingValues, openPage: String? = null, onPa
             item { Text("Loading saved settings…") }
             return@TabScreen
         }
-        if (page != "main") item { TextButton(onClick = { page = "main" }) { Text("←  Back to settings") } }
+        if (page != "main") item { com.codejam.taptation.ui.common.BackLink("Settings") { page = "main" } }
         if (page == "feedback") {
             item { Text("Manage catch reminders below.") }
             return@TabScreen
@@ -91,10 +97,18 @@ fun SettingsScreen(contentPadding: PaddingValues, openPage: String? = null, onPa
         item {
             val distracting = config.countOf(AppRule.AlwaysBait)
             val important = config.countOf(AppRule.AlwaysImportant)
-            SettingsLink("Notification rules", "$distracting always distracting · $important always important", R.drawable.ic_tab_notifications) { page = "rules" }
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                SectionLabel("More")
+                ListGroup {
+                    GroupRow("Notification rules", "$distracting always distracting · $important always important",
+                        icon = R.drawable.ic_shield, onClick = { page = "rules" })
+                    RowDivider()
+                    GroupRow("Catch reminders", "Permissions and delivery", icon = R.drawable.ic_bell, onClick = { page = "feedback" })
+                    RowDivider()
+                    GroupRow("Learn Taptation again", "The main features and setup steps", icon = R.drawable.ic_book, onClick = onShowTutorial)
+                }
+            }
         }
-        item { SettingsLink("Catch reminders", "Permissions and delivery", R.drawable.ic_tab_notifications) { page = "feedback" } }
-        item { SettingsLink("Learn Taptation again", "Review the main features and setup steps", R.drawable.ic_tab_home, onShowTutorial) }
     }
     }
 }
@@ -104,38 +118,25 @@ private fun AppearanceCard() {
     val appearance = (androidx.compose.ui.platform.LocalContext.current.applicationContext as com.codejam.taptation.TaptationApplication).appearance
     val mode by appearance.mode.collectAsStateWithLifecycle()
     val error by appearance.error.collectAsStateWithLifecycle()
-    SectionCard("Appearance", "Dark is the default. Choose the look you prefer.") {
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            com.codejam.taptation.logic.Appearance.entries.forEach { choice ->
-                FilterChip(selected = mode == choice, enabled = mode != null,
-                    onClick = { appearance.setAppearance(choice) },
-                    modifier = Modifier.semantics { contentDescription = "${choice.name} theme" },
-                    label = { Text(choice.name) })
-            }
-        }
+    val choices = com.codejam.taptation.logic.Appearance.entries
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        SectionLabel("Appearance")
+        SegmentedChoice(choices.map { it.name }, choices.indexOf(mode),
+            { index -> if (mode != null) appearance.setAppearance(choices[index]) },
+            descriptions = choices.map { "${it.name} theme" })
         error?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
     }
 }
 
 @Composable
 private fun GameRulesCard(config: GameConfig, repository: GameRepository) {
-    SectionCard("Difficulty", "For apps on Let us decide, this is the catch chance after AI marks a notification as distracting. Always distracting apps catch eligible taps without a chance roll.") {
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Difficulty.entries.forEach { difficulty ->
-                val select = { repository.setDifficulty(difficulty); Unit }
-                val isSelected = difficulty == config.difficulty
-                Surface(onClick = select, modifier = Modifier.weight(1f).semantics { selected = isSelected },
-                    shape = RoundedCornerShape(16.dp), border = if (isSelected) null else BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-                    color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainerLowest,
-                    contentColor = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant) {
-                    Column(Modifier.padding(vertical = 14.dp), horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text(difficulty.name, style = MaterialTheme.typography.labelLarge)
-                        Text("${(difficulty.probability * 100).toInt()}%", style = MaterialTheme.typography.headlineSmall)
-                    }
-                }
-            }
-        }
+    val levels = Difficulty.entries
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        SectionLabel("Difficulty")
+        SegmentedChoice(levels.map { it.name }, levels.indexOf(config.difficulty), { repository.setDifficulty(levels[it]) },
+            captions = levels.map { "${(it.probability * 100).toInt()}%" })
+        Text("Catch chance once AI judges a notification distracting. Always distracting apps skip the roll",
+            Modifier.padding(horizontal = 4.dp), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
@@ -149,56 +150,45 @@ private fun FreshnessCard(config: GameConfig, repository: GameRepository) {
     var changing by rememberSaveable { mutableStateOf(false) }
     var advanced by rememberSaveable { mutableStateOf(false) }
     val on = config.freshnessEnabled
-    SectionCard("Ignore older notifications") {
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text(if (on) "Opening a notification more than ${timeLimitText(config.freshnessSeconds)} after " +
-                (if (config.freshnessFromFirstSeen) "Taptation first saw it" else "its latest update") + " won't trigger a catch."
-                else "Every distracting notification can catch you, however old it is.",
-                Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Switch(checked = on, modifier = Modifier.semantics { contentDescription = "Ignore older notifications" },
-                onCheckedChange = { enabled -> repository.setFreshnessEnabled(enabled) })
-        }
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-            TextButton(enabled = on, onClick = { changing = !changing }) { Text(if (changing) "Done" else "Change time") }
-            TextButton(onClick = { advanced = !advanced }) { Text(if (advanced) "Advanced  ⌃" else "Advanced  ⌄") }
-        }
-        if (changing && on) FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            timeLimitMinutes.forEach { minutes ->
-                FilterChip(selected = config.freshnessSeconds == minutes * 60,
-                    onClick = { repository.setFreshnessMinutes(minutes) },
-                    label = { Text(timeLimitText(minutes * 60)) })
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        SectionLabel("Older notifications")
+        ListGroup {
+            GroupRow("Ignore older notifications",
+                if (on) "Opened more than ${timeLimitText(config.freshnessSeconds)} after " +
+                    (if (config.freshnessFromFirstSeen) "Taptation first saw it" else "its latest update") + ", it can't catch you"
+                else "Every distracting notification can catch you, however old it is") {
+                Switch(checked = on, modifier = Modifier.semantics { contentDescription = "Ignore older notifications" },
+                    onCheckedChange = { enabled -> repository.setFreshnessEnabled(enabled) })
             }
-        }
-        if (advanced) {
-            Text("Count age from", style = MaterialTheme.typography.titleSmall)
-            com.codejam.taptation.ui.common.RadioOption(!config.freshnessFromFirstSeen, "Latest update",
-                "A new message in the same chat restarts the clock.") {
-                repository.setFreshnessFromFirstSeen(false)
+            if (on) {
+                RowDivider()
+                GroupRow("Time limit", value = timeLimitText(config.freshnessSeconds), onClick = { changing = !changing }) {
+                    LineIcon(if (changing) R.drawable.ic_chevron_up else R.drawable.ic_chevron_down)
+                }
+                if (changing) FlowRow(Modifier.padding(start = 16.dp, end = 16.dp, bottom = 12.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    timeLimitMinutes.forEach { minutes ->
+                        FilterChip(selected = config.freshnessSeconds == minutes * 60,
+                            onClick = { repository.setFreshnessMinutes(minutes) },
+                            label = { Text(timeLimitText(minutes * 60)) })
+                    }
+                }
+                RowDivider()
+                GroupRow("Count age from", value = if (config.freshnessFromFirstSeen) "First seen" else "Latest update",
+                    onClick = { advanced = !advanced }) {
+                    LineIcon(if (advanced) R.drawable.ic_chevron_up else R.drawable.ic_chevron_down)
+                }
+                if (advanced) Column(Modifier.padding(start = 16.dp, end = 16.dp, bottom = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    com.codejam.taptation.ui.common.RadioOption(!config.freshnessFromFirstSeen, "Latest update",
+                        "A new message in the same chat restarts the clock") {
+                        repository.setFreshnessFromFirstSeen(false)
+                    }
+                    com.codejam.taptation.ui.common.RadioOption(config.freshnessFromFirstSeen, "First time Taptation saw it",
+                        "The clock starts once, even if the app updates the notification") {
+                        repository.setFreshnessFromFirstSeen(true)
+                    }
+                }
             }
-            com.codejam.taptation.ui.common.RadioOption(config.freshnessFromFirstSeen, "First time Taptation saw it",
-                "The clock starts once, even if the app updates the notification.") {
-                repository.setFreshnessFromFirstSeen(true)
-            }
-        }
-    }
-}
-
-@Composable
-private fun SettingsLink(title: String, subtitle: String, icon: Int, onClick: () -> Unit) {
-    Surface(onClick = onClick, shape = RoundedCornerShape(22.dp),
-        color = MaterialTheme.colorScheme.surfaceContainerLowest,
-        contentColor = MaterialTheme.colorScheme.onSurface,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) {
-        Row(Modifier.fillMaxWidth().padding(18.dp), verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-            Surface(shape = RoundedCornerShape(13.dp), color = MaterialTheme.colorScheme.primaryContainer) {
-                Icon(painterResource(icon), null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(10.dp))
-            }
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                Text(title, style = MaterialTheme.typography.titleSmall)
-                Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-            Text("›", style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }

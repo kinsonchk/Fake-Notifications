@@ -161,9 +161,9 @@ private fun androidx.compose.foundation.lazy.LazyListScope.chooseTypeStep(
             SectionCard("No types yet", "Taptation learns an app's notification types when it receives one. " +
                 "Keep monitoring on and check back after $appName sends a notification.") {
                 Button(onClick = onUseWholeApp, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
-                    shape = RoundedCornerShape(16.dp)) { Text("Use for all $appName notifications") }
+                    shape = RoundedCornerShape(12.dp)) { Text("Use for all $appName notifications") }
                 OutlinedButton(onClick = onChangeApp, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
-                    shape = RoundedCornerShape(16.dp)) { Text("Choose another app") }
+                    shape = RoundedCornerShape(12.dp)) { Text("Choose another app") }
             }
         }
     } else {
@@ -186,14 +186,14 @@ internal fun StickyAction(label: String, onClick: () -> Unit) {
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) {
         Box(Modifier.padding(horizontal = 24.dp, vertical = 12.dp)) {
             Button(onClick = onClick, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
-                shape = RoundedCornerShape(16.dp)) { Text(label) }
+                shape = RoundedCornerShape(12.dp)) { Text(label) }
         }
     }
 }
 
 @Composable
 internal fun UndoBar(message: String, onUndo: () -> Unit) {
-    Surface(Modifier.fillMaxWidth().padding(12.dp), shape = RoundedCornerShape(14.dp),
+    Surface(Modifier.fillMaxWidth().padding(12.dp), shape = RoundedCornerShape(12.dp),
         color = MaterialTheme.colorScheme.inverseSurface, contentColor = MaterialTheme.colorScheme.inverseOnSurface) {
         Row(Modifier.padding(start = 16.dp, end = 4.dp), verticalAlignment = Alignment.CenterVertically) {
             Text(message, Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)

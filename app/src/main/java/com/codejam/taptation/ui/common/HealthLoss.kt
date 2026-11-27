@@ -39,6 +39,13 @@ import androidx.compose.ui.unit.dp
 import kotlin.math.roundToInt
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.width
+import androidx.compose.ui.unit.sp
+import com.codejam.taptation.R
+import com.codejam.taptation.ui.theme.CardShape
+import com.codejam.taptation.ui.theme.MetaText
+import com.codejam.taptation.ui.theme.Taptation
 
 /** True unless the user turned animations off in Android's accessibility or developer settings. */
 fun animationsEnabled(): Boolean = ValueAnimator.areAnimatorsEnabled()
@@ -76,7 +83,7 @@ fun LeafBadge(fall: Float, modifier: Modifier = Modifier) {
 }
 
 /**
- * "Tree health 90 → 80" with a bar that shrinks and a "−10" that floats up. Shows the final value
+ * "Health  90 / 100" with a bar that shrinks and a "−10" that floats up. Shows the final value
  * straight away when animations are off, and always states the loss in text.
  */
 @Composable
@@ -91,23 +98,24 @@ fun HealthLossBlock(healthBefore: Int, healthAfter: Int, animateDamage: Boolean 
     val drop = damageDropProgress(progress.value)
     val shown = healthBefore + ((healthAfter - healthBefore) * drop).roundToInt()
     val bar = (healthBefore + (healthAfter - healthBefore) * drop) / 100f
-    val color = androidx.compose.ui.graphics.lerp(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.error,
-        damageFlashMix(progress.value))
+    val color = androidx.compose.ui.graphics.lerp(Taptation.palette.health, Taptation.palette.catch, damageFlashMix(progress.value))
     val content: @Composable () -> Unit = {
-        Column(Modifier.fillMaxWidth().then(if(compact)Modifier else Modifier.padding(14.dp)).semantics {
+        Column(Modifier.fillMaxWidth().then(if (compact) Modifier else Modifier.padding(16.dp)).semantics {
             contentDescription = "Health $healthAfter out of 100, down $lost"
-        }, verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                Text("💚 Health", style = MaterialTheme.typography.titleSmall)
-                Text("$shown / 100", style = MaterialTheme.typography.titleMedium)
+        }, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                LineIcon(R.drawable.ic_heart, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                Spacer(Modifier.width(8.dp))
+                Text("Health", Modifier.weight(1f), style = MaterialTheme.typography.titleSmall)
+                Text("$shown / 100", style = MetaText.copy(fontSize = 14.sp))
             }
-            Box(Modifier.fillMaxWidth().height(8.dp).clip(RoundedCornerShape(6.dp)).background(MaterialTheme.colorScheme.outlineVariant)) {
-                Box(Modifier.fillMaxWidth(bar.coerceIn(0f, 1f)).height(8.dp).background(color))
+            Box(Modifier.fillMaxWidth().height(8.dp).clip(RoundedCornerShape(4.dp)).background(Taptation.palette.raised)) {
+                Box(Modifier.fillMaxWidth(bar.coerceIn(0f, 1f)).height(8.dp).clip(RoundedCornerShape(4.dp)).background(color))
             }
-            Text("−$lost health from this catch", style = MaterialTheme.typography.bodySmall,
+            Text("−$lost from this catch", style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
-    if(compact) content() else Surface(shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.surface,
+    if (compact) content() else Surface(shape = CardShape, color = MaterialTheme.colorScheme.surfaceContainerLowest,
         border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) { content() }
 }

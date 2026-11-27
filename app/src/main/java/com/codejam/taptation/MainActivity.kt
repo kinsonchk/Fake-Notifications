@@ -13,7 +13,7 @@ import androidx.compose.ui.Modifier
 import androidx.core.view.WindowCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.codejam.taptation.logic.Appearance
-import com.codejam.taptation.ui.theme.Night
+import com.codejam.taptation.ui.theme.DarkBackground
 import com.codejam.taptation.ui.TaptationApp
 import com.codejam.taptation.ui.theme.TaptationTheme
 
@@ -24,7 +24,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             val appearance by (application as TaptationApplication).appearance.mode.collectAsStateWithLifecycle()
             if (appearance == null) {
-                Box(Modifier.fillMaxSize().background(Night))
+                Box(Modifier.fillMaxSize().background(DarkBackground))
             } else {
                 val dark = appearance != Appearance.Light
                 SideEffect {

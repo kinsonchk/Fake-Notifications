@@ -30,37 +30,93 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
+import androidx.compose.animation.core.EaseOutQuint
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import com.codejam.taptation.ui.theme.ControlShape
+import com.codejam.taptation.ui.theme.MetaText
+import com.codejam.taptation.ui.theme.Taptation
 
-/** Small status pill: green when [good], warm when something needs attention. */
+/** Small status tag: neutral when [good], the notice tone when something needs attention. */
 @Composable
 fun StatusPill(text: String, good: Boolean, modifier: Modifier = Modifier) {
-    Surface(modifier, shape = RoundedCornerShape(50),
-        color = if (good) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.tertiaryContainer,
-        contentColor = if (good) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onTertiaryContainer) {
-        Text(text, Modifier.padding(horizontal = 12.dp, vertical = 6.dp), style = MaterialTheme.typography.labelMedium)
+    Surface(modifier, shape = RoundedCornerShape(6.dp),
+        color = if (good) MaterialTheme.colorScheme.surfaceContainerHigh else MaterialTheme.colorScheme.tertiaryContainer,
+        contentColor = if (good) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onTertiaryContainer) {
+        Text(text, Modifier.padding(horizontal = 8.dp, vertical = 4.dp), style = MaterialTheme.typography.labelMedium)
     }
 }
 
+/** Back to the parent page: a chevron and the parent's name. Android Back does the same. */
 @Composable
 fun BackLink(label: String, onClick: () -> Unit) {
-    TextButton(onClick = onClick) { Text("←  $label") }
+    TextButton(onClick = onClick, contentPadding = PaddingValues(start = 0.dp, end = 12.dp),
+        modifier = Modifier.semantics { contentDescription = "Back to $label" },
+        colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.onSurfaceVariant)) {
+        LineIcon(com.codejam.taptation.R.drawable.ic_chevron_left, size = 20.dp, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+        Spacer(Modifier.width(4.dp))
+        Text(label, style = MaterialTheme.typography.labelLarge)
+    }
 }
 
-/** A row of mutually exclusive choices, e.g. "Last 7 days" / "Last 30 days". */
+/**
+ * The monitoring bobber: the top half is the catch colour. It floats gently only while [live]
+ * (Taptation is watching) and motion is on; otherwise it sits still.
+ */
 @Composable
-fun SegmentedChoice(options: List<String>, selectedIndex: Int, onSelect: (Int) -> Unit, modifier: Modifier = Modifier) {
-    Surface(modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.primaryContainer) {
-        Row(Modifier.padding(4.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+fun Bobber(live: Boolean, modifier: Modifier = Modifier) {
+    val motion = rememberMotionEnabled()
+    val lineColor = Taptation.palette.muted
+    val top = Taptation.palette.catch
+    val bottom = MaterialTheme.colorScheme.onSurface
+    val offset = if (live && motion) {
+        val transition = rememberInfiniteTransition(label = "Bobber")
+        transition.animateFloat(0f, 1f, infiniteRepeatable(tween(2400, easing = EaseOutQuint), RepeatMode.Reverse), label = "Bob").value
+    } else 0f
+    Canvas(modifier.size(width = 12.dp, height = 18.dp).semantics { contentDescription = if (live) "Watching" else "Not watching" }) {
+        val shift = offset * 2.dp.toPx()
+        val r = 5.dp.toPx(); val cx = size.width / 2; val cy = 12.dp.toPx() + shift
+        drawLine(lineColor, Offset(cx, 0f), Offset(cx, cy - r), strokeWidth = 1.2.dp.toPx())
+        drawArc(top, 180f, 180f, true, Offset(cx - r, cy - r), Size(r * 2, r * 2))
+        drawArc(bottom, 0f, 180f, true, Offset(cx - r, cy - r), Size(r * 2, r * 2))
+    }
+}
+
+/**
+ * A row of mutually exclusive choices, e.g. "7 days" / "30 days". [captions] adds a mono second line
+ * under each option (difficulty percentages). The selected option is a raised card on a quiet track.
+ */
+@Composable
+fun SegmentedChoice(options: List<String>, selectedIndex: Int, onSelect: (Int) -> Unit, modifier: Modifier = Modifier,
+    captions: List<String>? = null, descriptions: List<String>? = null) {
+    Surface(modifier.fillMaxWidth(), shape = ControlShape, color = Taptation.palette.raised) {
+        Row(Modifier.padding(2.dp), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
             options.forEachIndexed { index, label ->
                 val selected = index == selectedIndex
-                Surface(Modifier.weight(1f).heightIn(min = 48.dp)
-                    .selectable(selected = selected, role = Role.RadioButton, onClick = { onSelect(index) }),
-                    shape = RoundedCornerShape(12.dp),
+                Surface(Modifier.weight(1f).heightIn(min = if (captions != null) 56.dp else 44.dp)
+                    .selectable(selected = selected, role = Role.RadioButton, onClick = { onSelect(index) })
+                    .then(descriptions?.getOrNull(index)?.let { d -> Modifier.semantics { contentDescription = d } } ?: Modifier),
+                    shape = RoundedCornerShape(8.dp),
                     color = if (selected) MaterialTheme.colorScheme.surfaceContainerLowest else androidx.compose.ui.graphics.Color.Transparent,
+                    border = if (selected) BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant) else null,
                     contentColor = if (selected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant) {
-                    Row(Modifier.padding(horizontal = 8.dp), horizontalArrangement = Arrangement.Center,
-                        verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.padding(horizontal = 8.dp, vertical = 6.dp), horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center) {
                         Text(label, style = MaterialTheme.typography.labelLarge, maxLines = 2)
+                        captions?.getOrNull(index)?.let {
+                            Text(it, style = MetaText, color = if (selected) Taptation.palette.catchText else Taptation.palette.muted)
+                        }
                     }
                 }
             }
@@ -72,10 +128,10 @@ fun SegmentedChoice(options: List<String>, selectedIndex: Int, onSelect: (Int) -
 @Composable
 fun RadioOption(selected: Boolean, title: String, subtitle: String? = null, onClick: () -> Unit) {
     Surface(Modifier.fillMaxWidth().selectable(selected = selected, role = Role.RadioButton, onClick = onClick),
-        shape = RoundedCornerShape(16.dp),
-        color = if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerLowest,
+        shape = RoundedCornerShape(12.dp),
+        color = if (selected) Taptation.palette.raised else MaterialTheme.colorScheme.surfaceContainerLowest,
         contentColor = MaterialTheme.colorScheme.onSurface,
-        border = BorderStroke(if (selected) 2.dp else 1.dp,
+        border = BorderStroke(if (selected) 1.5.dp else 1.dp,
             if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant)) {
         Row(Modifier.padding(horizontal = 12.dp, vertical = 10.dp).heightIn(min = 48.dp),
             verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -115,12 +171,12 @@ fun TermListCard(title: String, subtitle: String, note: String?, fieldLabel: Str
                 Text(value, Modifier.weight(1f), style = MaterialTheme.typography.titleSmall)
                 TextButton(onClick = { onChange(values - value); removed = value },
                     modifier = Modifier.semantics { contentDescription = "Remove $value" }) {
-                    Text("✕  Remove", color = MaterialTheme.colorScheme.error)
+                    Text("Remove", color = MaterialTheme.colorScheme.error)
                 }
             }
         }
         removed?.let { gone ->
-            Surface(shape = RoundedCornerShape(12.dp), color = MaterialTheme.colorScheme.inverseSurface,
+            Surface(shape = ControlShape, color = MaterialTheme.colorScheme.inverseSurface,
                 contentColor = MaterialTheme.colorScheme.inverseOnSurface) {
                 Row(Modifier.fillMaxWidth().padding(start = 16.dp, end = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                     Text("Removed “$gone”", Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)

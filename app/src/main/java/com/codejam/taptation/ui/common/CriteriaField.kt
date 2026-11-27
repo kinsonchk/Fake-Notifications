@@ -45,6 +45,6 @@ fun CriteriaField(label: String, placeholder: String, saved: String, onSave: (St
         modifier = Modifier.fillMaxWidth().semantics { contentDescription = label },
         minLines = 3,
         placeholder = { Text(placeholder) },
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(10.dp),
     )
 }

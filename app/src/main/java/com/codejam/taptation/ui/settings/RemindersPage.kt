@@ -116,6 +116,6 @@ fun RemindersPage(contentPadding: PaddingValues, onBack: () -> Unit) {
 @Composable
 private fun PermissionStatus(allowed: Boolean) {
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-        StatusPill(if (allowed) "✓  Allowed" else "Not allowed", good = allowed)
+        StatusPill(if (allowed) "Allowed" else "Not allowed", good = allowed)
     }
 }

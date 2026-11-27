@@ -31,6 +31,15 @@ import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import kotlin.math.roundToInt
+import androidx.compose.ui.semantics.selected
+import com.codejam.taptation.R
+import com.codejam.taptation.ui.common.LineIcon
+import com.codejam.taptation.ui.common.ListGroup
+import com.codejam.taptation.ui.common.RowDivider
+import com.codejam.taptation.ui.common.SectionLabel
+import com.codejam.taptation.ui.theme.ControlShape
+import com.codejam.taptation.ui.theme.MetaText
+import com.codejam.taptation.ui.theme.Taptation
 
 private val dayFormat = DateTimeFormatter.ofPattern("EEE, MMM d")
 private val shortDay = DateTimeFormatter.ofPattern("EEE")
@@ -53,30 +62,19 @@ fun StatsScreen(contentPadding: PaddingValues) {
     }
     TabScreen(contentPadding, "Stats") {
         item {
-            Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                SegmentedChoice(listOf("Last 7 days", "Last 30 days"), if (month) 1 else 0, { month = it == 1 })
-                Text("Showing", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                SegmentedChoice(listOf("Distracting", "All detected"), if (includeImportant) 1 else 0, { includeImportant = it == 1 })
-                Text(if (includeImportant) "Every notification Taptation detected, including important ones and checks with no result."
-                    else "Distracting notifications are the ones that can trigger a catch. Important ones and checks with no result are left out.",
-                    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                SegmentedChoice(listOf("Last 7 days", "Last 30 days"), if (month) 1 else 0, { month = it == 1 }, Modifier.weight(1.4f))
+                ScopeMenu(includeImportant, { includeImportant = it }, Modifier.weight(1f))
             }
         }
         error?.let { item { Text(it, color = MaterialTheme.colorScheme.error) } }
         val current = summary
         if (current == null) item { Text("Loading history…") }
         else {
-            item { Text(periodLabel(current, month), style = MaterialTheme.typography.titleSmall) }
             item {
-                Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    MetricCard("Opened vs. swiped", StatsText.ratioHeadline(current.taps, current.dismissals),
-                        "${current.taps} opened · ${current.dismissals} swiped", Modifier.weight(1f)) {
-                        OpenedSplitBar(current.taps, current.dismissals)
-                    }
-                    MetricCard("Catches", current.caught.toString(),
-                        if (current.taps == 0) "No notifications opened" else
-                            "in ${current.taps} opened" + (current.caughtPerTapPercent?.let { " (${it.roundToInt()}%)" } ?: ""),
-                        Modifier.weight(1f))
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    SectionLabel(periodRange(current))
+                    FigureStrip(current)
                 }
             }
             when (StatsText.emptiness(current)) {
@@ -93,33 +91,39 @@ fun StatsScreen(contentPadding: PaddingValues) {
                 StatsText.Emptiness.HasCatches -> Unit
             }
             item {
-                SectionCard("By notification type", if (current.categories.isEmpty()) null else "Bar shows the share you opened.") {
-                    if (current.categories.isEmpty()) Text("Nothing detected yet. Your first notification tap or swipe will appear here.",
-                        color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    current.categories.forEach { category ->
-                        val name = StatsText.categoryName(category.category)
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                            Text(name, style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
-                            Text("${category.taps} opened · ${category.dismissals} swiped away", style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
-                        val total = category.taps + category.dismissals
-                        if (total > 0) LinearProgressIndicator(progress = { category.taps.toFloat() / total },
-                            modifier = Modifier.fillMaxWidth().semantics {
-                                contentDescription = "$name: ${category.taps} opened, ${category.dismissals} swiped away"
-                            })
-                    }
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    SectionLabel("Daily catches", meta = "avg ${"%.2f".format(current.averageCatchesPerDay)} a day")
+                    ListGroup { Column(Modifier.padding(16.dp)) {
+                        DailyChart(current.dailyCatches, current.caught == 0 && current.taps == 0, month)
+                    } }
                 }
             }
             item {
-                SectionCard("Daily catches") {
-                    DailyChart(current.dailyCatches, current.caught == 0 && current.taps == 0, month)
-                    Text("Average ${"%.2f".format(current.averageCatchesPerDay)} a day, counting days with none.",
-                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    SectionLabel("By notification type", meta = if (current.categories.isEmpty()) null else "opened · swiped")
+                    ListGroup {
+                        if (current.categories.isEmpty()) Text("Nothing detected yet. Your first notification tap or swipe will appear here",
+                            Modifier.padding(16.dp), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        current.categories.forEachIndexed { index, category ->
+                            if (index > 0) RowDivider()
+                            val name = StatsText.categoryName(category.category)
+                            val total = category.taps + category.dismissals
+                            Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp).semantics(mergeDescendants = true) {
+                                contentDescription = "$name: ${category.taps} opened, ${category.dismissals} swiped away"
+                            }, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                                    Text(name, style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
+                                    Text("${category.taps} · ${category.dismissals}", style = MetaText, color = Taptation.palette.muted)
+                                }
+                                ThinBar(if (total > 0) category.taps.toFloat() / total else 0f)
+                            }
+                        }
+                    }
                 }
             }
-            item { Text("Based on notification taps and swipes Taptation detected.", style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant) }
+            item { Text(if (includeImportant) "Every notification Taptation detected, including important ones and checks with no result. Bars show the share you opened"
+                else "Only distracting notifications, the ones that can catch you. Bars show the share you opened",
+                Modifier.padding(horizontal = 4.dp), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
         }
     }
 }
@@ -129,6 +133,72 @@ internal fun periodLabel(summary: StatsSummary, month: Boolean): String {
     val from = Instant.ofEpochMilli(summary.fromMillis).atZone(zone).toLocalDate()
     val to = Instant.ofEpochMilli(summary.toMillis - 1).atZone(zone).toLocalDate()
     return "${if (month) "Last 30 days" else "Last 7 days"} · ${from.format(rangeFormat)} – ${to.format(rangeFormat)}"
+}
+
+internal fun periodRange(summary: StatsSummary): String {
+    val zone = ZoneId.systemDefault()
+    val from = Instant.ofEpochMilli(summary.fromMillis).atZone(zone).toLocalDate()
+    val to = Instant.ofEpochMilli(summary.toMillis - 1).atZone(zone).toLocalDate()
+    return "${from.format(rangeFormat)} – ${to.format(rangeFormat)}"
+}
+
+/** Distracting only, or everything detected. A menu keeps the period control and the scope on one line. */
+@Composable
+private fun ScopeMenu(includeImportant: Boolean, onChange: (Boolean) -> Unit, modifier: Modifier) {
+    var open by remember { mutableStateOf(false) }
+    Box(modifier) {
+        Surface(onClick = { open = true }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
+            .semantics { contentDescription = "Showing " + if (includeImportant) "all detected" else "distracting" },
+            shape = ControlShape, color = Taptation.palette.raised, contentColor = MaterialTheme.colorScheme.onSurface) {
+            Row(Modifier.padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text(if (includeImportant) "All detected" else "Distracting", Modifier.weight(1f),
+                    style = MaterialTheme.typography.labelLarge, maxLines = 1)
+                LineIcon(R.drawable.ic_chevron_down, size = 16.dp)
+            }
+        }
+        DropdownMenu(open, onDismissRequest = { open = false }) {
+            listOf(false to "Distracting", true to "All detected").forEach { (value, label) ->
+                DropdownMenuItem(text = { Text(label) }, modifier = Modifier.semantics { selected = value == includeImportant },
+                    onClick = { open = false; onChange(value) })
+            }
+        }
+    }
+}
+
+/** Catches, opened, swiped: three figures on one card. Only catches take the accent. A missing denominator is a dash. */
+@Composable
+private fun FigureStrip(s: StatsSummary) {
+    val all = s.taps + s.dismissals
+    fun share(part: Int) = if (all == 0) "—" else "${(part * 100f / all).roundToInt()}% of all"
+    ListGroup {
+        Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min)) {
+            Figure("Catches", s.caught.toString(), s.caughtPerTapPercent?.let { "${it.roundToInt()}% caught" } ?: "—",
+                Modifier.weight(1f), Taptation.palette.catchText)
+            androidx.compose.material3.VerticalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            Figure("Opened", s.taps.toString(), share(s.taps), Modifier.weight(1f))
+            androidx.compose.material3.VerticalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            Figure("Swiped", s.dismissals.toString(), share(s.dismissals), Modifier.weight(1f))
+        }
+    }
+}
+
+@Composable
+private fun Figure(label: String, value: String, context: String, modifier: Modifier,
+    color: androidx.compose.ui.graphics.Color = MaterialTheme.colorScheme.onSurface) {
+    Column(modifier.padding(16.dp).semantics(mergeDescendants = true) {}, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text(label, style = MetaText, color = Taptation.palette.muted)
+        Text(value, style = MaterialTheme.typography.headlineMedium, color = color, maxLines = 1)
+        Text(context, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
+    }
+}
+
+@Composable
+private fun ThinBar(fraction: Float) {
+    Box(Modifier.fillMaxWidth().height(4.dp).clip(RoundedCornerShape(2.dp)).background(Taptation.palette.raised)) {
+        if (fraction > 0f) Box(Modifier.fillMaxWidth(fraction.coerceIn(0f, 1f)).fillMaxHeight().clip(RoundedCornerShape(2.dp))
+            .background(MaterialTheme.colorScheme.onSurfaceVariant))
+    }
 }
 
 @Composable
@@ -177,8 +247,8 @@ internal fun DailyChart(days: List<DailyCatches>, noActivity: Boolean, month: Bo
     val index = selected.coerceIn(0, days.lastIndex)
     val max = days.maxOf { it.count }.coerceAtLeast(1)
     val weekly = days.size <= 7
-    val color = MaterialTheme.colorScheme.primary
-    val faded = MaterialTheme.colorScheme.primary.copy(alpha = .45f)
+    val color = Taptation.palette.catch
+    val faded = MaterialTheme.colorScheme.onSurface.copy(alpha = .16f)
     val summary = days.joinToString { "${LocalDate.parse(it.date).format(dayFormat)}: ${it.count} catches" }
     Row(Modifier.fillMaxWidth().height(140.dp).then(Modifier.testTag("daily-chart")).semantics { contentDescription = summary }
         .pointerInput(days.size, weekly) {
@@ -190,24 +260,26 @@ internal fun DailyChart(days: List<DailyCatches>, noActivity: Boolean, month: Bo
         }, horizontalArrangement = Arrangement.spacedBy(if (weekly) 6.dp else 2.dp)) {
         days.forEachIndexed { i, day ->
             Column(Modifier.weight(1f).fillMaxHeight(), verticalArrangement = Arrangement.Bottom, horizontalAlignment = Alignment.CenterHorizontally) {
-                if (weekly || i == index) Text(day.count.toString(), style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurface)
+                if (weekly || i == index) Text(day.count.toString(), style = MetaText,
+                    color = if (i == index) MaterialTheme.colorScheme.onSurface else Taptation.palette.muted)
                 Box(Modifier.fillMaxWidth(if (weekly) .7f else .85f).height((86.dp * day.count / max).coerceAtLeast(2.dp))
-                    .background(if (i == index) color else if (day.count == 0) MaterialTheme.colorScheme.outlineVariant else faded,
-                        RoundedCornerShape(topStart = 6.dp, topEnd = 6.dp, bottomStart = 2.dp, bottomEnd = 2.dp)))
-                if (weekly) Text(LocalDate.parse(day.date).format(shortDay), style = MaterialTheme.typography.bodySmall,
-                    color = if (i == index) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant)
+                    .background(if (i == index) color else faded,
+                        RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp, bottomStart = 2.dp, bottomEnd = 2.dp)))
+                if (weekly) Text(LocalDate.parse(day.date).format(shortDay), style = MetaText,
+                    color = if (i == index) MaterialTheme.colorScheme.onSurface else Taptation.palette.muted)
             }
         }
     }
     val day = days[index]
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        TextButton(enabled = index > 0, onClick = { selected = index - 1 }) { Text("‹ Earlier") }
+        IconButton(enabled = index > 0, onClick = { selected = index - 1 }) {
+            LineIcon(R.drawable.ic_chevron_left, size = 20.dp, description = "Earlier day") }
         Text("${LocalDate.parse(day.date).format(dayFormat)} · ${day.count} catch${if (day.count == 1) "" else "es"}" +
             if (noActivity) " · no activity" else "",
             Modifier.weight(1f).semantics { liveRegion = androidx.compose.ui.semantics.LiveRegionMode.Polite },
-            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurface,
+            style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurface,
             textAlign = androidx.compose.ui.text.style.TextAlign.Center)
-        TextButton(enabled = index < days.lastIndex, onClick = { selected = index + 1 }) { Text("Later ›") }
+        IconButton(enabled = index < days.lastIndex, onClick = { selected = index + 1 }) {
+            LineIcon(R.drawable.ic_chevron_right, size = 20.dp, description = "Later day") }
     }
 }

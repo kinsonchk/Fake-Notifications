@@ -72,11 +72,11 @@ private class FishingRenderer(private val context:Context) {
     private lateinit var c:Canvas
     private var w=300f
     fun configure(cameo:MeadowCameo,label:String?,dark:Boolean){this.cameo=cameo;appLabel=label?:context.getString(R.string.caught_scene_notification)
-        bg=(if(dark)Night else Cream).toArgb();ink=(if(dark)NightInk else Ink).toArgb();muted=(if(dark)NightMuted else MutedGreen).toArgb()
-        green=(if(dark)NightGreen else Forest).toArgb();paper=(if(dark)NightSurface else androidx.compose.ui.graphics.Color.White).toArgb()
-        water=if(dark)0xff304b3b.toInt()else 0xffdce9dc.toInt();gold=MeadowGold.toArgb();earth=(if(dark)GrassDarkDry else Earth).toArgb()
+        bg=(if(dark)DarkBackground else LightBackground).toArgb();ink=(if(dark)DarkText else LightText).toArgb();muted=(if(dark)DarkTextMuted else LightTextMuted).toArgb()
+        green=(if(dark)GrassDarkHighlight else GrassBlade).toArgb();paper=(if(dark)DarkCard else LightCard).toArgb()
+        water=if(dark)0xff111c26.toInt()else 0xffdbe5ee.toInt();gold=MeadowGold.toArgb();earth=(if(dark)GrassDarkDry else GrassDry).toArgb()
         body=if(dark)0xffefdfa6.toInt()else 0xffdfc682.toInt();patch=(if(dark)GrassDarkBlade else GrassHighlight).toArgb();red=if(dark)0xffd58c7e.toInt()else 0xffad5a48.toInt()
-        animal.palette(if(dark)GrassDarkHighlight else GrassHighlight,if(dark)GrassDarkBlade else Forest,if(dark)MeadowNightPetal else MeadowPetal,MeadowGold,if(dark)GrassDarkDry else Earth,dark)
+        animal.palette(if(dark)GrassDarkHighlight else GrassHighlight,if(dark)GrassDarkBlade else GrassBlade,if(dark)MeadowNightPetal else MeadowPetal,MeadowGold,if(dark)GrassDarkDry else GrassDry,dark)
     }
     private fun fill(color:Int){p.color=color;p.style=Paint.Style.FILL;p.alpha=255}
     private fun oval(x:Float,y:Float,rx:Float,ry:Float,color:Int,angle:Float=0f){fill(color);c.save();c.rotate(angle,x,y);c.drawOval(x-rx,y-ry,x+rx,y+ry,p);c.restore()}

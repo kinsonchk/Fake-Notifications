@@ -22,6 +22,9 @@ import com.codejam.taptation.R
 import com.codejam.taptation.logic.CatchDetails
 import com.codejam.taptation.logic.meadow.MeadowCameo
 import com.codejam.taptation.ui.caught.FishingCatchScene
+import com.codejam.taptation.ui.theme.ButtonShape
+import com.codejam.taptation.ui.theme.MetaText
+import com.codejam.taptation.ui.theme.Taptation
 
 /**
  * Choosing a destination acknowledges an already-applied catch; it never applies damage.
@@ -37,15 +40,16 @@ fun CatchChoiceDialog(details: CatchDetails?, appLabel: String?, onTaptation: ()
     sceneKey: String = "preview",
 ) {
     Dialog(onDismissRequest = onLater) {
-        Surface(shape = RoundedCornerShape(26.dp), color = MaterialTheme.colorScheme.background,
+        Surface(shape = RoundedCornerShape(24.dp), color = MaterialTheme.colorScheme.background,
             contentColor = MaterialTheme.colorScheme.onSurface,
             border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) {
-            Column(Modifier.verticalScroll(rememberScrollState()).padding(24.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Text(stringResource(R.string.caught_title), style = MaterialTheme.typography.headlineLarge)
+            Column(Modifier.verticalScroll(rememberScrollState()).padding(start = 20.dp, end = 20.dp, top = 24.dp, bottom = 20.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(stringResource(R.string.caught_title), style = MaterialTheme.typography.displaySmall)
                 if (details != null && appLabel != null) {
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         Text(TapExplanations.catchReason(details.rule, appLabel, details.channel),
-                            Modifier.weight(1f), style = MaterialTheme.typography.titleSmall)
+                            Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 } else {
                     Text(stringResource(R.string.caught_message_no_extra), style = MaterialTheme.typography.bodyMedium,
@@ -54,18 +58,20 @@ fun CatchChoiceDialog(details: CatchDetails?, appLabel: String?, onTaptation: ()
                 FishingCatchScene(cameo,appLabel,sceneKey,animateDamage)
                 if (details != null && details.damage > 0) HealthLossBlock(details.healthBefore, details.healthAfter, animateDamage, compact = true)
                 Text(stringResource(R.string.caught_destination_prompt),style=MaterialTheme.typography.bodySmall,
-                    color=MaterialTheme.colorScheme.onSurfaceVariant)
+                    color=MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 8.dp))
                 Button(onClick = onTaptation, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
-                    shape = RoundedCornerShape(16.dp)) { Text(stringResource(R.string.caught_our_app)) }
+                    shape = ButtonShape) { Text(stringResource(R.string.caught_our_app)) }
                 val destination = appLabel ?: stringResource(R.string.caught_original_destination)
                 val continueLabel = if (continueExtraDamage > 0) stringResource(R.string.caught_original_app_with_penalty, destination, continueExtraDamage)
                     else stringResource(R.string.caught_original_app, destination)
                 OutlinedButton(onClick = onOriginal, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).semantics { contentDescription=continueLabel },
-                    shape = RoundedCornerShape(16.dp)) {
+                    shape = ButtonShape, colors = ButtonDefaults.outlinedButtonColors(containerColor = Taptation.palette.raised,
+                        contentColor = MaterialTheme.colorScheme.onSurface),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) {
                     Column(horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.spacedBy(2.dp)) {
                         Text(stringResource(R.string.caught_original_app,destination))
                         if(continueExtraDamage>0)Text(stringResource(R.string.caught_continue_cost,continueExtraDamage),
-                            style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+                            style=MetaText,color=MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
             }

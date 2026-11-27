@@ -1,0 +1,562 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Taptation redesign mockups</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600&family=Newsreader:opsz,wght@6..72,400;6..72,500&family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* ---------- Directions: each sets a neutral ramp, one accent, type ---------- */
+body{--ease:cubic-bezier(0.22,1,0.36,1);--sel:var(--accent);--on-sel:var(--on-accent);--link:var(--accent-ink);--health:var(--g3)}
+body[data-mode="light"]{--health:var(--g2)}
+body[data-dir="lake"]{--sel:var(--t1);--on-sel:var(--bg);--link:var(--t1)}
+/* A. Field notebook: warm paper ramp, moss accent, serif titles */
+body[data-dir="notebook"]{--ui:"Instrument Sans",system-ui,sans-serif;--display:"Newsreader",Georgia,serif;--num:"Instrument Sans",system-ui,sans-serif;
+  --title-size:34px;--title-w:400;--title-track:-0.02em;--fig-font:var(--display)}
+body[data-dir="notebook"][data-mode="light"]{--bg:#f7f4ee;--card:#fdfbf7;--raised:#efe9df;--t1:#1f1b16;--t2:#5e554a;--t3:#7b7266;--line:rgba(31,27,22,.09);
+  --accent:#2f6b4a;--accent-ink:#2f6b4a;--on-accent:#fff;--btn:#2f6b4a;--btn-fg:#fff;--catch:#b4532a;--soil:#e6dfd0;--water:#dde5da;
+  --g1:#2f6b47;--g2:#4a7c59;--g3:#6fa06a;--g4:#9cc873;--petal:#fffaf0;--gold:#d1a25b;--page:#e8e4dc;--shadow:0 8px 24px rgba(31,27,22,.08)}
+body[data-dir="notebook"][data-mode="dark"]{--bg:#161513;--card:#1c1a18;--raised:#262421;--t1:#efe9de;--t2:#aaa398;--t3:#8a847a;--line:rgba(239,233,222,.08);
+  --accent:#a8cda6;--accent-ink:#a8cda6;--on-accent:#173422;--btn:#efe9de;--btn-fg:#1f1b16;--catch:#e08a5f;--soil:#2a2620;--water:#1f2622;
+  --g1:#3f7d55;--g2:#4d9468;--g3:#78b88c;--g4:#b2e0ae;--petal:#f0deaa;--gold:#d1a25b;--page:#0d0c0b;--shadow:none}
+/* B. Night pasture: graphite ramp, grass-tip accent, Geist + mono figures */
+body[data-dir="pasture"]{--ui:"Geist",system-ui,sans-serif;--display:"Geist",system-ui,sans-serif;--num:"Geist Mono",ui-monospace,monospace;
+  --title-size:28px;--title-w:500;--title-track:-0.01em;--fig-font:"Geist",system-ui,sans-serif}
+body[data-dir="pasture"][data-mode="dark"]{--bg:#141415;--card:#19191b;--raised:#232325;--t1:#ededed;--t2:#a1a1a6;--t3:#85858b;--line:rgba(237,237,237,.08);
+  --accent:#a3d47a;--accent-ink:#a3d47a;--on-accent:#14200c;--btn:#ededed;--btn-fg:#141415;--catch:#e5484d;--soil:#211f1c;--water:#1b2120;
+  --g1:#35663d;--g2:#4c8a52;--g3:#78b066;--g4:#b5dc86;--petal:#f3ecd8;--gold:#d9b25e;--page:#0a0a0b;--shadow:none}
+body[data-dir="pasture"][data-mode="light"]{--bg:#fafafa;--card:#ffffff;--raised:#f4f4f5;--t1:#171717;--t2:#525252;--t3:#737373;--line:rgba(23,23,23,.08);
+  --accent:#3f7a3a;--accent-ink:#3a7035;--on-accent:#fff;--btn:#171717;--btn-fg:#fff;--catch:#dc2626;--soil:#e9e5dc;--water:#e4ebe4;
+  --g1:#2f6b3a;--g2:#4a8a4a;--g3:#7bb36a;--g4:#a9d07c;--petal:#fffdf6;--gold:#d1a25b;--page:#e7e7e5;--shadow:0 8px 24px rgba(0,0,0,.06)}
+/* C. Lake & bobber: ink ramp, bobber-orange accent, IBM Plex */
+body[data-dir="lake"]{--ui:"IBM Plex Sans",system-ui,sans-serif;--display:"IBM Plex Sans",system-ui,sans-serif;--num:"IBM Plex Mono",ui-monospace,monospace;
+  --title-size:28px;--title-w:500;--title-track:-0.01em;--fig-font:"IBM Plex Sans",system-ui,sans-serif}
+body[data-dir="lake"][data-mode="dark"]{--bg:#0b0d14;--card:#11141c;--raised:#1a1e28;--t1:#eef0f5;--t2:#a3a9b8;--t3:#7a8296;--line:rgba(238,240,245,.08);
+  --accent:#ff7a4d;--accent-ink:#ff8a61;--on-accent:#1a0b05;--btn:#eef0f5;--btn-fg:#0b0d14;--catch:#ff7a4d;--soil:#191b20;--water:#111c26;
+  --g1:#2b6250;--g2:#3c8467;--g3:#68a985;--g4:#a6d9b5;--petal:#eef0f5;--gold:#e0b25e;--page:#05060a;--shadow:none}
+body[data-dir="lake"][data-mode="light"]{--bg:#f5f7fa;--card:#ffffff;--raised:#eceff4;--t1:#111827;--t2:#4b5565;--t3:#6b7487;--line:rgba(17,24,39,.08);
+  --accent:#c2410c;--accent-ink:#b23c0b;--on-accent:#fff;--btn:#111827;--btn-fg:#fff;--catch:#c2410c;--soil:#e2e5ea;--water:#dbe5ee;
+  --g1:#2d6a52;--g2:#3d8566;--g3:#68a985;--g4:#9fd0ae;--petal:#ffffff;--gold:#d8a649;--page:#e4e8ee;--shadow:0 8px 24px rgba(17,24,39,.07)}
+
+/* ---------- Presentation page (not part of the app) ---------- */
+*{box-sizing:border-box;margin:0;padding:0}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+body{font-family:var(--ui);background:var(--page);color:var(--t1);-webkit-font-smoothing:antialiased;transition:background-color 300ms var(--ease)}
+.bar{position:sticky;top:0;z-index:10;display:flex;flex-wrap:wrap;align-items:center;gap:16px 32px;padding:16px 32px;background:var(--page);border-bottom:1px solid var(--line)}
+.bar h1{font-size:16px;font-weight:600;margin-right:auto}
+.ctl{display:flex;align-items:center;gap:12px;font-size:13px;color:var(--t2)}
+.ctl input[type=range]{accent-color:var(--accent);width:140px}
+.ctl output{font-family:var(--num);color:var(--t1);width:28px;font-variant-numeric:tabular-nums}
+.pick{display:flex;gap:2px;padding:2px;border-radius:10px;background:var(--raised)}
+.pick button{height:32px;padding:0 12px;border-radius:8px;font-size:13px;font-weight:500;color:var(--t2);transition:background-color 160ms var(--ease),color 160ms var(--ease)}
+.pick button[aria-pressed=true]{background:var(--card);color:var(--t1);box-shadow:inset 0 0 0 1px var(--line)}
+.brief{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px 32px;padding:24px 32px 0;max-width:1600px}
+.brief div{font-size:13px;line-height:20px;color:var(--t2)}
+.brief b{display:block;font-weight:500;color:var(--t1);margin-bottom:2px}
+.before{display:none;gap:40px;padding:32px 32px 0;flex-wrap:wrap}
+body.show-before .before{display:flex}
+.before img{width:360px;border-radius:24px;border:1px solid var(--line)}
+.before figcaption{font-size:13px;color:var(--t3);margin-top:8px}
+.phones{display:flex;flex-wrap:wrap;gap:40px;padding:32px;max-width:2100px}
+figure{width:360px}
+figcaption{margin-top:16px;font-size:13px;line-height:20px;color:var(--t2)}
+figcaption b{display:block;color:var(--t1);font-weight:500;font-size:14px;margin-bottom:4px}
+figcaption li{margin-left:16px}
+.audit{padding:0 32px 64px;max-width:1100px;color:var(--t2);font-size:14px;line-height:22px}
+.audit summary{cursor:pointer;color:var(--t1);font-weight:500;font-size:15px;padding:8px 0}
+.audit h3{color:var(--t1);font-size:14px;font-weight:500;margin:16px 0 4px}
+.audit li{margin-left:20px}
+.audit code{font-family:var(--num);font-size:12px;color:var(--t1)}
+.credit{font-size:12px;color:var(--t3);padding:0 32px 32px}
+
+/* ---------- Phone shell ---------- */
+.phone{width:360px;height:760px;border-radius:36px;background:var(--bg);color:var(--t1);overflow:hidden;display:flex;flex-direction:column;position:relative;
+  border:1px solid var(--line);box-shadow:var(--shadow);transition:background-color 300ms var(--ease),color 300ms var(--ease)}
+.sb{height:36px;flex:none;padding:8px 24px 0;display:flex;align-items:center;justify-content:space-between;font-size:13px;font-weight:500;font-variant-numeric:tabular-nums}
+.sb svg{height:12px}
+.scr{flex:1;overflow-y:auto;padding:0 20px 24px;scrollbar-width:none}
+.scr::-webkit-scrollbar{display:none}
+.title{font-family:var(--display);font-weight:var(--title-w);font-size:var(--title-size);line-height:1.15;letter-spacing:var(--title-track);margin:20px 0 16px}
+.nav{height:76px;flex:none;border-top:1px solid var(--line);display:grid;grid-template-columns:repeat(4,1fr);padding:8px 8px 16px;background:var(--bg)}
+.tab{display:flex;flex-direction:column;align-items:center;gap:4px;font-size:12px;font-weight:500;color:var(--t3)}
+.tab span{width:56px;height:28px;border-radius:14px;display:grid;place-items:center}
+.tab.on{color:var(--t1)} .tab.on span{background:var(--raised);color:var(--accent-ink)}
+svg.i{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.tab svg.i{width:20px;height:20px}
+
+/* ---------- Shared app components ---------- */
+.group{background:var(--card);border:1px solid var(--line);border-radius:16px;overflow:hidden}
+.row{display:flex;align-items:center;gap:12px;min-height:56px;padding:8px 16px}
+.row + .row{border-top:1px solid var(--line)}
+.row .grow{flex:1;min-width:0}
+.row > svg.i{color:var(--t3)}
+.rt{font-size:15px;line-height:20px;font-weight:500}
+.rs{font-size:13px;line-height:18px;color:var(--t2)}
+.val{font-size:14px;color:var(--t2);font-variant-numeric:tabular-nums}
+.meta{font-family:var(--num);font-size:12px;line-height:16px;color:var(--t3);font-variant-numeric:tabular-nums}
+.lbl{font-size:13px;line-height:16px;font-weight:500;color:var(--t2);margin:24px 4px 8px;display:flex;justify-content:space-between}
+.lbl .meta{font-weight:400}
+.note{font-size:13px;line-height:18px;color:var(--t3);margin:8px 4px 0}
+.switch{width:44px;height:26px;border-radius:13px;background:var(--raised);box-shadow:inset 0 0 0 1px var(--line);position:relative;flex:none}
+.switch::after{content:"";position:absolute;top:4px;left:4px;width:18px;height:18px;border-radius:9px;background:var(--t3);transition:transform 160ms var(--ease)}
+.switch.on{background:var(--sel);box-shadow:none}
+.switch.on::after{transform:translateX(18px);background:var(--on-sel)}
+.seg{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;background:var(--raised);border-radius:10px;padding:2px;gap:2px}
+.seg button{height:36px;border-radius:8px;font-size:14px;font-weight:500;color:var(--t2);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px}
+.seg.tall button{height:56px}
+.seg .on{background:var(--card);color:var(--t1);box-shadow:inset 0 0 0 1px var(--line),0 1px 2px rgba(0,0,0,.06)}
+.seg .pct{font-family:var(--num);font-size:12px;font-weight:400;color:var(--t3)}
+.seg .on .pct{color:var(--accent-ink)}
+.btn{height:48px;width:100%;border-radius:12px;font-size:15px;font-weight:500;display:flex;flex-direction:column;align-items:center;justify-content:center;transition:transform 120ms var(--ease)}
+.btn:active{transform:scale(.98)}
+.btn.primary{background:var(--btn);color:var(--btn-fg);box-shadow:inset 0 1px 0 rgba(255,255,255,.12)}
+.btn.secondary{background:var(--raised);color:var(--t1);box-shadow:inset 0 0 0 1px var(--line);height:56px}
+.btn .meta{color:var(--t2)}
+.tbtn{font-size:14px;font-weight:500;color:var(--link);padding:8px 0;min-height:40px}
+.tile{width:32px;height:32px;border-radius:8px;display:grid;place-items:center;font-size:14px;font-weight:600;color:#fff;flex:none}
+.chev{color:var(--t3)}
+.search{display:flex;align-items:center;gap:10px;height:44px;padding:0 14px;border-radius:10px;background:var(--raised);color:var(--t3);font-size:15px}
+
+/* Signature: the bobber. Top half is the catch color; it floats only while monitoring is live. */
+.bobber{width:12px;height:18px;flex:none}
+.bobber.live{animation:bob 2.4s var(--ease) infinite alternate}
+@keyframes bob{to{transform:translateY(2px)}}
+
+/* ---------- Home ---------- */
+.status{display:flex;align-items:center;gap:10px;margin:-4px 0 0}
+.status .rt{font-size:14px}
+.status .grow{flex:1}
+.meadow{position:relative;height:250px;margin:8px -20px 0}
+.meadow svg.field{position:absolute;inset:0;width:100%;height:100%;-webkit-mask-image:linear-gradient(#000 82%,transparent);mask-image:linear-gradient(#000 82%,transparent)}
+.hp{position:absolute;left:20px;top:8px;z-index:1}
+.hp .fig{font-family:var(--fig-font);font-size:52px;line-height:1;font-weight:400;font-variant-numeric:lining-nums tabular-nums;letter-spacing:-0.02em}
+.hp .cap{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--t2);margin-top:6px}
+.hp .cap svg.i{width:14px;height:14px}
+.blade{transform-box:fill-box;transform-origin:50% 100%;animation:sway var(--d,5s) ease-in-out infinite alternate}
+@keyframes sway{from{transform:rotate(-1.6deg)}to{transform:rotate(1.8deg)}}
+@media (prefers-reduced-motion:reduce){.blade,.bobber.live{animation:none}}
+.vitals{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;padding:0 4px;margin-top:4px}
+.vitals .meta{display:block;margin-bottom:2px}
+.vitals .v{font-size:15px;font-weight:500;font-variant-numeric:tabular-nums}
+.vitals .v.neg{color:var(--catch)}
+.acts{display:grid;grid-template-columns:repeat(5,1fr);gap:4px;margin:16px -4px 0}
+.act{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;height:60px;border-radius:12px;font-size:12px;font-weight:500;color:var(--t2);transition:background-color 160ms var(--ease)}
+.act:hover{background:var(--raised)}
+.act .meta{font-size:13px;line-height:18px;color:var(--t1)}
+.out-neg{color:var(--catch)}
+
+/* ---------- Stats ---------- */
+.controls{display:flex;gap:8px;align-items:center}
+.controls .seg{flex:1}
+.drop{height:40px;padding:0 10px 0 12px;border-radius:10px;background:var(--raised);font-size:14px;font-weight:500;color:var(--t1);display:flex;align-items:center;gap:6px}
+.drop svg.i{width:16px;height:16px;color:var(--t3)}
+.figs{display:grid;grid-template-columns:1fr 1fr 1fr}
+.figs > div{padding:16px}
+.figs > div + div{border-left:1px solid var(--line)}
+.figs .n{font-family:var(--fig-font);font-size:30px;line-height:1;font-weight:400;font-variant-numeric:lining-nums tabular-nums;margin:8px 0 6px}
+.figs .n.acc{color:var(--accent-ink)}
+.chartcard{padding:16px}
+.plot{position:relative;margin-top:16px}
+.chart{position:relative;height:150px;display:grid;grid-template-columns:repeat(7,1fr);gap:10px;align-items:end}
+.chart .grid{position:absolute;left:0;right:0;border-top:1px dashed var(--line)}
+.col{display:flex;flex-direction:column;align-items:center;gap:6px;height:100%;justify-content:flex-end;position:relative}
+.bb{width:100%;border-radius:4px 4px 2px 2px;background:color-mix(in srgb,var(--t1) 16%,transparent);min-height:2px}
+.col.on .bb{background:var(--accent)}
+.col.on .meta{color:var(--t1)}
+.days{display:grid;grid-template-columns:repeat(7,1fr);gap:10px;margin-top:8px;text-align:center}
+.readout{display:flex;justify-content:space-between;align-items:baseline;margin-top:16px;padding-top:12px;border-top:1px solid var(--line)}
+.readout .rt{font-size:14px}
+.rank .row{flex-direction:column;align-items:stretch;gap:8px;padding:12px 16px}
+.rank .top{display:flex;justify-content:space-between;align-items:baseline}
+.thin{height:4px;border-radius:2px;background:var(--raised);overflow:hidden}
+.thin i{display:block;height:100%;background:var(--t2);border-radius:2px}
+
+/* ---------- Rules + sheet ---------- */
+.appbar{display:flex;align-items:center;gap:4px;height:48px;margin:4px -8px 0;color:var(--t2);font-size:14px;font-weight:500}
+.appbar svg.i{width:20px;height:20px}
+.scrim{position:absolute;inset:0;background:rgba(0,0,0,.42);z-index:2}
+.sheet{position:absolute;left:0;right:0;bottom:0;z-index:3;background:var(--card);border-radius:20px 20px 0 0;padding:8px 0 28px;border-top:1px solid var(--line)}
+.handle{width:32px;height:4px;border-radius:2px;background:color-mix(in srgb,var(--t1) 20%,transparent);margin:0 auto 12px}
+.sheet .head{display:flex;align-items:center;gap:12px;padding:4px 20px 12px}
+.opt{display:flex;gap:14px;align-items:flex-start;padding:12px 20px;min-height:64px}
+.opt + .opt{border-top:1px solid var(--line)}
+.radio{width:20px;height:20px;border-radius:10px;box-shadow:inset 0 0 0 1.5px var(--t3);flex:none;margin-top:1px;position:relative}
+.opt.on .radio{box-shadow:inset 0 0 0 1.5px var(--sel)}
+.opt.on .radio::after{content:"";position:absolute;inset:5px;border-radius:5px;background:var(--sel)}
+
+/* ---------- Caught ---------- */
+.phone.caught{background:color-mix(in srgb,var(--bg) 45%,#000)}
+.dialog{margin:24px 16px;background:var(--bg);border:1px solid var(--line);border-radius:24px;padding:24px 20px 12px}
+.dialog h2{font-family:var(--display);font-weight:var(--title-w);font-size:30px;line-height:1.1;letter-spacing:var(--title-track)}
+.dialog .why{font-size:14px;color:var(--t2);margin-top:8px}
+.scene{display:block;width:100%;height:150px;margin:12px 0 8px}
+.hbar{height:8px;border-radius:4px;background:var(--raised);display:flex;overflow:hidden;margin:10px 0 8px}
+.hbar i{display:block;height:100%}
+.links{display:flex;justify-content:space-between;margin-top:4px}
+.links .tbtn{color:var(--t2)}
+</style>
+</head>
+<body data-dir="notebook" data-mode="dark">
+
+<div class="bar">
+  <h1>Taptation, unslopped</h1>
+  <div class="ctl">Direction
+    <div class="pick" id="dir">
+      <button data-v="notebook" aria-pressed="true">Field notebook</button>
+      <button data-v="pasture" aria-pressed="false">Night pasture</button>
+      <button data-v="lake" aria-pressed="false">Lake &amp; bobber</button>
+    </div>
+  </div>
+  <div class="ctl">Mode
+    <div class="pick" id="mode">
+      <button data-v="dark" aria-pressed="true">Dark</button>
+      <button data-v="light" aria-pressed="false">Light</button>
+    </div>
+  </div>
+  <label class="ctl">Health <input id="hp" type="range" min="0" max="100" value="82"><output id="hpo">82</output></label>
+  <label class="ctl"><input type="checkbox" id="before"> Show current app</label>
+</div>
+
+<div class="brief" id="brief"></div>
+
+<div class="before">
+  <figure><img src="../design-reference/home-dark.png" alt="Current Home, dark"><figcaption>Current Home</figcaption></figure>
+  <figure><img src="../design-reference/stats-light.png" alt="Current Stats"><figcaption>Current Stats</figcaption></figure>
+  <figure><img src="../design-reference/settings-light.png" alt="Current Settings"><figcaption>Current Settings</figcaption></figure>
+  <figure><img src="../design-reference/app-rules-light.png" alt="Current Notification rules"><figcaption>Current Notification rules</figcaption></figure>
+  <figure><img src="../design-reference/caught-fishing-dark.png" alt="Current caught dialog"><figcaption>Current caught dialog</figcaption></figure>
+</div>
+
+<main class="phones">
+
+<!-- ======================= HOME ======================= -->
+<figure>
+<div class="phone">
+  <div class="sb"><span>9:41</span><svg viewBox="0 0 40 12" fill="currentColor"><rect x="0" y="7" width="3" height="5" rx="1"/><rect x="5" y="4" width="3" height="8" rx="1"/><rect x="10" y="1" width="3" height="11" rx="1"/><rect x="18" y="1" width="20" height="10" rx="3" fill="none" stroke="currentColor"/><rect x="20" y="3" width="13" height="6" rx="1.5"/></svg></div>
+  <div class="scr">
+    <h2 class="title">Home</h2>
+    <div class="status">
+      <svg class="bobber live" viewBox="0 0 12 18"><line x1="6" y1="0" x2="6" y2="6" stroke="var(--t3)" stroke-width="1.2"/><path d="M1 12a5 5 0 0 1 10 0z" fill="var(--catch)"/><path d="M1 12a5 5 0 0 0 10 0z" fill="var(--t1)"/></svg>
+      <div class="grow"><div class="rt">Watching notifications</div></div>
+      <button class="tbtn">Pause</button>
+    </div>
+    <div class="meadow">
+      <div class="hp"><div class="fig" id="hpfig">82</div><div class="cap"><i data-i="heart"></i>Health out of 100</div></div>
+      <svg class="field" id="field" viewBox="0 0 360 250" preserveAspectRatio="none"></svg>
+    </div>
+    <div class="vitals">
+      <div><span class="meta">Catch</span><span class="v neg">−10</span></div>
+      <div><span class="meta">Recovery</span><span class="v">+5 per hour</span></div>
+      <div><span class="meta">Next +5</span><span class="v">in 23 min</span></div>
+    </div>
+    <div class="acts">
+      <button class="act"><i data-i="wind"></i>Wind</button>
+      <button class="act"><i data-i="rain"></i>Rain</button>
+      <button class="act"><i data-i="compass"></i>Explore</button>
+      <button class="act"><i data-i="down"></i>Below</button>
+      <button class="act"><span class="meta">5 / 8</span>Found</button>
+    </div>
+    <div class="lbl">Recent</div>
+    <div class="group">
+      <div class="row"><div class="tile" style="background:#a8577a">I</div><div class="grow"><div class="rt">Instagram</div><div class="rs out-neg">Caught · −10 health</div></div><span class="meta">14:32</span></div>
+      <div class="row"><div class="tile" style="background:#4f7f6a">M</div><div class="grow"><div class="rt">Messages</div><div class="rs">Important, never penalized</div></div><span class="meta">14:05</span></div>
+      <div class="row"><div class="tile" style="background:#a35a4a">Y</div><div class="grow"><div class="rt">YouTube</div><div class="rs">No catch this time</div></div><span class="meta">13:48</span></div>
+      <div class="row"><div class="tile" style="background:#b06a3c">R</div><div class="grow"><div class="rt">Reddit</div><div class="rs">Too old to catch you</div></div><span class="meta">12:10</span></div>
+    </div>
+    <div class="lbl">All time</div>
+    <div class="group">
+      <div class="row"><div class="grow rs">Catches</div><span class="val">23</span></div>
+      <div class="row"><div class="grow rs">Notifications opened</div><span class="val">311</span></div>
+      <div class="row"><div class="grow rs">Since last catch</div><span class="val">1 h 12 min</span></div>
+    </div>
+  </div>
+  <nav class="nav"><div class="tab on"><span><i data-i="home"></i></span>Home</div><div class="tab"><span><i data-i="chart"></i></span>Stats</div><div class="tab"><span><i data-i="sliders"></i></span>Settings</div><div class="tab"><span><i data-i="flask"></i></span>Debug</div></nav>
+</div>
+<figcaption><b>Home</b><ul>
+<li>Meadow goes edge to edge and carries the health number; no separate health card or duplicate bar</li>
+<li>Status pill with "●" becomes the bobber, which floats only while watching</li>
+<li>Meadow toys become quiet icon actions; Recent and All time are grouped lists, not card stacks</li></ul></figcaption>
+</figure>
+
+<!-- ======================= STATS ======================= -->
+<figure>
+<div class="phone">
+  <div class="sb"><span>9:41</span><svg viewBox="0 0 40 12" fill="currentColor"><rect x="0" y="7" width="3" height="5" rx="1"/><rect x="5" y="4" width="3" height="8" rx="1"/><rect x="10" y="1" width="3" height="11" rx="1"/><rect x="18" y="1" width="20" height="10" rx="3" fill="none" stroke="currentColor"/><rect x="20" y="3" width="13" height="6" rx="1.5"/></svg></div>
+  <div class="scr">
+    <h2 class="title">Stats</h2>
+    <div class="controls">
+      <div class="seg"><button class="on">7 days</button><button>30 days</button></div>
+      <button class="drop">Distracting<i data-i="chevdown"></i></button>
+    </div>
+    <div class="lbl">Nov 21 – Nov 27</div>
+    <div class="group figs">
+      <div><span class="meta">Catches</span><div class="n acc">6</div><div class="rs">15% caught</div></div>
+      <div><span class="meta">Opened</span><div class="n">41</div><div class="rs">27% of all</div></div>
+      <div><span class="meta">Swiped</span><div class="n">112</div><div class="rs">73% of all</div></div>
+    </div>
+    <div class="lbl">Daily catches</div>
+    <div class="group chartcard">
+      <div class="plot"><div class="grid" style="bottom:33%"></div><div class="grid" style="bottom:66%"></div><div class="grid" style="bottom:99%"></div>
+      <div class="chart">
+        <div class="col"><span class="meta">0</span><div class="bb" style="height:2px"></div></div>
+        <div class="col"><span class="meta">1</span><div class="bb" style="height:33%"></div></div>
+        <div class="col"><span class="meta">0</span><div class="bb" style="height:2px"></div></div>
+        <div class="col"><span class="meta">2</span><div class="bb" style="height:66%"></div></div>
+        <div class="col"><span class="meta">0</span><div class="bb" style="height:2px"></div></div>
+        <div class="col"><span class="meta">1</span><div class="bb" style="height:33%"></div></div>
+        <div class="col on"><span class="meta">2</span><div class="bb" style="height:66%"></div></div>
+      </div></div>
+      <div class="days meta"><span>Fri</span><span>Sat</span><span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span style="color:var(--t1)">Thu</span></div>
+      <div class="readout"><span class="rt">Thu, Nov 27 · 2 catches</span><span class="meta">avg 0.86 a day</span></div>
+    </div>
+    <div class="lbl">By notification type <span class="meta">opened · swiped</span></div>
+    <div class="group rank">
+      <div class="row"><div class="top"><span class="rt">Social</span><span class="meta">18 · 46</span></div><div class="thin"><i style="width:28%"></i></div></div>
+      <div class="row"><div class="top"><span class="rt">Messages</span><span class="meta">11 · 20</span></div><div class="thin"><i style="width:35%"></i></div></div>
+      <div class="row"><div class="top"><span class="rt">Promotions</span><span class="meta">9 · 38</span></div><div class="thin"><i style="width:19%"></i></div></div>
+      <div class="row"><div class="top"><span class="rt">Other</span><span class="meta">3 · 8</span></div><div class="thin"><i style="width:27%"></i></div></div>
+    </div>
+    <p class="note">Bar shows the share you opened. Only notifications that could catch you are counted</p>
+  </div>
+  <nav class="nav"><div class="tab"><span><i data-i="home"></i></span>Home</div><div class="tab on"><span><i data-i="chart"></i></span>Stats</div><div class="tab"><span><i data-i="sliders"></i></span>Settings</div><div class="tab"><span><i data-i="flask"></i></span>Debug</div></nav>
+</div>
+<figcaption><b>Stats</b><ul>
+<li>Two stacked segmented controls + paragraph shrink to one row: period and a scope menu</li>
+<li>Equal metric cards with a mini bar become one figure strip; only Catches takes the accent</li>
+<li>Daily chart: neutral bars, mono labels, hairline grid, accent on the selected day only</li></ul></figcaption>
+</figure>
+
+<!-- ======================= SETTINGS ======================= -->
+<figure>
+<div class="phone">
+  <div class="sb"><span>9:41</span><svg viewBox="0 0 40 12" fill="currentColor"><rect x="0" y="7" width="3" height="5" rx="1"/><rect x="5" y="4" width="3" height="8" rx="1"/><rect x="10" y="1" width="3" height="11" rx="1"/><rect x="18" y="1" width="20" height="10" rx="3" fill="none" stroke="currentColor"/><rect x="20" y="3" width="13" height="6" rx="1.5"/></svg></div>
+  <div class="scr">
+    <h2 class="title">Settings</h2>
+    <div class="group">
+      <div class="row"><div class="grow"><div class="rt">Watch notifications</div><div class="rs">Pausing takes a 10-second confirmation</div></div><div class="switch on"></div></div>
+    </div>
+    <div class="lbl">Difficulty</div>
+    <div class="seg tall"><button class="on">Easy<span class="pct">20%</span></button><button>Medium<span class="pct">40%</span></button><button>Hard<span class="pct">70%</span></button></div>
+    <p class="note">Catch chance once a notification is judged distracting. Always distracting apps skip the roll</p>
+    <div class="lbl">Older notifications</div>
+    <div class="group">
+      <div class="row"><div class="grow"><div class="rt">Ignore older notifications</div><div class="rs">They can't catch you after the time limit</div></div><div class="switch on"></div></div>
+      <div class="row"><div class="grow rt">Time limit</div><span class="val">10 min</span><i data-i="chev" class="chev"></i></div>
+      <div class="row"><div class="grow rt">Count age from</div><span class="val">Latest update</span><i data-i="chev" class="chev"></i></div>
+    </div>
+    <div class="lbl">Appearance</div>
+    <div class="seg"><button class="on">Dark</button><button>Light</button></div>
+    <div class="lbl">More</div>
+    <div class="group">
+      <div class="row"><i data-i="shield"></i><div class="grow"><div class="rt">Notification rules</div><div class="rs">3 distracting · 2 important</div></div><i data-i="chev" class="chev"></i></div>
+      <div class="row"><i data-i="bell"></i><div class="grow"><div class="rt">Catch reminders</div><div class="rs">Allowed</div></div><i data-i="chev" class="chev"></i></div>
+      <div class="row"><i data-i="book"></i><div class="grow rt">Learn Taptation again</div><i data-i="chev" class="chev"></i></div>
+    </div>
+  </div>
+  <nav class="nav"><div class="tab"><span><i data-i="home"></i></span>Home</div><div class="tab"><span><i data-i="chart"></i></span>Stats</div><div class="tab on"><span><i data-i="sliders"></i></span>Settings</div><div class="tab"><span><i data-i="flask"></i></span>Debug</div></nav>
+</div>
+<figcaption><b>Settings</b><ul>
+<li>Card per setting becomes grouped rows with hairlines, so the page reads as one list</li>
+<li>Filled green difficulty tiles with 26sp serif % become a segmented control; % in mono</li>
+<li>Icon-in-tinted-tile links become plain muted icons; "›" glyphs become chevrons</li></ul></figcaption>
+</figure>
+
+<!-- ======================= RULES ======================= -->
+<figure>
+<div class="phone">
+  <div class="sb"><span>9:41</span><svg viewBox="0 0 40 12" fill="currentColor"><rect x="0" y="7" width="3" height="5" rx="1"/><rect x="5" y="4" width="3" height="8" rx="1"/><rect x="10" y="1" width="3" height="11" rx="1"/><rect x="18" y="1" width="20" height="10" rx="3" fill="none" stroke="currentColor"/><rect x="20" y="3" width="13" height="6" rx="1.5"/></svg></div>
+  <div class="scr">
+    <div class="appbar"><i data-i="chevleft"></i>Settings</div>
+    <h2 class="title" style="margin-top:8px">Notification rules</h2>
+    <div class="search"><i data-i="search"></i>Find an app</div>
+    <div class="lbl">Always important <span class="meta">2</span></div>
+    <div class="group">
+      <div class="row"><div class="tile" style="background:#4f7f6a">M</div><div class="grow rt">Messages</div><i data-i="chev" class="chev"></i></div>
+      <div class="row"><div class="tile" style="background:#3d3d42">U</div><div class="grow rt">Uber</div><i data-i="chev" class="chev"></i></div>
+    </div>
+    <div class="lbl">Always distracting <span class="meta">3</span></div>
+    <div class="group">
+      <div class="row"><div class="tile" style="background:#a8577a">I</div><div class="grow rt">Instagram</div><i data-i="chev" class="chev"></i></div>
+      <div class="row"><div class="tile" style="background:#2e2e33">T</div><div class="grow rt">TikTok</div><i data-i="chev" class="chev"></i></div>
+      <div class="row"><div class="tile" style="background:#b06a3c">R</div><div class="grow rt">Reddit</div><i data-i="chev" class="chev"></i></div>
+    </div>
+    <div class="lbl">Let us decide <span class="meta">14</span></div>
+    <div class="group">
+      <div class="row"><div class="tile" style="background:#5a6fa8">D</div><div class="grow rt">Discord</div><i data-i="chev" class="chev"></i></div>
+      <div class="row"><div class="tile" style="background:#b8574a">G</div><div class="grow rt">Gmail</div><i data-i="chev" class="chev"></i></div>
+    </div>
+  </div>
+  <div class="scrim"></div>
+  <div class="sheet">
+    <div class="handle"></div>
+    <div class="head"><div class="tile" style="background:#a8577a">I</div><div class="rt">Instagram</div></div>
+    <div class="opt"><span class="radio"></span><div><div class="rt">Always important</div><div class="rs">Never penalized</div></div></div>
+    <div class="opt"><span class="radio"></span><div><div class="rt">Let us decide</div><div class="rs">AI judges each notification</div></div></div>
+    <div class="opt on"><span class="radio"></span><div><div class="rt">Always distracting</div><div class="rs">Every eligible tap can catch you</div></div></div>
+  </div>
+  <nav class="nav"><div class="tab"><span><i data-i="home"></i></span>Home</div><div class="tab"><span><i data-i="chart"></i></span>Stats</div><div class="tab on"><span><i data-i="sliders"></i></span>Settings</div><div class="tab"><span><i data-i="flask"></i></span>Debug</div></nav>
+</div>
+<figcaption><b>Notification rules</b><ul>
+<li>Colored left stripes and a dropdown inside every app card become rows grouped by rule</li>
+<li>Rule changes in a bottom sheet with the effect of each choice</li>
+<li>"Always bait" in the copy becomes "Always distracting", as the guide asks</li></ul></figcaption>
+</figure>
+
+<!-- ======================= CAUGHT ======================= -->
+<figure>
+<div class="phone caught">
+  <div class="sb" style="color:#fff"><span>9:41</span><svg viewBox="0 0 40 12" fill="currentColor"><rect x="0" y="7" width="3" height="5" rx="1"/><rect x="5" y="4" width="3" height="8" rx="1"/><rect x="10" y="1" width="3" height="11" rx="1"/><rect x="18" y="1" width="20" height="10" rx="3" fill="none" stroke="currentColor"/><rect x="20" y="3" width="13" height="6" rx="1.5"/></svg></div>
+  <div class="dialog">
+    <h2>Caught lacking</h2>
+    <p class="why">Instagram is set as distracting</p>
+    <svg class="scene" viewBox="0 0 312 150" aria-label="A fish takes the bait next to the bobber">
+      <ellipse cx="156" cy="112" rx="150" ry="32" fill="var(--water)"/>
+      <ellipse cx="170" cy="104" rx="34" ry="7" fill="none" stroke="var(--t3)" stroke-opacity=".45"/>
+      <ellipse cx="170" cy="104" rx="58" ry="12" fill="none" stroke="var(--t3)" stroke-opacity=".25"/>
+      <ellipse cx="170" cy="104" rx="84" ry="18" fill="none" stroke="var(--t3)" stroke-opacity=".12"/>
+      <path d="M312 4 C 260 10, 200 30, 170 88" fill="none" stroke="var(--t3)" stroke-width="1"/>
+      <g transform="translate(170 96)"><path d="M-7 0a7 7 0 0 1 14 0z" fill="var(--catch)"/><path d="M-7 0a7 7 0 0 0 14 0z" fill="var(--t1)"/><line x1="0" y1="-12" x2="0" y2="-7" stroke="var(--t3)"/></g>
+      <g transform="translate(120 104)">
+        <path d="M-22 4 C -16 -14, 14 -16, 22 0 C 14 8, -12 10, -22 4 Z" fill="var(--gold)"/>
+        <circle cx="12" cy="-4" r="3.2" fill="var(--bg)"/><circle cx="12.8" cy="-4" r="1.6" fill="var(--t1)"/>
+        <path d="M-22 4 L -32 -6 L -30 10 Z" fill="var(--gold)" opacity=".8"/>
+      </g>
+      <path d="M20 118 C 22 96, 26 84, 30 72" stroke="var(--g2)" stroke-width="2.2" fill="none" stroke-linecap="round"/>
+      <path d="M28 120 C 30 102, 36 92, 40 84" stroke="var(--g3)" stroke-width="2.2" fill="none" stroke-linecap="round"/>
+      <path d="M284 120 C 282 100, 286 90, 292 80" stroke="var(--g2)" stroke-width="2.2" fill="none" stroke-linecap="round"/>
+    </svg>
+    <div class="lbl" style="margin:0 0 0;color:var(--t1)"><span style="display:flex;gap:6px;align-items:center"><i data-i="heart"></i>Health</span><span class="meta" style="color:var(--t1);font-size:14px">90 → 80</span></div>
+    <div class="hbar"><i style="width:80%;background:var(--health)"></i><i style="width:10%;background:var(--catch);opacity:.85"></i></div>
+    <p class="rs">−10 from this catch</p>
+    <div style="display:grid;gap:8px;margin-top:20px">
+      <button class="btn primary">Go to Taptation</button>
+      <button class="btn secondary">Continue to Instagram<span class="meta">−5 more health</span></button>
+    </div>
+  </div>
+</div>
+<figcaption><b>Caught</b><ul>
+<li>"You got caught lacking!" keeps its voice without the exclamation mark</li>
+<li>💚 emoji becomes a line heart; the bar shows the lost slice in the catch color</li>
+<li>Only the two destinations, as in the current app; back or outside tap postpones</li></ul></figcaption>
+</figure>
+
+</main>
+
+<section class="audit">
+<details>
+<summary>Audit of the current app (signs found, where they live)</summary>
+<h3>Color</h3><ul>
+<li>Dark surfaces tinted green (<code>Night #19221D</code>, <code>NightSurface #253129</code>, <code>theme/Color.kt</code>): the whole app reads green, so the meadow can't stand out</li>
+<li>Green everywhere: primary, selection, status pill, bars, tab pill, link text, settings icon tiles all use primary or primaryContainer</li>
+<li>Rule stripes in a second color family per rule (<code>common/AppRuleRow.kt:73,101</code>)</li>
+<li>Opened/swiped bar uses tertiary earth next to primary green (<code>stats/StatsScreen.kt OpenedSplitBar</code>)</li></ul>
+<h3>Icons</h3><ul>
+<li>💚 emoji as the Health icon (<code>home/HomeScreen.kt:188</code>, <code>common/HealthLoss.kt:101</code>, <code>overlay/CatchOverlay.kt:153</code>)</li>
+<li>Text glyphs as icons: <code>›</code> (Settings, Rules, Home setup), <code>←</code> back links, <code>○</code> setup rows, <code>✕ Remove</code>, <code>▾</code>, <code>⌄ ⌃</code>, <code>‹ Earlier / Later ›</code>, <code>●</code> in the status pill, <code>✓ Allowed</code>, <code>Below ground ↓</code></li>
+<li>Settings link icons inside tinted rounded tiles (<code>settings/SettingsScreen.kt SettingsLink</code>)</li></ul>
+<h3>Spacing and radius</h3><ul>
+<li>Off-grid values: card padding 18, gaps 10/14/3, tab padding 7/10, icon tile radius 13, link radius 22, dialog radius 26</li>
+<li>Radii vary without nesting: 20 cards, 22 links, 16 tiles, 14 tabs, 12 segments, 50% pills, 26 dialog</li>
+<li>A card around nearly every item: Settings is five stacked cards, Rules is one card per app</li></ul>
+<h3>Copy</h3><ul>
+<li><code>You got caught lacking!</code> (strings.xml) exclamation</li>
+<li>Trailing periods on short labels: "Pausing takes a 10-second confirmation.", "Health is at zero.", "No extra catch for 5 s.", "Your catch choice is waiting."</li>
+<li>Long helper paragraphs under controls (Stats scope, Difficulty, Notification rules header)</li>
+<li>Home shows Health three ways: meadow, 100/100, progress bar</li></ul>
+<h3>Type</h3><ul>
+<li><code>-0.6sp</code> letter spacing applied to every serif size including 26sp metric tiles (<code>theme/Type.kt:10</code>)</li>
+<li>Serif used for figures inside small tiles (difficulty %, metric cards), where it competes with the page title</li>
+<li>Platform <code>FontFamily.Serif/SansSerif</code>: nobody chose the faces, they change per phone maker</li></ul>
+<h3>Components</h3><ul>
+<li>Stat cards of equal width with a mini bar inside one of them</li>
+<li>Pill chips for meadow actions (Whirlwind, Rain, Explore, Call squirrel) look like filter chips</li>
+<li>Filled primary difficulty tile is the loudest thing on Settings</li></ul>
+<h3>Not slop, kept</h3><ul>
+<li>The meadow, the fishing scene, the serif page heading idea, the two-destination caught flow, the copy voice</li></ul>
+</details>
+</section>
+<p class="credit">Redesign pass with unslop by @heydamir (CC BY 4.0). Mockups only: sizes in px map to dp; fonts load from Google Fonts here and would be bundled under res/font in the app.</p>
+
+<script>
+const ICONS={
+ home:'<path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8"/><path d="M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>',
+ chart:'<path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/>',
+ sliders:'<path d="M21 4h-7"/><path d="M10 4H3"/><path d="M21 12h-9"/><path d="M8 12H3"/><path d="M21 20h-5"/><path d="M12 20H3"/><path d="M14 2v4"/><path d="M8 10v4"/><path d="M16 18v4"/>',
+ flask:'<path d="M10 2v7.527a2 2 0 0 1-.211.896L4.72 20.55a1 1 0 0 0 .9 1.45h12.76a1 1 0 0 0 .9-1.45l-5.069-10.127A2 2 0 0 1 14 9.527V2"/><path d="M8.5 2h7"/><path d="M7 16h10"/>',
+ wind:'<path d="M12.8 19.6A2 2 0 1 0 14 16H2"/><path d="M17.5 8a2.5 2.5 0 1 1 2 4H2"/><path d="M9.8 4.4A2 2 0 1 1 11 8H2"/>',
+ rain:'<path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"/><path d="M16 14v6"/><path d="M8 14v6"/><path d="M12 16v6"/>',
+ compass:'<circle cx="12" cy="12" r="10"/><path d="m16.24 7.76-2.12 6.36-6.36 2.12 2.12-6.36 6.36-2.12z"/>',
+ down:'<path d="M12 17V3"/><path d="m6 11 6 6 6-6"/><path d="M19 21H5"/>',
+ chev:'<path d="m9 18 6-6-6-6"/>', chevleft:'<path d="m15 18-6-6 6-6"/>', chevdown:'<path d="m6 9 6 6 6-6"/>',
+ search:'<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>',
+ bell:'<path d="M10.268 21a2 2 0 0 0 3.464 0"/><path d="M3.262 15.326A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.673C19.41 13.956 18 12.499 18 8A6 6 0 0 0 6 8c0 4.499-1.411 5.956-2.738 7.326"/>',
+ shield:'<path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/>',
+ book:'<path d="M12 7v14"/><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/>',
+ heart:'<path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/>'
+};
+document.querySelectorAll('i[data-i]').forEach(el=>{
+  const s=document.createElementNS('http://www.w3.org/2000/svg','svg');
+  s.setAttribute('viewBox','0 0 24 24'); s.setAttribute('class','i '+(el.className||'')); s.setAttribute('aria-hidden','true');
+  s.innerHTML=ICONS[el.dataset.i]; el.replaceWith(s);
+});
+
+const BRIEFS={
+ notebook:{name:'Field notebook',character:'patient, botanical, a little wry',world:'A naturalist\'s notebook: warm paper, pencil grey, pressed moss green',type:'Newsreader for page titles and the health figure, Instrument Sans for everything else',accent:'Moss green for the selection and the one action; ember only for catches'},
+ pasture:{name:'Night pasture',character:'calm, exact, alive at night',world:'A field after dark: graphite surfaces, the grass is the only colour',type:'Geist for the interface, Geist Mono for times, counts and percentages',accent:'Grass-tip green on selection and today\'s bar; off-white primary button'},
+ lake:{name:'Lake & bobber',character:'alert, playful, precise',world:'The pond from the caught scene: ink water, a red-orange bobber on the surface',type:'IBM Plex Sans for the interface, Plex Mono for figures and meta',accent:'Bobber orange marks catches and the selected day; everything else stays ink'}
+};
+const SHARED={product:'Taptation watches your notifications and, when you open a distracting one, may catch you and cost your meadow health',moments:'The health-driven meadow on Home and the fishing scene on the caught dialog',signature:'The bobber: it floats while Taptation is watching, and its colour marks every catch'};
+function renderBrief(){
+  const b=BRIEFS[document.body.dataset.dir];
+  document.getElementById('brief').innerHTML=
+   '<div><b>Product</b>'+SHARED.product+'</div><div><b>Character</b>'+b.character+'</div><div><b>World</b>'+b.world+
+   '</div><div><b>Moments</b>'+SHARED.moments+'</div><div><b>Signature</b>'+SHARED.signature+'</div><div><b>Type</b>'+b.type+'</div><div><b>Accent</b>'+b.accent+'</div>';
+}
+
+/* Meadow: blade count and height follow health; colours come from the theme */
+function rng(seed){return()=>{seed=(seed*1664525+1013904223)%4294967296;return seed/4294967296}}
+function meadow(health){
+  const r=rng(7), W=360, H=250, svg=document.getElementById('field');
+  const k=health/100, n=Math.round(36+k*104);
+  const ground=x=>H-44-16*Math.sin(Math.PI*x/W);
+  let out='<path d="M0 '+(H-44)+' Q '+W/2+' '+(H-76)+' '+W+' '+(H-44)+' L '+W+' '+H+' L 0 '+H+' Z" fill="var(--soil)"/>';
+  const cols=['var(--g1)','var(--g2)','var(--g3)','var(--g4)'];
+  const blades=[];
+  for(let i=0;i<n;i++){
+    const x=r()*W, depth=r(), base=ground(x)+4+depth*10;
+    const h=(46+r()*84)*(0.3+0.7*k)*(0.75+depth*0.35);
+    const bend=(r()-.5)*26, w=1.6+r()*2.2;
+    const c=cols[Math.min(3,Math.floor(depth*2.2+r()*1.6))];
+    const d='M'+(x-w)+' '+base+' Q'+(x+bend*.3)+' '+(base-h*.55)+' '+(x+bend)+' '+(base-h)+' Q'+(x+bend*.3+w*.6)+' '+(base-h*.5)+' '+(x+w)+' '+base+'Z';
+    blades.push({depth,svg:'<path class="blade" style="--d:'+(4+r()*3).toFixed(1)+'s;animation-delay:-'+(r()*5).toFixed(1)+'s" d="'+d+'" fill="'+c+'" opacity="'+(0.55+depth*0.45).toFixed(2)+'"/>'});
+  }
+  blades.sort((a,b)=>a.depth-b.depth).forEach(b=>out+=b.svg);
+  const flowers=health>=60?Math.floor((health-60)/7):0;
+  for(let i=0;i<flowers;i++){
+    const x=24+r()*(W-48), y=ground(x)-30-r()*40*k;
+    let p='';for(let j=0;j<5;j++){const a=j*72*Math.PI/180;p+='<circle cx="'+(x+Math.cos(a)*3.6).toFixed(1)+'" cy="'+(y+Math.sin(a)*3.6).toFixed(1)+'" r="2.8" fill="var(--petal)"/>'}
+    out+='<line x1="'+x+'" y1="'+y+'" x2="'+(x+1)+'" y2="'+(ground(x)+6)+'" stroke="var(--g2)" stroke-width="1.2"/>'+p+'<circle cx="'+x+'" cy="'+y+'" r="2" fill="var(--gold)"/>';
+  }
+  svg.innerHTML=out;
+  document.getElementById('hpfig').textContent=health;
+}
+
+function pick(id,attr){
+  document.querySelectorAll('#'+id+' button').forEach(b=>b.addEventListener('click',()=>{
+    document.querySelectorAll('#'+id+' button').forEach(x=>x.setAttribute('aria-pressed',x===b));
+    document.body.dataset[attr]=b.dataset.v; renderBrief();
+  }));
+}
+pick('dir','dir'); pick('mode','mode');
+const hp=document.getElementById('hp'), hpo=document.getElementById('hpo');
+hp.addEventListener('input',()=>{hpo.textContent=hp.value;meadow(+hp.value)});
+document.getElementById('before').addEventListener('change',e=>document.body.classList.toggle('show-before',e.target.checked));
+const [hd,hm]=location.hash.slice(1).split('-');
+if(BRIEFS[hd]) document.querySelector('#dir [data-v="'+hd+'"]').click();
+if(hm==='light'||hm==='dark') document.querySelector('#mode [data-v="'+hm+'"]').click();
+renderBrief(); meadow(82);
+</script>
+</body>
+</html>

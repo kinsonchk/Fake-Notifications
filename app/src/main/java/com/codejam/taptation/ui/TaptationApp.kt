@@ -38,6 +38,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.codejam.taptation.ui.theme.Taptation
 
 /** Bottom tabs. Debug-only tabs are hidden in release builds. */
 enum class Tab(val label: String, @param:DrawableRes val icon: Int, val debugOnly: Boolean) {
@@ -85,35 +86,40 @@ internal fun AppTabs(debug: Boolean, onShowTutorial: () -> Unit = {}) {
         modifier = Modifier.fillMaxSize(),
         snackbarHost = {
             prompt?.takeIf { it.postponed }?.let { waiting ->
-                Surface(Modifier.padding(12.dp), shape = RoundedCornerShape(16.dp),
-                    color = MaterialTheme.colorScheme.tertiaryContainer) {
+                Surface(Modifier.padding(12.dp), shape = RoundedCornerShape(12.dp),
+                    color = MaterialTheme.colorScheme.inverseSurface, contentColor = MaterialTheme.colorScheme.inverseOnSurface) {
                     Row(Modifier.padding(start = 16.dp, end = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Text("Your catch choice is waiting.", Modifier.weight(1f), style = MaterialTheme.typography.bodySmall)
-                        androidx.compose.material3.TextButton(onClick = { app.feedback.resume(waiting.catchId) }) { Text("Choose now") }
+                        Text("Your catch choice is waiting", Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
+                        androidx.compose.material3.TextButton(onClick = { app.feedback.resume(waiting.catchId) }) {
+                            Text("Choose now", color = MaterialTheme.colorScheme.inversePrimary)
+                        }
                     }
                 }
             }
         },
         bottomBar = {
-            Surface(color = MaterialTheme.colorScheme.surfaceContainerLowest, tonalElevation = 0.dp) {
+            Surface(color = MaterialTheme.colorScheme.background, tonalElevation = 0.dp) {
             Column {
                 androidx.compose.material3.HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                 Row(Modifier.fillMaxWidth().windowInsetsPadding(WindowInsets.navigationBars)
-                    .padding(horizontal = 10.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    .padding(horizontal = 8.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                 tabs.forEach { tab ->
                     val active = tab == selected
-                    Column(Modifier.weight(1f).clip(RoundedCornerShape(14.dp))
-                        .background(if (active) MaterialTheme.colorScheme.primaryContainer else Color.Transparent)
+                    Column(Modifier.weight(1f).clip(RoundedCornerShape(12.dp))
                         .selectable(selected = active, role = Role.Tab, onClick = { selected = tab })
-                        .heightIn(min = 52.dp).padding(horizontal = 2.dp, vertical = 7.dp),
+                        .heightIn(min = 56.dp).padding(horizontal = 2.dp, vertical = 4.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Icon(painterResource(tab.icon), contentDescription = null, modifier = Modifier.size(20.dp),
-                            tint = if (active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
+                        Box(Modifier.size(width = 56.dp, height = 28.dp).clip(RoundedCornerShape(14.dp))
+                            .background(if (active) Taptation.palette.raised else Color.Transparent),
+                            contentAlignment = Alignment.Center) {
+                            Icon(painterResource(tab.icon), contentDescription = null, modifier = Modifier.size(20.dp),
+                                tint = if (active) Taptation.palette.catchText else Taptation.palette.muted)
+                        }
                         Text(tab.label,
                             maxLines = 1, overflow = TextOverflow.Ellipsis,
-                            style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
-                            color = if (active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
+                            style = MaterialTheme.typography.labelSmall,
+                            color = if (active) MaterialTheme.colorScheme.onSurface else Taptation.palette.muted)
                     }
                 }
                 }

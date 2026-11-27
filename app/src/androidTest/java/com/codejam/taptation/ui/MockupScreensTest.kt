@@ -1,5 +1,10 @@
 package com.codejam.taptation.ui
 
+import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.hasText
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.test.SemanticsMatcher
 import android.graphics.Bitmap
 import android.content.Intent
 import androidx.activity.compose.setContent
@@ -49,6 +54,7 @@ class MockupScreensTest {
             compose.onNodeWithTag("screen-title").assertTextEquals("Stats")
             capture("stats-light")
             compose.onNodeWithText("Last 30 days").performClick()
+            compose.onNodeWithContentDescription("Showing distracting").performClick()
             compose.onNodeWithText("All detected").performClick()
             compose.onNodeWithText("Settings").performClick()
             compose.onNodeWithText("Easy").assertIsDisplayed()
@@ -84,7 +90,7 @@ class MockupScreensTest {
             capture("rule-preferences-light")
             compose.onNodeWithTag("tab-content").performScrollToNode(hasText("How strict should the AI be?"))
             capture("rule-strictness-light")
-            compose.onNodeWithText("Settings").performClick()
+            compose.onNode(hasText("Settings") and SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.Tab)).performClick()
             compose.onAllNodesWithText("Notifications").assertCountEquals(0)
             compose.onNodeWithText("Debug").performClick()
             compose.onNodeWithText("System").assertIsDisplayed()
@@ -92,7 +98,7 @@ class MockupScreensTest {
             compose.onNodeWithText("Open notification tools").performClick()
             compose.onNodeWithTag("screen-title").assertTextEquals("Notifications")
             compose.onNodeWithText("Quick test").assertIsDisplayed()
-            compose.onNodeWithText("←  Debug").performClick()
+            compose.onNodeWithContentDescription("Back to Debug").performClick()
             compose.onNodeWithText("System").assertIsDisplayed()
         } finally { app.game.updateConfig { previous }.get(5, TimeUnit.SECONDS) }
     }

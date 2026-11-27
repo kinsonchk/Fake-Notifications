@@ -1,7 +1,7 @@
 <resources>
     <string name="app_name">Taptation</string>
     <string name="caught_overlay_label">Caught</string>
-    <string name="caught_title">You got caught lacking!</string>
+    <string name="caught_title">Caught lacking</string>
     <string name="caught_destination_prompt">Where do you want to go?</string>
     <string name="caught_continue_cost">−%1$d more health</string>
     <string name="caught_scene_notification">Notification</string>

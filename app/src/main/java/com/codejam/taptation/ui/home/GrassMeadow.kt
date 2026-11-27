@@ -91,9 +91,9 @@ internal fun MeadowCanvas(health: Int, modifier: Modifier = Modifier, world: Mea
     val bladePath = remember { Path() }
     val background = MaterialTheme.colorScheme.background
     val dark = background.luminance() < .5f
-    val bladeColor = if (dark) GrassDarkBlade else Forest
+    val bladeColor = if (dark) GrassDarkBlade else GrassBlade
     val highlight = if (dark) GrassDarkHighlight else GrassHighlight
-    val dry = if (dark) GrassDarkDry else Earth
+    val dry = if (dark) GrassDarkDry else GrassDry
     val soil = if (dark) MeadowDarkSoil else MeadowSoil
     val tip = if (dark) GrassDarkTip else GrassTip
     val logicalHeight = meadowLogicalHeight(world != null, scenery)

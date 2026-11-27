@@ -37,6 +37,12 @@ import com.codejam.taptation.ui.common.SectionCard
 import com.codejam.taptation.ui.common.formatDuration
 import com.codejam.taptation.ui.common.rememberMotionEnabled
 import com.codejam.taptation.ui.theme.*
+import com.codejam.taptation.R
+import com.codejam.taptation.ui.common.LineIcon
+import androidx.compose.foundation.clickable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.unit.sp
 
 /** Public Home has no time-skip or unlock switches. The debug preview is isolated from this store. */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
@@ -72,15 +78,12 @@ internal fun LivingMeadow(health: Int, world: MeadowState, scenery: MeadowScener
             }
             AnimatedVisibility(underground) { UndergroundMeadow(health, world, effects, scenery) }
         }
-        TextButton(onClick = { underground = !underground }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
-            Text(if (underground) "Back to the surface ↑" else "Below ground ↓")
-        }
-        if (underground) Text("Tap a mushroom, the beetle, the ant, the worm or the fish.", style = MaterialTheme.typography.bodySmall,
+        if (underground) Text("Tap a mushroom, the beetle, the ant, the worm or the fish", style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant)
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            MeadowAction("Whirlwind") { effects.whirlwind(Offset(width * .5f, 110f)) }
-            MeadowAction("Rain", effects::rain)
-            MeadowAction("Explore") {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            MeadowAction("Wind", R.drawable.ic_wind, Modifier.weight(1f), "Whirlwind") { effects.whirlwind(Offset(width * .5f, 110f)) }
+            MeadowAction("Rain", R.drawable.ic_rain, Modifier.weight(1f), onClick = effects::rain)
+            MeadowAction("Explore", R.drawable.ic_compass, Modifier.weight(1f)) {
                 if (underground) {
                     effects.glowUntil = effects.time + 5; effects.beetleUntil = effects.time + 4
                     effects.antParcel = (effects.antParcel + 1) % 3; effects.say("The little world under your meadow wakes up.")
@@ -90,8 +93,16 @@ internal fun LivingMeadow(health: Int, world: MeadowState, scenery: MeadowScener
                     else { underground = true; effects.say("There is more beneath the grass.") }
                 }
             }
-            if (world.acornStage > 0) MeadowAction("Call squirrel", effects::squirrel)
-            TextButton(onClick = { collection = true }, modifier = Modifier.heightIn(min = 48.dp)) { Text("Discoveries ${entries(world).count { it.found }} / 8") }
+            MeadowAction(if (underground) "Surface" else "Below", if (underground) R.drawable.ic_arrow_up else R.drawable.ic_arrow_down,
+                Modifier.weight(1f), if (underground) "Back to the surface" else "Below ground") { underground = !underground }
+            if (world.acornStage > 0) MeadowAction("Squirrel", R.drawable.ic_sprout, Modifier.weight(1f), "Call squirrel", effects::squirrel)
+            val found = entries(world).count { it.found }
+            Column(Modifier.weight(1f).heightIn(min = 56.dp).clip(RoundedCornerShape(12.dp)).clickable { collection = true }
+                .semantics(mergeDescendants = true) { contentDescription = "Discoveries $found of 8" },
+                horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp, Alignment.CenterVertically)) {
+                Text("$found / 8", style = MetaText.copy(fontSize = 13.sp), color = MaterialTheme.colorScheme.onSurface)
+                Text("Found", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
+            }
         }
         Text(effects.note, modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -112,11 +123,16 @@ internal fun LivingMeadow(health: Int, world: MeadowState, scenery: MeadowScener
     }
 }
 
+/** A meadow toy: a line icon over a short label. [description] is the spoken name when the label is shortened. */
 @Composable
-private fun MeadowAction(text:String,onClick:()->Unit) {
-    OutlinedButton(onClick=onClick,modifier=Modifier.heightIn(min=48.dp),shape=RoundedCornerShape(14.dp),
-        contentPadding=PaddingValues(horizontal=12.dp,vertical=8.dp),
-        colors=ButtonDefaults.outlinedButtonColors(contentColor=MaterialTheme.colorScheme.primary)) { Text(text) }
+private fun MeadowAction(text: String, @androidx.annotation.DrawableRes icon: Int, modifier: Modifier, description: String = text,
+    onClick: () -> Unit) {
+    Column(modifier.heightIn(min = 56.dp).clip(RoundedCornerShape(12.dp)).clickable(onClick = onClick)
+        .semantics(mergeDescendants = true) { contentDescription = description },
+        horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterVertically)) {
+        LineIcon(icon, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(text, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
+    }
 }
 
 internal fun valleyTitle(stage: ValleyStage) = when (stage) {
@@ -147,7 +163,7 @@ internal fun MeadowValleyCard(world: MeadowState) {
     SectionCard(valleyTitle(world.valleyStage)) {
         Text("Clean for ${formatDuration(world.cleanMillis)}", style = MaterialTheme.typography.bodyMedium)
         LinearProgressIndicator(progress = { world.valleyProgress }, modifier = Modifier.fillMaxWidth(),
-            color = MaterialTheme.colorScheme.primary, trackColor = MaterialTheme.colorScheme.primaryContainer)
+            color = Taptation.palette.health, trackColor = Taptation.palette.raised, gapSize = 0.dp, drawStopIndicator = {})
         val next = world.valleyStage.next
         Text(if (next != null) "${valleyTitle(next)} in ${formatDuration(world.valleyRemainingMillis ?: 0)}"
             else "Your whole valley is visible.", style = MaterialTheme.typography.bodySmall)
@@ -176,7 +192,7 @@ internal fun MeadowGrowthCard(world: MeadowState) {
                 style = MaterialTheme.typography.bodyMedium)
         }
         LinearProgressIndicator(progress = { world.milestoneProgress }, modifier = Modifier.fillMaxWidth(),
-            color = MaterialTheme.colorScheme.primary, trackColor = MaterialTheme.colorScheme.primaryContainer)
+            color = Taptation.palette.health, trackColor = Taptation.palette.raised, gapSize = 0.dp, drawStopIndicator = {})
         Text(when {
             !world.checkpointMonitoring -> "Growth waits while monitoring is off. Your discoveries stay."
             !world.checkpointFull -> "Reach 100 health to keep growing. Earlier rewards stay with you."
@@ -207,8 +223,8 @@ private fun UndergroundMeadow(health: Int, world: MeadowState, effects: MeadowEf
     val painter = remember { MeadowPainter() }
     val blades = remember { MeadowMotion().blades }
     val dark = MaterialTheme.colorScheme.background.luminance() < .5f
-    painter.palette(if (dark) GrassDarkHighlight else GrassHighlight, if (dark) GrassDarkBlade else Forest,
-        if (dark) MeadowNightPetal else MeadowPetal, MeadowGold, if (dark) GrassDarkDry else Earth, dark)
+    painter.palette(if (dark) GrassDarkHighlight else GrassHighlight, if (dark) GrassDarkBlade else GrassBlade,
+        if (dark) MeadowNightPetal else MeadowPetal, MeadowGold, if (dark) GrassDarkDry else GrassDry, dark)
     // Own visible clock: the underground keeps moving if its surface has scrolled off screen.
     val lifecycle = androidx.lifecycle.compose.LocalLifecycleOwner.current.lifecycle
     var started by remember { mutableStateOf(lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.STARTED)) }

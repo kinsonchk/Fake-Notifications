@@ -50,6 +50,19 @@ import com.codejam.taptation.ui.common.rememberNow
 import com.codejam.taptation.ui.settings.PauseFlow
 import com.codejam.taptation.ui.settings.SettingsPages
 import com.codejam.taptation.ui.settings.rememberPauseFlow
+import com.codejam.taptation.R
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.material3.ButtonDefaults
+import com.codejam.taptation.ui.common.Bobber
+import com.codejam.taptation.ui.common.GroupRow
+import com.codejam.taptation.ui.common.LineIcon
+import com.codejam.taptation.ui.common.ListGroup
+import com.codejam.taptation.ui.common.RowDivider
+import com.codejam.taptation.ui.common.SectionLabel
+import com.codejam.taptation.ui.theme.ButtonShape
+import com.codejam.taptation.ui.theme.CardShape
+import com.codejam.taptation.ui.theme.MetaText
+import com.codejam.taptation.ui.theme.Taptation
 
 /**
  * Home: one status area, a health-driven meadow, health, one
@@ -79,6 +92,7 @@ fun HomeScreen(contentPadding: PaddingValues, onOpenSettings: (String) -> Unit =
             return@TabScreen
         }
         monitoring?.let { status -> item { StatusArea(status, pause) } }
+        item(key = "health") { HealthFigure(state.health) }
         item(key = "living-meadow") {
             val world = meadowState
             if (world == null) {
@@ -91,7 +105,7 @@ fun HomeScreen(contentPadding: PaddingValues, onOpenSettings: (String) -> Unit =
                 TextButton(onClick=meadow::retry) { Text("Try again") }
             }
         }
-        item { HealthCard(state, now, repository.recoveryIntervalMinutes(state.config)) }
+        item(key = "vitals") { Vitals(state, now, repository.recoveryIntervalMinutes(state.config)) }
         meadowState?.let { world -> item { MeadowValleyCard(world) } }
         meadowState?.let { world -> item { MeadowGrowthCard(world) } }
         if (state.taps.isEmpty()) item { FirstUseCard(state.config.difficulty, onOpenSettings) }
@@ -106,16 +120,16 @@ private fun StatusArea(status: MonitoringStatus, pause: PauseFlow) {
     when (status) {
         MonitoringStatus.SetupNeeded -> NoticeCard("Setup needed", "Notification access is off. Nothing is being checked.") {
             Button(onClick = { PermissionHelper.openNotificationAccessSettings(context) },
-                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp), shape = RoundedCornerShape(16.dp)) {
+                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp), shape = ButtonShape) {
                 Text("Turn on notification access")
             }
         }
         MonitoringStatus.ConnectionInterrupted -> NoticeCard("Connection interrupted",
             "Android stopped Taptation's notification listener. Taps aren't being checked.") {
-            Text("Tip: set battery use to Unrestricted to stop this from happening.", style = MaterialTheme.typography.bodySmall,
+            Text("Setting battery use to Unrestricted stops this from happening.", style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onTertiaryContainer)
             Button(onClick = { TapListenerService.requestReconnect(context) },
-                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp), shape = RoundedCornerShape(16.dp)) { Text("Reconnect") }
+                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp), shape = ButtonShape) { Text("Reconnect") }
             TextButton(onClick = { PermissionHelper.openBatteryOptimizationSettings(context) }) { Text("Open battery settings") }
         }
         is MonitoringStatus.Paused -> SectionCard(
@@ -123,22 +137,24 @@ private fun StatusArea(status: MonitoringStatus, pause: PauseFlow) {
             else "Paused until you turn it back on",
             "No catches or health changes while paused. Your history is kept.") {
             Button(enabled = !pause.busy, onClick = pause.resume, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
-                shape = RoundedCornerShape(16.dp)) { Text("Resume now") }
+                shape = ButtonShape) { Text("Resume now") }
         }
-        is MonitoringStatus.Monitoring -> Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,
+        is MonitoringStatus.Monitoring -> Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp),
             verticalAlignment = Alignment.CenterVertically) {
-            StatusPill("●  Monitoring notifications", good = true)
-            TextButton(enabled = !pause.busy, onClick = pause.pause) { Text("Pause") }
+            Bobber(live = true)
+            Text("Watching notifications", Modifier.weight(1f), style = MaterialTheme.typography.titleSmall)
+            TextButton(enabled = !pause.busy, onClick = pause.pause,
+                colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.onSurface)) { Text("Pause") }
         }
     }
 }
 
 @Composable
 private fun NoticeCard(title: String, body: String, actions: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit) {
-    Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(20.dp),
+    Card(Modifier.fillMaxWidth(), shape = CardShape,
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer,
             contentColor = MaterialTheme.colorScheme.onTertiaryContainer)) {
-        Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(title, style = MaterialTheme.typography.titleMedium)
             Text(body, style = MaterialTheme.typography.bodyMedium)
             actions()
@@ -168,72 +184,90 @@ private fun Step(number: String, text: String) {
 private fun SetupRow(title: String, hint: String, onClick: () -> Unit) {
     Row(Modifier.fillMaxWidth().heightIn(min = 48.dp).clickable(onClick = onClick), verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text("○", color = MaterialTheme.colorScheme.onSurfaceVariant)
         Column(Modifier.weight(1f)) {
             Text(title, style = MaterialTheme.typography.titleSmall)
             Text(hint, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
-        Text("›", style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        LineIcon(R.drawable.ic_chevron_right)
+    }
+}
+
+/** The health figure above the meadow; the meadow itself is the bar. */
+@Composable
+private fun HealthFigure(health: Int) {
+    Column(Modifier.fillMaxWidth().semantics(mergeDescendants = true) { contentDescription = "Health $health out of 100" },
+        verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Text(health.toString(), style = MaterialTheme.typography.displayMedium)
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            LineIcon(R.drawable.ic_heart, size = 14.dp, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("Health out of 100", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+    }
+}
+
+/** What a catch costs, how health comes back, and the cooldown or zero-health state when they apply. */
+@Composable
+private fun Vitals(state: GameState, now: Long, recoveryIntervalMinutes: Int) {
+    val config = state.config
+    val cooldown = (state.lockoutUntilMillis - now).coerceAtLeast(0)
+    Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        Vital("Catch", "−${config.currentDamage}", Modifier.weight(1f), Taptation.palette.catchText)
+        Vital("Recovery", "+${config.recoveryAmount} per ${recoveryIntervalMinutes} min", Modifier.weight(1.4f))
+        when {
+            state.isDead -> Vital("Health", "At zero", Modifier.weight(1f), Taptation.palette.catchText)
+            cooldown > 0 -> Vital("No catch for", "${(cooldown + 999) / 1000} s", Modifier.weight(1f))
+            else -> Spacer(Modifier.weight(1f))
+        }
     }
 }
 
 @Composable
-private fun HealthCard(state: GameState, now: Long, recoveryIntervalMinutes: Int) {
-    val config = state.config
-    androidx.compose.material3.Surface(shape = RoundedCornerShape(20.dp),
-        color = MaterialTheme.colorScheme.surfaceContainerLowest, contentColor = MaterialTheme.colorScheme.onSurface,
-        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) {
-        Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                Text("💚 Health", style = MaterialTheme.typography.titleMedium)
-                Text("${state.health} / 100", style = MaterialTheme.typography.headlineSmall)
-            }
-            LinearProgressIndicator(progress = { state.health / 100f },
-                modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Health ${state.health} out of 100" },
-                color = MaterialTheme.colorScheme.primary)
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text("Catch: −${config.currentDamage}", Modifier.weight(1f), style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Text("Recovery: +${config.recoveryAmount} / $recoveryIntervalMinutes clean min",
-                    Modifier.weight(1f), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = TextAlign.End)
-            }
-            val cooldown = (state.lockoutUntilMillis - now).coerceAtLeast(0)
-            if (cooldown > 0) Text("No extra catch for ${(cooldown + 999) / 1000} s.", style = MaterialTheme.typography.bodySmall)
-            if (state.isDead) {
-                Text("Health is at zero.", style = MaterialTheme.typography.bodySmall)
-            }
-        }
+private fun Vital(label: String, value: String, modifier: Modifier, color: androidx.compose.ui.graphics.Color = MaterialTheme.colorScheme.onSurface) {
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        Text(label, style = MetaText, color = Taptation.palette.muted)
+        Text(value, style = MaterialTheme.typography.titleSmall, color = color)
     }
 }
 
 @Composable
 private fun RecentActivity(state: GameState, labels: AppLabels) {
-    SectionCard("Recent activity") {
-        state.taps.takeLast(4).asReversed().forEach { tap -> ActivityRow(tap, labels) }
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        SectionLabel("Recent")
+        ListGroup {
+            state.taps.takeLast(4).asReversed().forEachIndexed { index, tap ->
+                if (index > 0) RowDivider()
+                ActivityRow(tap, labels)
+            }
+        }
     }
 }
 
 @Composable
 private fun ActivityRow(tap: TapRecord, labels: AppLabels) {
-    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        AppIcon(tap.packageName, labels, 40.dp)
+    Row(Modifier.fillMaxWidth().heightIn(min = 56.dp).padding(horizontal = 16.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        AppIcon(tap.packageName, labels, 32.dp)
         Column(Modifier.weight(1f)) {
             Text(labels.label(tap.packageName), style = MaterialTheme.typography.titleSmall)
             Text(TapExplanations.outcome(tap.outcome, tap.reason, tap.damage), style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant)
+                color = if (tap.outcome == com.codejam.taptation.logic.TapOutcome.Caught) Taptation.palette.catchText
+                    else MaterialTheme.colorScheme.onSurfaceVariant)
         }
         Text(java.text.DateFormat.getTimeInstance(java.text.DateFormat.SHORT).format(java.util.Date(tap.timestampMillis)),
-            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            style = MetaText, color = Taptation.palette.muted)
     }
 }
 
 @Composable
 private fun AllTimeCard(state: GameState, now: Long) {
-    SectionCard("All time") {
-        LabelValue("Catches", state.totalCatches.toString())
-        LabelValue("Notifications opened", state.tapsPerApp.values.sum().toString())
-        state.timeSinceLastCatchMillis(now)?.let { LabelValue("Since last catch", formatDuration(it)) }
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        SectionLabel("All time")
+        ListGroup {
+            GroupRow("Catches", value = state.totalCatches.toString())
+            RowDivider()
+            GroupRow("Notifications opened", value = state.tapsPerApp.values.sum().toString())
+            state.timeSinceLastCatchMillis(now)?.let { RowDivider(); GroupRow("Since last catch", value = formatDuration(it)) }
+        }
     }
 }
 

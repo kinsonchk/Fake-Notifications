@@ -1,6 +1,6 @@
 # Taptation logo
 
-`taptation-logo-concept.png` is the transparent source artwork, generated with the built-in image tool. Direction: playful golden fish catching notification bait, meadow accents, forest green and cream.
+`taptation-logo-concept.png` is the transparent source artwork, generated with the built-in image tool. Direction: playful golden fish catching notification bait, meadow accents, forest green and cream. The app UI has since moved to the Lake & bobber palette (see `docs/UI_DESIGN_GUIDE.md`); the launcher artwork was not changed.
 
 The Android launcher uses this artwork over Night (`#19221D`). The 432px adaptive foreground includes transparent padding so launcher masks and movement retain the fish. Both launcher entries share the same adaptive resources. Density-specific PNGs cover fallback icons; Android themed icons use the simplified fish vector in `ic_launcher_monochrome.xml`.
 
